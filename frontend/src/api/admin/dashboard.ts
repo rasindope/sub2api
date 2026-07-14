@@ -12,6 +12,7 @@ import type {
   ApiKeyUsageTrendPoint,
   UserUsageTrendPoint,
   UserSpendingRankingResponse,
+  ApiKeySpendingRankingResponse,
   UserBreakdownItem,
   UsageRequestType
 } from '@/types'
@@ -245,6 +246,11 @@ export interface UserSpendingRankingParams
   limit?: number
 }
 
+export interface ApiKeySpendingRankingParams
+  extends Pick<TrendParams, 'start_date' | 'end_date'> {
+  limit?: number
+}
+
 /**
  * Get user usage trend data
  * @param params - Query parameters for filtering
@@ -266,6 +272,20 @@ export async function getUserSpendingRanking(
   params?: UserSpendingRankingParams
 ): Promise<UserSpendingRankingResponse> {
   const { data } = await apiClient.get<UserSpendingRankingResponse>('/admin/dashboard/users-ranking', {
+    params
+  })
+  return data
+}
+
+/**
+ * Get API key spending ranking data
+ * @param params - Query parameters for filtering
+ * @returns API key spending ranking data
+ */
+export async function getApiKeySpendingRanking(
+  params?: ApiKeySpendingRankingParams
+): Promise<ApiKeySpendingRankingResponse> {
+  const { data } = await apiClient.get<ApiKeySpendingRankingResponse>('/admin/dashboard/api-keys-ranking', {
     params
   })
   return data
@@ -337,6 +357,7 @@ export const dashboardAPI = {
   getApiKeyUsageTrend,
   getUserUsageTrend,
   getUserSpendingRanking,
+  getApiKeySpendingRanking,
   getBatchUsersUsage,
   getBatchApiKeysUsage
 }
