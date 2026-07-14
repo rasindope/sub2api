@@ -23,6 +23,10 @@ type UserUsageTrendPoint = usagestats.UserUsageTrendPoint
 type UserSpendingRankingItem = usagestats.UserSpendingRankingItem
 type UserSpendingRankingResponse = usagestats.UserSpendingRankingResponse
 
+// APIKeySpendingRankingItem represents an API key spending ranking row.
+type APIKeySpendingRankingItem = usagestats.APIKeySpendingRankingItem
+type APIKeySpendingRankingResponse = usagestats.APIKeySpendingRankingResponse
+
 // APIKeyUsageTrendPoint represents API key usage trend data point
 type APIKeyUsageTrendPoint = usagestats.APIKeyUsageTrendPoint
 
@@ -215,6 +219,93 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 	}
 
 	return &UserSpendingRankingResponse{
+		Ranking:         ranking,
+		TotalActualCost: totalActualCost,
+		TotalRequests:   totalRequests,
+		TotalTokens:     totalTokens,
+	}, nil
+}
+
+// GetAPIKeySpendingRanking returns API key spending ranking aggregated within the time range.
+func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (result *APIKeySpendingRankingResponse, err error) {
+	if limit <= 0 {
+		limit = 12
+	}
+
+	query := `
+		WITH key_spend AS (
+			SELECT
+				u.api_key_id,
+				COALESCE(k.name, '') as key_name,
+				COALESCE(k.user_id, u.user_id) as user_id,
+				COALESCE(us.email, '') as email,
+				COALESCE(SUM(u.actual_cost), 0) as actual_cost,
+				COUNT(*) as requests,
+				COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens), 0) as tokens
+			FROM usage_logs u
+			LEFT JOIN api_keys k ON u.api_key_id = k.id
+			LEFT JOIN users us ON us.id = COALESCE(k.user_id, u.user_id)
+			WHERE u.created_at >= $1 AND u.created_at < $2
+			GROUP BY u.api_key_id, k.name, COALESCE(k.user_id, u.user_id), us.email
+		),
+		ranked AS (
+			SELECT
+				api_key_id,
+				key_name,
+				user_id,
+				email,
+				actual_cost,
+				requests,
+				tokens,
+				COALESCE(SUM(actual_cost) OVER (), 0) as total_actual_cost,
+				COALESCE(SUM(requests) OVER (), 0) as total_requests,
+				COALESCE(SUM(tokens) OVER (), 0) as total_tokens
+			FROM key_spend
+			ORDER BY actual_cost DESC, tokens DESC, api_key_id ASC
+			LIMIT $3
+		)
+		SELECT
+			api_key_id,
+			key_name,
+			user_id,
+			email,
+			actual_cost,
+			requests,
+			tokens,
+			total_actual_cost,
+			total_requests,
+			total_tokens
+		FROM ranked
+		ORDER BY actual_cost DESC, tokens DESC, api_key_id ASC
+	`
+
+	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
+
+	ranking := make([]APIKeySpendingRankingItem, 0)
+	totalActualCost := 0.0
+	totalRequests := int64(0)
+	totalTokens := int64(0)
+	for rows.Next() {
+		var row APIKeySpendingRankingItem
+		if err = rows.Scan(&row.APIKeyID, &row.KeyName, &row.UserID, &row.Email, &row.ActualCost, &row.Requests, &row.Tokens, &totalActualCost, &totalRequests, &totalTokens); err != nil {
+			return nil, err
+		}
+		ranking = append(ranking, row)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &APIKeySpendingRankingResponse{
 		Ranking:         ranking,
 		TotalActualCost: totalActualCost,
 		TotalRequests:   totalRequests,
