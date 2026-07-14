@@ -6,9 +6,12 @@ import ModelDistributionChart from '../ModelDistributionChart.vue'
 const messages: Record<string, string> = {
   'admin.dashboard.modelDistribution': 'Model Distribution',
   'admin.dashboard.spendingRankingTitle': 'User Spending Ranking',
+  'admin.dashboard.apiKeySpendingRankingTitle': 'Key Spending Ranking',
   'admin.dashboard.viewModelDistribution': 'Model Distribution',
   'admin.dashboard.viewSpendingRanking': 'User Spending Ranking',
+  'admin.dashboard.viewApiKeySpendingRanking': 'Key Spending Ranking',
   'admin.dashboard.spendingRankingUser': 'User',
+  'admin.dashboard.spendingRankingApiKey': 'Key',
   'admin.dashboard.spendingRankingRequests': 'Requests',
   'admin.dashboard.spendingRankingTokens': 'Tokens',
   'admin.dashboard.spendingRankingSpend': 'Spend',
@@ -59,6 +62,7 @@ describe('ModelDistributionChart', () => {
       total_tokens: 1000,
       cost: 1.5,
       actual_cost: 0.2,
+      account_cost: 0.8,
     },
     {
       model: 'model-b',
@@ -70,6 +74,7 @@ describe('ModelDistributionChart', () => {
       total_tokens: 500,
       cost: 0.5,
       actual_cost: 1.4,
+      account_cost: 0.3,
     },
   ]
 
@@ -197,5 +202,40 @@ describe('ModelDistributionChart', () => {
     expect(rows[3].text()).toContain('4')
     expect(rows[3].text()).toContain('400')
     expect(rows[3].text()).toContain('$10.00')
+  })
+
+  it('can open on API key spending ranking by default', () => {
+    const wrapper = mount(ModelDistributionChart, {
+      props: {
+        modelStats: [],
+        enableRankingView: true,
+        defaultRankingView: 'api_key_spending_ranking',
+        apiKeyRankingItems: [
+          {
+            api_key_id: 9,
+            key_name: 'sales-key',
+            user_id: 1,
+            email: 'owner@example.com',
+            actual_cost: 5,
+            requests: 4,
+            tokens: 500,
+          },
+        ],
+        apiKeyRankingTotalActualCost: 5,
+        apiKeyRankingTotalRequests: 4,
+        apiKeyRankingTotalTokens: 500,
+      },
+      global: {
+        stubs: {
+          LoadingSpinner: true,
+        },
+      },
+    })
+
+    expect(wrapper.find('h3').text()).toBe('Key Spending Ranking')
+    expect(wrapper.text()).toContain('sales-key')
+    const chartData = JSON.parse(wrapper.find('.chart-data').text())
+    expect(chartData.labels).toEqual(['#1 sales-key'])
+    expect(chartData.datasets[0].data).toEqual([5])
   })
 })
