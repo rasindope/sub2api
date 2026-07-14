@@ -306,26 +306,34 @@
               :ranking-total-actual-cost="rankingTotalActualCost"
               :ranking-total-requests="rankingTotalRequests"
               :ranking-total-tokens="rankingTotalTokens"
+              :api-key-ranking-items="apiKeyRankingItems"
+              :api-key-ranking-total-actual-cost="apiKeyRankingTotalActualCost"
+              :api-key-ranking-total-requests="apiKeyRankingTotalRequests"
+              :api-key-ranking-total-tokens="apiKeyRankingTotalTokens"
               :loading="chartsLoading"
               :ranking-loading="rankingLoading"
               :ranking-error="rankingError"
+              :api-key-ranking-loading="apiKeyRankingLoading"
+              :api-key-ranking-error="apiKeyRankingError"
+              default-ranking-view="api_key_spending_ranking"
               :start-date="startDate"
               :end-date="endDate"
               @ranking-click="goToUserUsage"
+              @api-key-ranking-click="goToAPIKeyUsage"
             />
             <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
           </div>
 
-          <!-- User Usage Trend (Full Width) -->
+          <!-- API Key Usage Trend (Full Width) -->
           <div class="card p-4">
             <h3 class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
-              {{ t('admin.dashboard.recentUsage') }} (Top 12)
+              {{ t('admin.dashboard.apiKeyUsageTrend') }} (Top 12)
             </h3>
             <div class="h-64">
-              <div v-if="userTrendLoading" class="flex h-full items-center justify-center">
+              <div v-if="apiKeyTrendLoading" class="flex h-full items-center justify-center">
                 <LoadingSpinner size="md" />
               </div>
-              <Line v-else-if="userTrendChartData" :data="userTrendChartData" :options="lineOptions" />
+              <Line v-else-if="apiKeyTrendChartData" :data="apiKeyTrendChartData" :options="lineOptions" />
               <div
                 v-else
                 class="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400"
@@ -352,8 +360,9 @@ import type {
   DashboardStats,
   TrendDataPoint,
   ModelStat,
-  UserUsageTrendPoint,
-  UserSpendingRankingItem
+  ApiKeyUsageTrendPoint,
+  UserSpendingRankingItem,
+  ApiKeySpendingRankingItem
 } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
@@ -393,21 +402,28 @@ const { canUseBatchImage, refreshBatchImageAccess } = useBatchImageAccess()
 const stats = ref<DashboardStats | null>(null)
 const loading = ref(false)
 const chartsLoading = ref(false)
-const userTrendLoading = ref(false)
+const apiKeyTrendLoading = ref(false)
 const rankingLoading = ref(false)
 const rankingError = ref(false)
+const apiKeyRankingLoading = ref(false)
+const apiKeyRankingError = ref(false)
 
 // Chart data
 const trendData = ref<TrendDataPoint[]>([])
 const modelStats = ref<ModelStat[]>([])
-const userTrend = ref<UserUsageTrendPoint[]>([])
+const apiKeyTrend = ref<ApiKeyUsageTrendPoint[]>([])
 const rankingItems = ref<UserSpendingRankingItem[]>([])
 const rankingTotalActualCost = ref(0)
 const rankingTotalRequests = ref(0)
 const rankingTotalTokens = ref(0)
+const apiKeyRankingItems = ref<ApiKeySpendingRankingItem[]>([])
+const apiKeyRankingTotalActualCost = ref(0)
+const apiKeyRankingTotalRequests = ref(0)
+const apiKeyRankingTotalTokens = ref(0)
 let chartLoadSeq = 0
-let usersTrendLoadSeq = 0
+let apiKeyTrendLoadSeq = 0
 let rankingLoadSeq = 0
+let apiKeyRankingLoadSeq = 0
 const rankingLimit = 12
 
 // Helper function to format date in local timezone
@@ -447,7 +463,7 @@ const chartColors = computed(() => ({
   grid: isDarkMode.value ? '#374151' : '#e5e7eb'
 }))
 
-// Line chart options (for user trend chart)
+// Line chart options (for API key trend chart)
 const lineOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
@@ -508,35 +524,27 @@ const lineOptions = computed(() => ({
   }
 }))
 
-// User trend chart data
-const userTrendChartData = computed(() => {
-  if (!userTrend.value?.length) return null
+// API key trend chart data
+const apiKeyTrendChartData = computed(() => {
+  if (!apiKeyTrend.value?.length) return null
 
-  const getDisplayName = (point: UserUsageTrendPoint): string => {
-    const username = point.username?.trim()
-    if (username) {
-      return username
-    }
-
-    const email = point.email?.trim()
-    if (email) {
-      return email
-    }
-
-    return t('admin.redeem.userPrefix', { id: point.user_id })
+  const getDisplayName = (point: ApiKeyUsageTrendPoint): string => {
+    const keyName = point.key_name?.trim()
+    if (keyName) return keyName
+    return `Key #${point.api_key_id}`
   }
 
-  // Group by user_id to avoid merging different users with the same display name
-  const userGroups = new Map<number, { name: string; data: Map<string, number> }>()
+  // Group by api_key_id to avoid merging different keys with the same display name
+  const apiKeyGroups = new Map<number, { name: string; data: Map<string, number> }>()
   const allDates = new Set<string>()
 
-  userTrend.value.forEach((point) => {
+  apiKeyTrend.value.forEach((point) => {
     allDates.add(point.date)
-    const key = point.user_id
-    if (!userGroups.has(key)) {
-      userGroups.set(key, { name: getDisplayName(point), data: new Map() })
+    const key = point.api_key_id
+    if (!apiKeyGroups.has(key)) {
+      apiKeyGroups.set(key, { name: getDisplayName(point), data: new Map() })
     }
-    userGroups.get(key)!.data.set(point.date, point.tokens)
+    apiKeyGroups.get(key)!.data.set(point.date, point.tokens)
   })
 
   const sortedDates = Array.from(allDates).sort()
@@ -555,7 +563,7 @@ const userTrendChartData = computed(() => {
     '#a855f7'
   ]
 
-  const datasets = Array.from(userGroups.values()).map((group, idx) => ({
+  const datasets = Array.from(apiKeyGroups.values()).map((group, idx) => ({
     label: group.name,
     data: sortedDates.map((date) => group.data.get(date) || 0),
     borderColor: colors[idx % colors.length],
@@ -622,6 +630,17 @@ const goToUserUsage = (item: UserSpendingRankingItem) => {
   })
 }
 
+const goToAPIKeyUsage = (item: ApiKeySpendingRankingItem) => {
+  void router.push({
+    path: '/admin/usage',
+    query: {
+      api_key_id: String(item.api_key_id),
+      start_date: startDate.value,
+      end_date: endDate.value
+    }
+  })
+}
+
 // Date range change handler
 const onDateRangeChange = (range: {
   startDate: string
@@ -679,25 +698,25 @@ const loadDashboardSnapshot = async (includeStats: boolean) => {
   }
 }
 
-const loadUsersTrend = async () => {
-  const currentSeq = ++usersTrendLoadSeq
-  userTrendLoading.value = true
+const loadAPIKeyTrend = async () => {
+  const currentSeq = ++apiKeyTrendLoadSeq
+  apiKeyTrendLoading.value = true
   try {
-    const response = await adminAPI.dashboard.getUserUsageTrend({
+    const response = await adminAPI.dashboard.getApiKeyUsageTrend({
       start_date: startDate.value,
       end_date: endDate.value,
       granularity: granularity.value,
-      limit: 12
+      limit: rankingLimit
     })
-    if (currentSeq !== usersTrendLoadSeq) return
-    userTrend.value = response.trend || []
+    if (currentSeq !== apiKeyTrendLoadSeq) return
+    apiKeyTrend.value = response.trend || []
   } catch (error) {
-    if (currentSeq !== usersTrendLoadSeq) return
-    console.error('Error loading users trend:', error)
-    userTrend.value = []
+    if (currentSeq !== apiKeyTrendLoadSeq) return
+    console.error('Error loading API key trend:', error)
+    apiKeyTrend.value = []
   } finally {
-    if (currentSeq === usersTrendLoadSeq) {
-      userTrendLoading.value = false
+    if (currentSeq === apiKeyTrendLoadSeq) {
+      apiKeyTrendLoading.value = false
     }
   }
 }
@@ -732,19 +751,51 @@ const loadUserSpendingRanking = async () => {
   }
 }
 
+const loadAPIKeySpendingRanking = async () => {
+  const currentSeq = ++apiKeyRankingLoadSeq
+  apiKeyRankingLoading.value = true
+  apiKeyRankingError.value = false
+  try {
+    const response = await adminAPI.dashboard.getApiKeySpendingRanking({
+      start_date: startDate.value,
+      end_date: endDate.value,
+      limit: rankingLimit
+    })
+    if (currentSeq !== apiKeyRankingLoadSeq) return
+    apiKeyRankingItems.value = response.ranking || []
+    apiKeyRankingTotalActualCost.value = response.total_actual_cost || 0
+    apiKeyRankingTotalRequests.value = response.total_requests || 0
+    apiKeyRankingTotalTokens.value = response.total_tokens || 0
+  } catch (error) {
+    if (currentSeq !== apiKeyRankingLoadSeq) return
+    console.error('Error loading API key spending ranking:', error)
+    apiKeyRankingItems.value = []
+    apiKeyRankingTotalActualCost.value = 0
+    apiKeyRankingTotalRequests.value = 0
+    apiKeyRankingTotalTokens.value = 0
+    apiKeyRankingError.value = true
+  } finally {
+    if (currentSeq === apiKeyRankingLoadSeq) {
+      apiKeyRankingLoading.value = false
+    }
+  }
+}
+
 const loadDashboardStats = async () => {
   await Promise.all([
     loadDashboardSnapshot(true),
-    loadUsersTrend(),
-    loadUserSpendingRanking()
+    loadAPIKeyTrend(),
+    loadUserSpendingRanking(),
+    loadAPIKeySpendingRanking()
   ])
 }
 
 const loadChartData = async () => {
   await Promise.all([
     loadDashboardSnapshot(false),
-    loadUsersTrend(),
-    loadUserSpendingRanking()
+    loadAPIKeyTrend(),
+    loadUserSpendingRanking(),
+    loadAPIKeySpendingRanking()
   ])
 }
 
