@@ -120,7 +120,7 @@ describe('UsageFilters — user search dropdown', () => {
     const wrapper = mountFilters()
 
     // Trigger focus (sets showUserDropdown = true) then input (fires debounceUserSearch)
-    const input = wrapper.find('input[type="text"]')
+    const input = wrapper.find('input[placeholder="Search user..."]')
     await input.trigger('focus')
     await input.setValue('test')
     await input.trigger('input')

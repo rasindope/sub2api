@@ -4,7 +4,9 @@
       <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
         {{ !enableRankingView || activeView === 'model_distribution'
           ? t('admin.dashboard.modelDistribution')
-          : t('admin.dashboard.spendingRankingTitle') }}
+          : activeView === 'spending_ranking'
+            ? t('admin.dashboard.spendingRankingTitle')
+            : t('admin.dashboard.apiKeySpendingRankingTitle') }}
       </h3>
       <div class="flex flex-wrap items-center justify-end gap-2">
         <div
@@ -92,6 +94,18 @@
           >
             {{ t('admin.dashboard.viewSpendingRanking') }}
           </button>
+          <button
+            type="button"
+            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+            :class="
+              activeView === 'api_key_spending_ranking'
+                ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+            "
+            @click="activeView = 'api_key_spending_ranking'"
+          >
+            {{ t('admin.dashboard.viewApiKeySpendingRanking') }}
+          </button>
         </div>
       </div>
     </div>
@@ -173,16 +187,16 @@
       {{ t('admin.dashboard.noDataAvailable') }}
     </div>
 
-    <div v-else-if="rankingLoading" class="flex h-48 items-center justify-center">
+    <div v-else-if="activeRankingState.loading" class="flex h-48 items-center justify-center">
       <LoadingSpinner />
     </div>
     <div
-      v-else-if="rankingError"
+      v-else-if="activeRankingState.error"
       class="flex h-48 items-center justify-center text-sm text-gray-500 dark:text-gray-400"
     >
       {{ t('admin.dashboard.failedToLoad') }}
     </div>
-    <div v-else-if="rankingDisplayItems.length > 0 && rankingChartData" class="flex items-center gap-6">
+    <div v-else-if="activeRankingDisplayItems.length > 0 && rankingChartData" class="flex items-center gap-6">
       <div class="h-48 w-48">
         <Doughnut :data="rankingChartData" :options="rankingDoughnutOptions" />
       </div>
@@ -190,7 +204,7 @@
         <table class="w-full text-xs">
           <thead>
             <tr class="text-gray-500 dark:text-gray-400">
-              <th class="pb-2 text-left">{{ t('admin.dashboard.spendingRankingUser') }}</th>
+              <th class="pb-2 text-left">{{ activeRankingNameHeader }}</th>
               <th class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingRequests') }}</th>
               <th class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingTokens') }}</th>
               <th class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingSpend') }}</th>
@@ -198,13 +212,13 @@
           </thead>
           <tbody>
             <tr
-              v-for="(item, index) in rankingDisplayItems"
-              :key="item.isOther ? 'others' : `${item.user_id}-${index}`"
+              v-for="(item, index) in activeRankingDisplayItems"
+              :key="getRankingRowKey(item, index)"
               class="border-t border-gray-100 transition-colors dark:border-gray-700"
               :class="item.isOther
                 ? 'bg-gray-50/70 dark:bg-dark-700/20'
                 : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-700/40'"
-              @click="item.isOther ? undefined : emit('ranking-click', item)"
+              @click="handleRankingClick(item)"
             >
               <td class="py-1.5">
                 <div class="flex min-w-0 items-center gap-2">
@@ -249,7 +263,12 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { Doughnut } from 'vue-chartjs'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import UserBreakdownSubTable from './UserBreakdownSubTable.vue'
-import type { ModelStat, UserSpendingRankingItem, UserBreakdownItem } from '@/types'
+import type {
+  ApiKeySpendingRankingItem,
+  ModelStat,
+  UserBreakdownItem,
+  UserSpendingRankingItem
+} from '@/types'
 import { getUserBreakdown } from '@/api/admin/dashboard'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
@@ -258,7 +277,10 @@ const { t } = useI18n()
 
 type DistributionMetric = 'tokens' | 'actual_cost'
 type ModelSource = 'requested' | 'upstream' | 'mapping'
-type RankingDisplayItem = UserSpendingRankingItem & { isOther?: boolean }
+type RankingView = 'model_distribution' | 'spending_ranking' | 'api_key_spending_ranking'
+type UserRankingDisplayItem = UserSpendingRankingItem & { isOther?: boolean }
+type ApiKeyRankingDisplayItem = ApiKeySpendingRankingItem & { isOther?: boolean }
+type RankingDisplayItem = UserRankingDisplayItem | ApiKeyRankingDisplayItem
 const props = withDefaults(defineProps<{
   modelStats: ModelStat[]
   upstreamModelStats?: ModelStat[]
@@ -269,6 +291,10 @@ const props = withDefaults(defineProps<{
   rankingTotalActualCost?: number
   rankingTotalRequests?: number
   rankingTotalTokens?: number
+  apiKeyRankingItems?: ApiKeySpendingRankingItem[]
+  apiKeyRankingTotalActualCost?: number
+  apiKeyRankingTotalRequests?: number
+  apiKeyRankingTotalTokens?: number
   loading?: boolean
   metric?: DistributionMetric
   showSourceToggle?: boolean
@@ -277,6 +303,9 @@ const props = withDefaults(defineProps<{
   showAccountCost?: boolean
   rankingLoading?: boolean
   rankingError?: boolean
+  apiKeyRankingLoading?: boolean
+  apiKeyRankingError?: boolean
+  defaultRankingView?: RankingView
   startDate?: string
   endDate?: string
   filters?: Record<string, any>
@@ -289,6 +318,10 @@ const props = withDefaults(defineProps<{
   rankingTotalActualCost: 0,
   rankingTotalRequests: 0,
   rankingTotalTokens: 0,
+  apiKeyRankingItems: () => [],
+  apiKeyRankingTotalActualCost: 0,
+  apiKeyRankingTotalRequests: 0,
+  apiKeyRankingTotalTokens: 0,
   loading: false,
   metric: 'tokens',
   showSourceToggle: false,
@@ -296,7 +329,10 @@ const props = withDefaults(defineProps<{
   enableBreakdown: true,
   showAccountCost: true,
   rankingLoading: false,
-  rankingError: false
+  rankingError: false,
+  apiKeyRankingLoading: false,
+  apiKeyRankingError: false,
+  defaultRankingView: 'model_distribution'
 })
 
 const expandedKey = ref<string | null>(null)
@@ -332,12 +368,13 @@ const emit = defineEmits<{
   'update:metric': [value: DistributionMetric]
   'update:source': [value: ModelSource]
   'ranking-click': [item: UserSpendingRankingItem]
+  'api-key-ranking-click': [item: ApiKeySpendingRankingItem]
 }>()
 
 const enableRankingView = computed(() => props.enableRankingView)
+const activeView = ref<RankingView>(props.enableRankingView ? props.defaultRankingView : 'model_distribution')
 const showAccountCost = computed(() => props.showAccountCost)
 const distributionColspan = computed(() => showAccountCost.value ? 6 : 5)
-const activeView = ref<'model_distribution' | 'spending_ranking'>('model_distribution')
 
 const chartColors = [
   '#3b82f6',
@@ -382,15 +419,16 @@ const chartData = computed(() => {
 })
 
 const rankingChartData = computed(() => {
-  if (!props.rankingItems?.length) return null
+  const items = activeRankingItems.value
+  if (!items.length) return null
 
-  const labels = props.rankingItems.map((item, index) => `#${index + 1} ${getRankingUserLabel(item)}`)
-  const data = props.rankingItems.map((item) => toFiniteNumber(item.actual_cost))
-  const backgroundColor = chartColors.slice(0, props.rankingItems.length)
+  const labels = items.map((item, index) => `#${index + 1} ${getRankingEntityLabel(item)}`)
+  const data = items.map((item) => toFiniteNumber(item.actual_cost))
+  const backgroundColor = chartColors.slice(0, items.length)
 
   if (otherRankingItem.value) {
     labels.push(t('admin.dashboard.spendingRankingOther'))
-    data.push(otherRankingItem.value.actual_cost)
+    data.push(toFiniteNumber(otherRankingItem.value.actual_cost))
     backgroundColor.push('#94a3b8')
   }
 
@@ -406,18 +444,56 @@ const rankingChartData = computed(() => {
   }
 })
 
+const activeRankingItems = computed<RankingDisplayItem[]>(() => activeView.value === 'api_key_spending_ranking'
+  ? props.apiKeyRankingItems
+  : props.rankingItems)
+
+const activeRankingTotals = computed(() => activeView.value === 'api_key_spending_ranking'
+  ? {
+      totalActualCost: props.apiKeyRankingTotalActualCost,
+      totalRequests: props.apiKeyRankingTotalRequests,
+      totalTokens: props.apiKeyRankingTotalTokens
+    }
+  : {
+      totalActualCost: props.rankingTotalActualCost,
+      totalRequests: props.rankingTotalRequests,
+      totalTokens: props.rankingTotalTokens
+    })
+
+const activeRankingState = computed(() => activeView.value === 'api_key_spending_ranking'
+  ? { loading: props.apiKeyRankingLoading, error: props.apiKeyRankingError }
+  : { loading: props.rankingLoading, error: props.rankingError })
+
+const activeRankingNameHeader = computed(() => activeView.value === 'api_key_spending_ranking'
+  ? t('admin.dashboard.spendingRankingApiKey')
+  : t('admin.dashboard.spendingRankingUser'))
+
 const otherRankingItem = computed<RankingDisplayItem | null>(() => {
-  if (!props.rankingItems?.length) return null
+  const items = activeRankingItems.value
+  if (!items.length) return null
 
-  const rankedActualCost = props.rankingItems.reduce((sum, item) => sum + toFiniteNumber(item.actual_cost), 0)
-  const rankedRequests = props.rankingItems.reduce((sum, item) => sum + toFiniteNumber(item.requests), 0)
-  const rankedTokens = props.rankingItems.reduce((sum, item) => sum + toFiniteNumber(item.tokens), 0)
+  const rankedActualCost = items.reduce((sum, item) => sum + toFiniteNumber(item.actual_cost), 0)
+  const rankedRequests = items.reduce((sum, item) => sum + toFiniteNumber(item.requests), 0)
+  const rankedTokens = items.reduce((sum, item) => sum + toFiniteNumber(item.tokens), 0)
 
-  const otherActualCost = Math.max((props.rankingTotalActualCost || 0) - rankedActualCost, 0)
-  const otherRequests = Math.max((props.rankingTotalRequests || 0) - rankedRequests, 0)
-  const otherTokens = Math.max((props.rankingTotalTokens || 0) - rankedTokens, 0)
+  const otherActualCost = Math.max((activeRankingTotals.value.totalActualCost || 0) - rankedActualCost, 0)
+  const otherRequests = Math.max((activeRankingTotals.value.totalRequests || 0) - rankedRequests, 0)
+  const otherTokens = Math.max((activeRankingTotals.value.totalTokens || 0) - rankedTokens, 0)
 
   if (otherActualCost <= 0.000001 && otherRequests <= 0 && otherTokens <= 0) return null
+
+  if (activeView.value === 'api_key_spending_ranking') {
+    return {
+      api_key_id: 0,
+      key_name: '',
+      user_id: 0,
+      email: '',
+      actual_cost: otherActualCost,
+      requests: otherRequests,
+      tokens: otherTokens,
+      isOther: true
+    }
+  }
 
   return {
     user_id: 0,
@@ -429,11 +505,12 @@ const otherRankingItem = computed<RankingDisplayItem | null>(() => {
   }
 })
 
-const rankingDisplayItems = computed<RankingDisplayItem[]>(() => {
-  if (!props.rankingItems?.length) return []
+const activeRankingDisplayItems = computed<RankingDisplayItem[]>(() => {
+  const items = activeRankingItems.value
+  if (!items.length) return []
   return otherRankingItem.value
-    ? [...props.rankingItems, otherRankingItem.value]
-    : [...props.rankingItems]
+    ? [...items, otherRankingItem.value]
+    : [...items]
 })
 
 const doughnutOptions = computed(() => ({
@@ -499,9 +576,36 @@ const getRankingUserLabel = (item: UserSpendingRankingItem): string => {
   return t('admin.redeem.userPrefix', { id: item.user_id })
 }
 
+const isApiKeyRankingItem = (item: RankingDisplayItem): item is ApiKeyRankingDisplayItem => {
+  return 'api_key_id' in item
+}
+
+const getRankingApiKeyLabel = (item: ApiKeySpendingRankingItem): string => {
+  if (item.key_name) return item.key_name
+  return `Key #${item.api_key_id}`
+}
+
+const getRankingEntityLabel = (item: RankingDisplayItem): string => {
+  return isApiKeyRankingItem(item) ? getRankingApiKeyLabel(item) : getRankingUserLabel(item)
+}
+
 const getRankingRowLabel = (item: RankingDisplayItem): string => {
   if (item.isOther) return t('admin.dashboard.spendingRankingOther')
-  return getRankingUserLabel(item)
+  return getRankingEntityLabel(item)
+}
+
+const getRankingRowKey = (item: RankingDisplayItem, index: number): string => {
+  if (item.isOther) return `others-${activeView.value}`
+  return isApiKeyRankingItem(item) ? `api-key-${item.api_key_id}-${index}` : `user-${item.user_id}-${index}`
+}
+
+const handleRankingClick = (item: RankingDisplayItem) => {
+  if (item.isOther) return
+  if (isApiKeyRankingItem(item)) {
+    emit('api-key-ranking-click', item)
+    return
+  }
+  emit('ranking-click', item)
 }
 
 const toFiniteNumber = (value: unknown): number => {
