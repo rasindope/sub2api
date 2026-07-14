@@ -408,6 +408,14 @@ func (s *DashboardService) GetUserSpendingRanking(ctx context.Context, startTime
 	return ranking, nil
 }
 
+func (s *DashboardService) GetAPIKeySpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (*usagestats.APIKeySpendingRankingResponse, error) {
+	ranking, err := s.usageRepo.GetAPIKeySpendingRanking(ctx, startTime, endTime, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get api key spending ranking: %w", err)
+	}
+	return ranking, nil
+}
+
 func (s *DashboardService) GetUserBreakdownStats(ctx context.Context, startTime, endTime time.Time, dim usagestats.UserBreakdownDimension, limit int) ([]usagestats.UserBreakdownItem, error) {
 	stats, err := s.usageRepo.GetUserBreakdownStats(ctx, startTime, endTime, dim, limit)
 	if err != nil {

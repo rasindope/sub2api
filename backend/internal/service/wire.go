@@ -797,6 +797,7 @@ var ProviderSet = wire.NewSet(
 	ProvideOpenAIQuotaService,
 	ProvideGrokQuotaService,
 	ProvideClaudeTokenProvider,
+	NewCodexInviteResetService,
 	NewAntigravityGatewayService,
 	ProvideRateLimitService,
 	ProvideAccountUsageService,
