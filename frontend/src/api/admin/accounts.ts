@@ -27,6 +27,34 @@ import type {
   OllamaCloudUsageState
 } from '@/types'
 
+export interface CodexInviteResetCredit {
+  id: string
+  status?: string
+  title?: string
+  description?: string
+  profile_user_id?: string
+  profile_image_url?: string
+  raw?: Record<string, unknown>
+}
+
+export interface CodexInviteResetStatus {
+  referral_key: string
+  invite_eligibility?: Record<string, unknown>
+  eligibility_rules?: string[]
+  requires_consent: boolean
+  available_count: number
+  credits: CodexInviteResetCredit[]
+  raw_eligibility_rules?: Record<string, unknown>
+  raw_credits?: Record<string, unknown>
+}
+
+export interface CodexInviteResetInviteResult {
+  invites?: Array<Record<string, unknown>>
+  failed_emails?: string[]
+  message?: string
+  raw?: Record<string, unknown>
+}
+
 /**
  * List all accounts with pagination
  * @param page - Page number (default: 1)
@@ -790,6 +818,24 @@ export async function setPrivacy(id: number): Promise<Account> {
   return data
 }
 
+export async function getCodexInviteResetStatus(id: number): Promise<CodexInviteResetStatus> {
+  const { data } = await apiClient.get<CodexInviteResetStatus>(
+    `/admin/accounts/${id}/codex/invite-reset/status`
+  )
+  return data
+}
+
+export async function sendCodexInviteResetInvite(
+  id: number,
+  emails: string[]
+): Promise<CodexInviteResetInviteResult> {
+  const { data } = await apiClient.post<CodexInviteResetInviteResult>(
+    `/admin/accounts/${id}/codex/invite-reset/invite`,
+    { emails }
+  )
+  return data
+}
+
 /**
  * OpenAI / Codex rate-limit reset feature: query and reset upstream usage.
  */
@@ -877,6 +923,8 @@ export async function refreshOpenAIQuota(id: number): Promise<OpenAIQuotaRefresh
   )
   return data
 }
+
+export const getOpenAIQuota = queryOpenAIQuota
 
 /**
  * Consume one rate-limit-reset credit for an OpenAI/Codex OAuth account.
@@ -1028,6 +1076,9 @@ export const accountsAPI = {
   batchClearError,
   batchRefresh,
   setPrivacy,
+  getCodexInviteResetStatus,
+  sendCodexInviteResetInvite,
+  getOpenAIQuota,
   revertProxyFallback,
   refreshOpenAIQuota,
   resetOpenAIQuota,
