@@ -5,18 +5,20 @@ import { createPinia, setActivePinia } from 'pinia'
 import type { DashboardStats } from '@/types'
 import DashboardView from '../DashboardView.vue'
 
-const { getSnapshotV2, getUserUsageTrend, getUserSpendingRanking } = vi.hoisted(() => ({
+const { getSnapshotV2, getApiKeyUsageTrend, getUserSpendingRanking, getApiKeySpendingRanking } = vi.hoisted(() => ({
   getSnapshotV2: vi.fn(),
-  getUserUsageTrend: vi.fn(),
-  getUserSpendingRanking: vi.fn()
+  getApiKeyUsageTrend: vi.fn(),
+  getUserSpendingRanking: vi.fn(),
+  getApiKeySpendingRanking: vi.fn()
 }))
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     dashboard: {
       getSnapshotV2,
-      getUserUsageTrend,
-      getUserSpendingRanking
+      getApiKeyUsageTrend,
+      getUserSpendingRanking,
+      getApiKeySpendingRanking
     }
   }
 }))
@@ -72,6 +74,7 @@ const createDashboardStats = (): DashboardStats => ({
   total_tokens: 0,
   total_cost: 0,
   total_actual_cost: 0,
+  total_account_cost: 0,
   today_requests: 0,
   today_input_tokens: 0,
   today_output_tokens: 0,
@@ -80,6 +83,7 @@ const createDashboardStats = (): DashboardStats => ({
   today_tokens: 0,
   today_cost: 0,
   today_actual_cost: 0,
+  today_account_cost: 0,
   average_duration_ms: 0,
   uptime: 0,
   rpm: 0,
@@ -91,21 +95,30 @@ describe('admin DashboardView', () => {
     setActivePinia(createPinia())
 
     getSnapshotV2.mockReset()
-    getUserUsageTrend.mockReset()
+    getApiKeyUsageTrend.mockReset()
     getUserSpendingRanking.mockReset()
+    getApiKeySpendingRanking.mockReset()
 
     getSnapshotV2.mockResolvedValue({
       stats: createDashboardStats(),
       trend: [],
       models: []
     })
-    getUserUsageTrend.mockResolvedValue({
+    getApiKeyUsageTrend.mockResolvedValue({
       trend: [],
       start_date: '',
       end_date: '',
       granularity: 'hour'
     })
     getUserSpendingRanking.mockResolvedValue({
+      ranking: [],
+      total_actual_cost: 0,
+      total_requests: 0,
+      total_tokens: 0,
+      start_date: '',
+      end_date: ''
+    })
+    getApiKeySpendingRanking.mockResolvedValue({
       ranking: [],
       total_actual_cost: 0,
       total_requests: 0,
@@ -141,6 +154,12 @@ describe('admin DashboardView', () => {
       start_date: formatLocalDate(yesterday),
       end_date: formatLocalDate(now),
       granularity: 'hour'
+    }))
+    expect(getApiKeyUsageTrend).toHaveBeenCalledWith(expect.objectContaining({
+      start_date: formatLocalDate(yesterday),
+      end_date: formatLocalDate(now),
+      granularity: 'hour',
+      limit: 12
     }))
   })
 })
