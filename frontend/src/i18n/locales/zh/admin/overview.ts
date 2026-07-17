@@ -1051,6 +1051,8 @@ export default {
       modelsList: {
         title: '自定义 /v1/models 模型列表',
         hint: '仅影响 /v1/models 展示结果，不影响白名单模型调用和账号调度。',
+        openaiTitle: '模型白名单',
+        openaiHint: '启用后，分组仅展示并允许调用选中的模型；未选择模型时允许全部模型。',
         loading: '正在加载模型列表...',
         empty: '暂无可展示模型',
         selectedSummary: '已选 {selected} / {total}',
