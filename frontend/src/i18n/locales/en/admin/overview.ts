@@ -1025,6 +1025,8 @@ export default {
       modelsList: {
         title: 'Custom /v1/models Model List',
         hint: 'Only changes the /v1/models response. Whitelist model calls and account routing are unchanged.',
+        openaiTitle: 'Model Whitelist',
+        openaiHint: 'When enabled, the group only displays and allows selected models. Selecting no models allows all models.',
         loading: 'Loading model list...',
         empty: 'No displayable models',
         selectedSummary: 'Selected {selected} / {total}',
