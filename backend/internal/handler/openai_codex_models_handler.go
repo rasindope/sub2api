@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,6 +32,11 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Codex models manifest is only available for OpenAI and Composite groups")
 		return
 	}
+	filterModels := apiKey.Group.CustomModelsListEnabled()
+	ifNoneMatch := c.GetHeader("If-None-Match")
+	if filterModels {
+		ifNoneMatch = ""
+	}
 
 	maxAccountSwitches := h.maxAccountSwitches
 	if maxAccountSwitches <= 0 {
@@ -56,7 +62,7 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 		// 让 ops 错误日志携带实际选中的上游账号，便于定位失效账号（#4544）。
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
-		manifest, err := h.gatewayService.FetchCodexModelsManifest(c.Request.Context(), account, c.Query("client_version"), c.GetHeader("If-None-Match"))
+		manifest, err := h.gatewayService.FetchCodexModelsManifest(c.Request.Context(), account, c.Query("client_version"), ifNoneMatch)
 		if err != nil {
 			if c.Request.Context().Err() != nil {
 				return
@@ -74,14 +80,45 @@ func (h *OpenAIGatewayHandler) CodexModels(c *gin.Context) {
 			return
 		}
 
-		if manifest.ETag != "" {
+		if !filterModels && manifest.ETag != "" {
 			c.Header("ETag", manifest.ETag)
 		}
-		if manifest.NotModified {
+		if !filterModels && manifest.NotModified {
 			c.Status(http.StatusNotModified)
 			return
 		}
-		c.Data(http.StatusOK, "application/json", manifest.Body)
+		body := manifest.Body
+		if filterModels {
+			body, err = filterCodexModelsManifest(body, apiKey.Group)
+			if err != nil {
+				h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Invalid Codex models manifest")
+				return
+			}
+		}
+		c.Data(http.StatusOK, "application/json", body)
 		return
 	}
+}
+
+func filterCodexModelsManifest(body []byte, group *service.Group) ([]byte, error) {
+	var manifest map[string]json.RawMessage
+	if err := json.Unmarshal(body, &manifest); err != nil {
+		return nil, err
+	}
+
+	var models []json.RawMessage
+	if err := json.Unmarshal(manifest["models"], &models); err != nil {
+		return nil, err
+	}
+	filtered := make([]json.RawMessage, 0, len(models))
+	for _, raw := range models {
+		var model struct {
+			Slug string `json:"slug"`
+		}
+		if json.Unmarshal(raw, &model) == nil && group.AllowsOpenAIModel(model.Slug) {
+			filtered = append(filtered, raw)
+		}
+	}
+	manifest["models"], _ = json.Marshal(filtered)
+	return json.Marshal(manifest)
 }
