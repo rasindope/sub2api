@@ -740,10 +740,22 @@
           <div class="mb-3 flex items-center justify-between gap-3">
             <div>
               <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ t("admin.groups.modelsList.title") }}
+                {{
+                  t(
+                    createForm.platform === "openai"
+                      ? "admin.groups.modelsList.openaiTitle"
+                      : "admin.groups.modelsList.title",
+                  )
+                }}
               </label>
               <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {{ t("admin.groups.modelsList.hint") }}
+                {{
+                  t(
+                    createForm.platform === "openai"
+                      ? "admin.groups.modelsList.openaiHint"
+                      : "admin.groups.modelsList.hint",
+                  )
+                }}
               </p>
             </div>
             <button
@@ -2254,10 +2266,22 @@
           <div class="mb-3 flex items-center justify-between gap-3">
             <div>
               <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ t("admin.groups.modelsList.title") }}
+                {{
+                  t(
+                    editForm.platform === "openai"
+                      ? "admin.groups.modelsList.openaiTitle"
+                      : "admin.groups.modelsList.title",
+                  )
+                }}
               </label>
               <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {{ t("admin.groups.modelsList.hint") }}
+                {{
+                  t(
+                    editForm.platform === "openai"
+                      ? "admin.groups.modelsList.openaiHint"
+                      : "admin.groups.modelsList.hint",
+                  )
+                }}
               </p>
             </div>
             <button

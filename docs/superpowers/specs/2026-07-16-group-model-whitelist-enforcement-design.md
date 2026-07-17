@@ -26,7 +26,7 @@ Add a group-level helper that answers whether a requested OpenAI model is allowe
 - Chat Completions
 - Embeddings
 - Images generation and edits, using the effective default model when the request omits one
-- Other OpenAI/Codex handlers that accept an explicit model, such as alpha search and token counting
+- Other OpenAI/Codex handlers that accept an explicit model, such as alpha search
 
 Run the check immediately after parsing or resolving the requested model and before content moderation, account scheduling, concurrency acquisition, upstream forwarding, or billing. A rejected request therefore consumes no upstream quota and creates no usage record.
 

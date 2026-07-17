@@ -76,6 +76,9 @@ func (h *OpenAIGatewayHandler) AlphaSearch(c *gin.Context) {
 	}
 	requestedModel := strings.TrimSpace(modelResult.String())
 	reqLog = reqLog.With(zap.String("model", requestedModel))
+	if h.rejectDisallowedOpenAIModel(c, reqLog, apiKey, requestedModel) {
+		return
+	}
 	setOpsRequestContext(c, requestedModel, false)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeSync))
 

@@ -72,6 +72,9 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 	}
 	reqModel := modelResult.String()
 	reqLog = reqLog.With(zap.String("model", reqModel))
+	if h.rejectDisallowedOpenAIModel(c, reqLog, apiKey, reqModel) {
+		return
+	}
 	setOpsRequestContext(c, reqModel, false)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeSync))
 
