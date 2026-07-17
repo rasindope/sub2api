@@ -16,6 +16,7 @@ import (
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 )
 
 type codexModelsFailoverAccountRepo struct {
@@ -51,11 +52,15 @@ type codexModelsFailoverHTTPUpstream struct {
 	firstStatus int
 	firstBody   string
 	statuses    map[int64]int
+	successBody string
+	successETag string
+	ifNoneMatch []string
 }
 
-func (u *codexModelsFailoverHTTPUpstream) Do(_ *http.Request, _ string, accountID int64, _ int) (*http.Response, error) {
+func (u *codexModelsFailoverHTTPUpstream) Do(req *http.Request, _ string, accountID int64, _ int) (*http.Response, error) {
 	u.mu.Lock()
 	u.accountIDs = append(u.accountIDs, accountID)
+	u.ifNoneMatch = append(u.ifNoneMatch, req.Header.Get("If-None-Match"))
 	u.mu.Unlock()
 
 	status, hasStatus := u.statuses[accountID]
@@ -86,11 +91,19 @@ func (u *codexModelsFailoverHTTPUpstream) Do(_ *http.Request, _ string, accountI
 			)),
 		}, nil
 	}
+	body := u.successBody
+	if body == "" {
+		body = `{"models":[{"slug":"gpt-5.6-sol"}]}`
+	}
+	header := make(http.Header)
+	if u.successETag != "" {
+		header.Set("ETag", u.successETag)
+	}
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		Status:     "200 OK",
-		Header:     make(http.Header),
-		Body:       io.NopCloser(strings.NewReader(`{"models":[{"slug":"gpt-5.6-sol"}]}`)),
+		Header:     header,
+		Body:       io.NopCloser(strings.NewReader(body)),
 	}, nil
 }
 
@@ -98,6 +111,55 @@ func (u *codexModelsFailoverHTTPUpstream) calls() []int64 {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	return append([]int64(nil), u.accountIDs...)
+}
+
+func (u *codexModelsFailoverHTTPUpstream) conditionalHeaders() []string {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return append([]string(nil), u.ifNoneMatch...)
+}
+
+func TestCodexModelsFiltersManifestForGroupWhitelist(t *testing.T) {
+	handler, upstream, groupID := newCodexModelsFailoverTestHandler(http.StatusServiceUnavailable)
+	upstream.successBody = `{"models":[{"slug":"gpt-5.6-sol"},{"slug":"gpt-5.5"}],"other":"kept"}`
+	upstream.successETag = `W/"upstream"`
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/models?client_version=0.144.0", nil)
+	c.Request.Header.Set("If-None-Match", `W/"client"`)
+	c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+		GroupID: &groupID,
+		Group: &service.Group{
+			ID:       groupID,
+			Platform: service.PlatformOpenAI,
+			ModelsListConfig: service.GroupModelsListConfig{
+				Enabled: true,
+				Models:  []string{"gpt-5.6-sol"},
+			},
+		},
+	})
+
+	handler.CodexModels(c)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want %d; body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if got := recorder.Header().Get("ETag"); got != "" {
+		t.Fatalf("filtered response ETag: got %q, want empty", got)
+	}
+	if got := upstream.conditionalHeaders(); len(got) != 2 || got[0] != "" || got[1] != "" {
+		t.Fatalf("upstream If-None-Match headers: got %v, want empty", got)
+	}
+	if got := gjson.GetBytes(recorder.Body.Bytes(), "models.#").Int(); got != 1 {
+		t.Fatalf("filtered model count: got %d, want 1; body=%s", got, recorder.Body.String())
+	}
+	if got := gjson.GetBytes(recorder.Body.Bytes(), "models.0.slug").String(); got != "gpt-5.6-sol" {
+		t.Fatalf("filtered model slug: got %q, want gpt-5.6-sol", got)
+	}
+	if got := gjson.GetBytes(recorder.Body.Bytes(), "other").String(); got != "kept" {
+		t.Fatalf("manifest metadata: got %q, want kept", got)
+	}
 }
 
 func TestCodexModelsCanceledRequestDoesNotWriteResponse(t *testing.T) {
