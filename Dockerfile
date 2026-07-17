@@ -46,14 +46,8 @@ RUN pnpm run build
 # -----------------------------------------------------------------------------
 FROM --platform=$BUILDPLATFORM ${GOLANG_IMAGE} AS backend-builder
 
-# Build arguments for version info (set by CI)
-ARG VERSION=
-ARG COMMIT=docker
-ARG DATE
 ARG GOPROXY
 ARG GOSUMDB
-ARG TARGETOS
-ARG TARGETARCH
 
 ENV GOPROXY=${GOPROXY}
 ENV GOSUMDB=${GOSUMDB}
@@ -65,7 +59,8 @@ WORKDIR /app/backend
 
 # Copy go mod files first (better caching)
 COPY backend/go.mod backend/go.sum ./
-RUN go mod download
+RUN --mount=type=cache,id=sub2api-go-mod,target=/go/pkg/mod,sharing=locked \
+    go mod download
 
 # Copy backend source first
 COPY backend/ ./
@@ -75,7 +70,14 @@ COPY --from=frontend-builder /app/backend/internal/web/dist ./internal/web/dist
 
 # Build the binary (BuildType=release for CI builds, embed frontend)
 # Version precedence: build arg VERSION > exact git tag > cmd/server/VERSION
-RUN VERSION_VALUE="${VERSION}" && \
+ARG VERSION=
+ARG COMMIT=docker
+ARG DATE
+ARG TARGETOS
+ARG TARGETARCH
+RUN --mount=type=cache,id=sub2api-go-mod,target=/go/pkg/mod,sharing=locked \
+    --mount=type=cache,id=sub2api-go-build,target=/root/.cache/go-build,sharing=locked \
+    VERSION_VALUE="${VERSION}" && \
     if [ -z "${VERSION_VALUE}" ]; then VERSION_VALUE="$(./scripts/resolve-version.sh)"; fi && \
     DATE_VALUE="${DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" && \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build \
