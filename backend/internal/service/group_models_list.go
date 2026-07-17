@@ -30,3 +30,17 @@ func normalizeGroupModelsListConfig(cfg GroupModelsListConfig) GroupModelsListCo
 func (g *Group) CustomModelsListEnabled() bool {
 	return g != nil && g.ModelsListConfig.Enabled && len(g.ModelsListConfig.Models) > 0
 }
+
+func (g *Group) AllowsOpenAIModel(model string) bool {
+	if g == nil || g.Platform != PlatformOpenAI || !g.CustomModelsListEnabled() {
+		return true
+	}
+
+	model = strings.TrimSpace(model)
+	for _, allowed := range g.ModelsListConfig.Models {
+		if strings.TrimSpace(allowed) == model {
+			return true
+		}
+	}
+	return false
+}
