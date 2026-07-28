@@ -183,7 +183,7 @@ describe('UsageFilters — user search dropdown', () => {
       .mockImplementationOnce(() => secondSearch.promise)
 
     const wrapper = mountFilters()
-    const input = wrapper.find('input[type="text"]')
+    const input = wrapper.find('input[placeholder="Search user..."]')
     await input.trigger('focus')
 
     await input.setValue('a')
@@ -209,7 +209,7 @@ describe('UsageFilters — user search dropdown', () => {
     mockSearchUsers.mockImplementationOnce(() => pendingSearch.promise)
 
     const wrapper = mountFilters()
-    const input = wrapper.find('input[type="text"]')
+    const input = wrapper.find('input[placeholder="Search user..."]')
     await input.trigger('focus')
 
     await input.setValue('stale')
