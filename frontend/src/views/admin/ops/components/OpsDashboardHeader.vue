@@ -6,8 +6,9 @@ import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api'
-import { opsAPI, type OpsDashboardOverview, type OpsMetricThresholds, type OpsNginxTimingOverview, type OpsRealtimeTrafficSummary } from '@/api/admin/ops'
+import { opsAPI, type OpsDashboardOverview, type OpsMetricThresholds, type OpsNginxTimingMetric, type OpsNginxTimingOverview, type OpsRealtimeTrafficSummary } from '@/api/admin/ops'
 import type { OpsRequestDetailsPreset } from './OpsRequestDetailsModal.vue'
+import OpsNginxTimingDetailsModal from './OpsNginxTimingDetailsModal.vue'
 import { useAdminSettingsStore } from '@/stores'
 import { formatNumber } from '@/utils/format'
 import { formatMemorySizeMB } from '../utils/opsFormatters'
@@ -673,10 +674,43 @@ const nginxIngressErrorClass = computed(() => {
   return nginxIngressErrorCount.value > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
 })
 
-const nginxKeyScopeLabel = computed(() => {
-  if (!nginxTiming.value?.key_filter_applied) return t('admin.ops.nginxTiming.allGatewayTraffic')
-  return t('admin.ops.nginxTiming.matchedKeys', { count: formatNumber(nginxTiming.value.matched_request_count) })
+const showNginxTimingDetails = ref(false)
+const nginxTimingDetailMetric = ref<OpsNginxTimingMetric>('requests')
+
+const nginxDurationCards = computed(() => {
+  const metrics = nginxTiming.value
+  return [
+    {
+      metric: 'request_time' as const,
+      title: t('admin.ops.nginxTiming.requestTime'),
+      tooltip: t('admin.ops.nginxTiming.tooltips.requestTime'),
+      values: metrics?.request_time
+    },
+    {
+      metric: 'gateway_connect' as const,
+      title: t('admin.ops.nginxTiming.gatewayConnect'),
+      tooltip: t('admin.ops.nginxTiming.tooltips.gatewayConnect'),
+      values: metrics?.upstream_connect_time
+    },
+    {
+      metric: 'upstream_response' as const,
+      title: t('admin.ops.nginxTiming.upstreamResponse'),
+      tooltip: t('admin.ops.nginxTiming.tooltips.upstreamResponse'),
+      values: metrics?.upstream_response_time
+    },
+    {
+      metric: 'client_overhead' as const,
+      title: t('admin.ops.nginxTiming.clientOverhead'),
+      tooltip: t('admin.ops.nginxTiming.tooltips.clientOverhead'),
+      values: metrics?.client_overhead_time
+    }
+  ]
 })
+
+function openNginxTimingDetails(metric: OpsNginxTimingMetric) {
+  nginxTimingDetailMetric.value = metric
+  showNginxTimingDetails.value = true
+}
 
 const cpuPercentValue = computed<number | null>(() => {
   const v = systemMetrics.value?.cpu_usage_percent
@@ -1476,85 +1510,81 @@ function handleToolbarRefresh() {
 
     <!-- Nginx request path -->
     <div v-if="showNginxTiming" class="mt-2 border-t border-gray-100 pt-4 dark:border-dark-700">
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <div class="rounded-xl bg-gray-50 p-3 dark:bg-dark-900">
-          <div class="flex items-center gap-1">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400">{{ t('admin.ops.nginxTiming.requests') }}</div>
-            <HelpTooltip v-if="!props.fullscreen" :content="t('admin.ops.nginxTiming.tooltips.requests')" />
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div class="rounded-2xl bg-gray-50 p-4 dark:bg-dark-900">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1">
+              <span class="text-[10px] font-bold uppercase text-gray-400">{{ t('admin.ops.nginxTiming.requests') }}</span>
+              <HelpTooltip v-if="!props.fullscreen" :content="t('admin.ops.nginxTiming.tooltips.requests')" />
+            </div>
+            <button v-if="!props.fullscreen" class="text-[10px] font-bold text-blue-500 hover:underline" type="button" @click="openNginxTimingDetails('requests')">
+              {{ t('admin.ops.requestDetails.details') }}
+            </button>
           </div>
-          <div class="mt-1 text-lg font-black text-gray-900 dark:text-white">
-            {{ nginxTiming?.available ? formatNumber(nginxTiming.http_request_count) : '-' }}
+          <div class="mt-2 flex items-baseline gap-2">
+            <div class="text-3xl font-black text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNumber(nginxTiming.http_request_count) : '-' }}</div>
+            <span class="text-xs font-bold text-gray-400">{{ t('admin.ops.nginxTiming.requestsUnit') }}</span>
           </div>
-          <div v-if="!props.fullscreen" class="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
-            {{ nginxTiming?.available ? t('admin.ops.nginxTiming.websocketSessions', { count: formatNumber(nginxTiming.websocket_session_count) }) : t('admin.ops.nginxTiming.logUnavailable') }}
-          </div>
-        </div>
-
-        <div class="rounded-xl bg-gray-50 p-3 dark:bg-dark-900">
-          <div class="flex items-center gap-1">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400">{{ t('admin.ops.nginxTiming.requestTime') }}</div>
-            <HelpTooltip v-if="!props.fullscreen" :content="t('admin.ops.nginxTiming.tooltips.requestTime')" />
-          </div>
-          <div class="mt-1 text-lg font-black text-gray-900 dark:text-white">
-            {{ formatNginxMs(nginxTiming?.request_time?.p90_ms) }}<span class="ml-1 text-xs font-bold text-gray-400">ms</span>
-          </div>
-          <div v-if="!props.fullscreen" class="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
-            {{ t('admin.ops.nginxTiming.p50', { value: formatNginxMs(nginxTiming?.request_time?.p50_ms) }) }}
+          <div class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">{{ t('admin.ops.nginxTiming.success') }}:</span><span class="font-bold text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNumber(nginxTiming.success_count) : '-' }}</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">WS:</span><span class="font-bold text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNumber(nginxTiming.websocket_session_count) : '-' }}</span></div>
           </div>
         </div>
 
-        <div class="rounded-xl bg-gray-50 p-3 dark:bg-dark-900">
-          <div class="flex items-center gap-1">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400">{{ t('admin.ops.nginxTiming.gatewayConnect') }}</div>
-            <HelpTooltip v-if="!props.fullscreen" :content="t('admin.ops.nginxTiming.tooltips.gatewayConnect')" />
+        <div v-for="card in nginxDurationCards" :key="card.metric" class="rounded-2xl bg-gray-50 p-4 dark:bg-dark-900">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1">
+              <span class="text-[10px] font-bold uppercase text-gray-400">{{ card.title }}</span>
+              <HelpTooltip v-if="!props.fullscreen" :content="card.tooltip" />
+            </div>
+            <button v-if="!props.fullscreen" class="text-[10px] font-bold text-blue-500 hover:underline" type="button" @click="openNginxTimingDetails(card.metric)">
+              {{ t('admin.ops.requestDetails.details') }}
+            </button>
           </div>
-          <div class="mt-1 text-lg font-black text-gray-900 dark:text-white">
-            {{ formatNginxMs(nginxTiming?.upstream_connect_time?.p90_ms) }}<span class="ml-1 text-xs font-bold text-gray-400">ms</span>
+          <div class="mt-2 flex items-baseline gap-2">
+            <div class="text-3xl font-black text-gray-900 dark:text-white">{{ formatNginxMs(card.values?.p99_ms) }}</div>
+            <span class="text-xs font-bold text-gray-400">ms (P99)</span>
           </div>
-          <div v-if="!props.fullscreen" class="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
-            {{ t('admin.ops.nginxTiming.gatewayHeader', { value: formatNginxMs(nginxTiming?.upstream_header_time?.p90_ms) }) }}
-          </div>
-        </div>
-
-        <div class="rounded-xl bg-gray-50 p-3 dark:bg-dark-900">
-          <div class="flex items-center gap-1">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400">{{ t('admin.ops.nginxTiming.upstreamResponse') }}</div>
-            <HelpTooltip v-if="!props.fullscreen" :content="t('admin.ops.nginxTiming.tooltips.upstreamResponse')" />
-          </div>
-          <div class="mt-1 text-lg font-black text-gray-900 dark:text-white">
-            {{ formatNginxMs(nginxTiming?.upstream_response_time?.p90_ms) }}<span class="ml-1 text-xs font-bold text-gray-400">ms</span>
-          </div>
-          <div v-if="!props.fullscreen" class="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
-            {{ nginxTiming?.available ? nginxKeyScopeLabel : t('admin.ops.nginxTiming.logUnavailable') }}
+          <div class="mt-3 grid grid-cols-1 gap-x-3 gap-y-1 text-xs 2xl:grid-cols-2">
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">P95:</span><span class="font-bold text-gray-900 dark:text-white">{{ formatNginxMs(card.values?.p95_ms) }}</span><span class="text-gray-400">ms</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">P90:</span><span class="font-bold text-gray-900 dark:text-white">{{ formatNginxMs(card.values?.p90_ms) }}</span><span class="text-gray-400">ms</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">P50:</span><span class="font-bold text-gray-900 dark:text-white">{{ formatNginxMs(card.values?.p50_ms) }}</span><span class="text-gray-400">ms</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">Avg:</span><span class="font-bold text-gray-900 dark:text-white">{{ formatNginxMs(card.values?.avg_ms) }}</span><span class="text-gray-400">ms</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">Max:</span><span class="font-bold text-gray-900 dark:text-white">{{ formatNginxMs(card.values?.max_ms) }}</span><span class="text-gray-400">ms</span></div>
           </div>
         </div>
 
-        <div class="rounded-xl bg-gray-50 p-3 dark:bg-dark-900">
-          <div class="flex items-center gap-1">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400">{{ t('admin.ops.nginxTiming.clientOverhead') }}</div>
-            <HelpTooltip v-if="!props.fullscreen" :content="t('admin.ops.nginxTiming.tooltips.clientOverhead')" />
+        <div class="rounded-2xl bg-gray-50 p-4 dark:bg-dark-900">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1">
+              <span class="text-[10px] font-bold uppercase text-gray-400">{{ t('admin.ops.nginxTiming.ingressErrors') }}</span>
+              <HelpTooltip v-if="!props.fullscreen" :content="t('admin.ops.nginxTiming.tooltips.ingressErrors')" />
+            </div>
+            <button v-if="!props.fullscreen" class="text-[10px] font-bold text-blue-500 hover:underline" type="button" @click="openNginxTimingDetails('ingress_errors')">
+              {{ t('admin.ops.requestDetails.details') }}
+            </button>
           </div>
-          <div class="mt-1 text-lg font-black text-gray-900 dark:text-white">
-            {{ formatNginxMs(nginxTiming?.client_overhead_time?.p90_ms) }}<span class="ml-1 text-xs font-bold text-gray-400">ms</span>
+          <div class="mt-2 flex items-baseline gap-2">
+            <div class="text-3xl font-black" :class="nginxIngressErrorClass">{{ nginxIngressErrorCount == null ? '-' : formatNumber(nginxIngressErrorCount) }}</div>
+            <span class="text-xs font-bold text-gray-400">{{ t('admin.ops.nginxTiming.requestsUnit') }}</span>
           </div>
-          <div v-if="!props.fullscreen" class="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
-            {{ t('admin.ops.nginxTiming.p50', { value: formatNginxMs(nginxTiming?.client_overhead_time?.p50_ms) }) }}
-          </div>
-        </div>
-
-        <div class="rounded-xl bg-gray-50 p-3 dark:bg-dark-900">
-          <div class="flex items-center gap-1">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400">{{ t('admin.ops.nginxTiming.ingressErrors') }}</div>
-            <HelpTooltip v-if="!props.fullscreen" :content="t('admin.ops.nginxTiming.tooltips.ingressErrors')" />
-          </div>
-          <div class="mt-1 text-lg font-black" :class="nginxIngressErrorClass">
-            {{ nginxIngressErrorCount == null ? '-' : formatNumber(nginxIngressErrorCount) }}
-          </div>
-          <div v-if="!props.fullscreen" class="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
-            {{ nginxTiming?.available ? t('admin.ops.nginxTiming.ingressErrorBreakdown', { timeout: nginxTiming.client_timeout_408_count, closed: nginxTiming.client_closed_499_count, unreachable: nginxTiming.upstream_unreached_count, unattributed: nginxTiming.unattributed_error_count }) : t('admin.ops.nginxTiming.logUnavailable') }}
+          <div class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">408:</span><span class="font-bold text-rose-600 dark:text-rose-400">{{ nginxTiming?.available ? formatNumber(nginxTiming.client_timeout_408_count) : '-' }}</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">499:</span><span class="font-bold text-rose-600 dark:text-rose-400">{{ nginxTiming?.available ? formatNumber(nginxTiming.client_closed_499_count) : '-' }}</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">5xx:</span><span class="font-bold text-rose-600 dark:text-rose-400">{{ nginxTiming?.available ? formatNumber(nginxTiming.server_error_5xx_count) : '-' }}</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">{{ t('admin.ops.nginxTiming.unattributed') }}:</span><span class="font-bold text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNumber(nginxTiming.unattributed_error_count) : '-' }}</span></div>
           </div>
         </div>
       </div>
+
+      <OpsNginxTimingDetailsModal
+        v-model="showNginxTimingDetails"
+        :metric="nginxTimingDetailMetric"
+        :time-range="props.timeRange"
+        :custom-start-time="props.customStartTime"
+        :custom-end-time="props.customEndTime"
+        :api-key-ids="props.apiKeyIds"
+      />
     </div>
 
     <!-- Integrated: System health (cards) -->
