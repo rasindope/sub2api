@@ -76,6 +76,50 @@ type OpsNginxTimingOverview struct {
 	ClientOverhead   OpsPercentiles `json:"client_overhead_time"`
 }
 
+// OpsNginxTimingRequestKey is the database-only mapping from Nginx's client
+// request ID back to an API Key. The raw API Key is never written to Nginx.
+type OpsNginxTimingRequestKey struct {
+	APIKeyID int64
+	KeyName  string
+}
+
+// OpsNginxTimingKeyMetric is one Key's Nginx-observed request-path metrics.
+// HTTP durations exclude WebSocket sessions because a WebSocket access-log line
+// measures a connection lifetime, not a single request.
+type OpsNginxTimingKeyMetric struct {
+	APIKeyID int64  `json:"api_key_id"`
+	KeyName  string `json:"key_name"`
+
+	HTTPRequestCount       int64 `json:"http_request_count"`
+	WebSocketSessionCount  int64 `json:"websocket_session_count"`
+	SuccessCount           int64 `json:"success_count"`
+	ClientTimeout408Count  int64 `json:"client_timeout_408_count"`
+	ClientClosed499Count   int64 `json:"client_closed_499_count"`
+	ServerError5xxCount    int64 `json:"server_error_5xx_count"`
+	UpstreamUnreachedCount int64 `json:"upstream_unreached_count"`
+
+	RequestTime      OpsPercentiles `json:"request_time"`
+	UpstreamConnect  OpsPercentiles `json:"upstream_connect_time"`
+	UpstreamHeader   OpsPercentiles `json:"upstream_header_time"`
+	UpstreamResponse OpsPercentiles `json:"upstream_response_time"`
+	ClientOverhead   OpsPercentiles `json:"client_overhead_time"`
+}
+
+// OpsNginxTimingKeyDetails is loaded only when an administrator opens a card's
+// details view, keeping the dashboard summary path lightweight.
+type OpsNginxTimingKeyDetails struct {
+	Available       bool       `json:"available"`
+	StartTime       time.Time  `json:"start_time"`
+	EndTime         time.Time  `json:"end_time"`
+	WindowClamped   bool       `json:"window_clamped"`
+	SourceUpdatedAt *time.Time `json:"source_updated_at"`
+
+	KeyFilterApplied       bool                      `json:"key_filter_applied"`
+	MatchedRequestCount    int64                     `json:"matched_request_count"`
+	UnattributedErrorCount int64                     `json:"unattributed_error_count"`
+	Items                  []OpsNginxTimingKeyMetric `json:"items"`
+}
+
 type OpsDashboardOverview struct {
 	StartTime time.Time `json:"start_time"`
 	EndTime   time.Time `json:"end_time"`
