@@ -124,8 +124,9 @@ type OpsErrorLogFilter struct {
 
 	// User-scoped filters (used by the user-facing error requests endpoint and
 	// by admin drill-down from the usage page).
-	UserID   *int64
-	APIKeyID *int64
+	UserID    *int64
+	APIKeyID  *int64
+	APIKeyIDs []int64
 
 	// Model matches against requested_model first, then model.
 	Model string

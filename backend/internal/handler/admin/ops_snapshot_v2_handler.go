@@ -28,6 +28,7 @@ type opsDashboardSnapshotV2CacheKey struct {
 	EndTime      string               `json:"end_time"`
 	Platform     string               `json:"platform"`
 	GroupID      *int64               `json:"group_id"`
+	APIKeyIDs    []int64              `json:"api_key_ids"`
 	QueryMode    service.OpsQueryMode `json:"mode"`
 	BucketSecond int                  `json:"bucket_second"`
 }
@@ -64,6 +65,12 @@ func (h *OpsHandler) GetDashboardSnapshotV2(c *gin.Context) {
 		}
 		filter.GroupID = &id
 	}
+	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	filter.APIKeyIDs = apiKeyIDs
 	bucketSeconds := pickThroughputBucketSeconds(endTime.Sub(startTime))
 
 	keyRaw, _ := json.Marshal(opsDashboardSnapshotV2CacheKey{
@@ -71,6 +78,7 @@ func (h *OpsHandler) GetDashboardSnapshotV2(c *gin.Context) {
 		EndTime:      endTime.UTC().Format(time.RFC3339),
 		Platform:     filter.Platform,
 		GroupID:      filter.GroupID,
+		APIKeyIDs:    filter.APIKeyIDs,
 		QueryMode:    filter.QueryMode,
 		BucketSecond: bucketSeconds,
 	})

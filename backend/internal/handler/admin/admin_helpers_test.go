@@ -192,6 +192,35 @@ func TestParseOpsQueryMode(t *testing.T) {
 	require.Equal(t, service.OpsQueryMode(""), parseOpsQueryMode(nil))
 }
 
+func TestParseOpsAPIKeyIDs(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		url     string
+		want    []int64
+		wantErr bool
+	}{
+		{url: "/?api_key_ids=8,2,8", want: []int64{2, 8}},
+		{url: "/", want: nil},
+		{url: "/?api_key_ids=0", wantErr: true},
+		{url: "/?api_key_ids=abc", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, tt.url, nil)
+
+		got, err := parseOpsAPIKeyIDs(c)
+		if tt.wantErr {
+			require.Error(t, err, "url=%s", tt.url)
+			continue
+		}
+		require.NoError(t, err, "url=%s", tt.url)
+		require.Equal(t, tt.want, got, "url=%s", tt.url)
+	}
+}
+
 func TestOpsAlertRuleValidation(t *testing.T) {
 	raw := map[string]json.RawMessage{
 		"name":        json.RawMessage(`"High error rate"`),

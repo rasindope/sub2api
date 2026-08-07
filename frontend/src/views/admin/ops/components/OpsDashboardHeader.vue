@@ -19,6 +19,7 @@ interface Props {
   overview?: OpsDashboardOverview | null
   platform: string
   groupId: number | null
+  apiKeyIds: number[]
   timeRange: string
   queryMode: string
   loading: boolean
@@ -34,6 +35,7 @@ interface Props {
 interface Emits {
   (e: 'update:platform', value: string): void
   (e: 'update:group', value: number | null): void
+  (e: 'openApiKeyFilter'): void
   (e: 'update:timeRange', value: string): void
   (e: 'update:queryMode', value: string): void
   (e: 'update:customTimeRange', startTime: string, endTime: string): void
@@ -136,6 +138,13 @@ const queryModeOptions = computed(() => [
 const groupOptions = computed(() => {
   const filtered = props.platform ? groups.value.filter((g) => g.platform === props.platform) : groups.value
   return [{ value: null, label: t('common.all') }, ...filtered.map((g) => ({ value: g.id, label: g.name }))]
+})
+
+const sourceKeyFilterLabel = computed(() => {
+  const count = props.apiKeyIds.length
+  return count > 0
+    ? t('admin.ops.sourceKeyFilter.selected', { count })
+    : t('admin.ops.sourceKeyFilter.all')
 })
 
 watch(
@@ -300,7 +309,7 @@ async function loadRealtimeTrafficSummary() {
   }
   realtimeTrafficLoading.value = true
   try {
-    const res = await opsAPI.getRealtimeTrafficSummary(realtimeWindow.value, props.platform, props.groupId)
+    const res = await opsAPI.getRealtimeTrafficSummary(realtimeWindow.value, props.platform, props.groupId, props.apiKeyIds)
     if (res && res.enabled === false) {
       adminSettingsStore.setOpsRealtimeMonitoringEnabledLocal(false)
     }
@@ -314,7 +323,7 @@ async function loadRealtimeTrafficSummary() {
 }
 
 watch(
-  () => [realtimeWindow.value, props.platform, props.groupId] as const,
+  () => [realtimeWindow.value, props.platform, props.groupId, props.apiKeyIds.join(',')] as const,
   () => {
     loadRealtimeTrafficSummary()
   },
@@ -908,6 +917,15 @@ function handleToolbarRefresh() {
             class="w-full sm:w-[160px]"
             @update:model-value="handleGroupChange"
           />
+
+          <button
+            type="button"
+            class="flex h-9 min-w-[132px] items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-blue-700 dark:hover:bg-blue-900/20"
+            @click="emit('openApiKeyFilter')"
+          >
+            <span>{{ sourceKeyFilterLabel }}</span>
+            <Icon name="filter" size="sm" class="text-gray-400" />
+          </button>
 
           <div class="mx-1 hidden h-4 w-[1px] bg-gray-200 dark:bg-dark-700 sm:block"></div>
 

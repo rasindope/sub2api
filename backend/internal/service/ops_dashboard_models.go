@@ -8,6 +8,9 @@ type OpsDashboardFilter struct {
 
 	Platform string
 	GroupID  *int64
+	// APIKeyIDs scopes request metrics to the selected API Keys. Key-filtered
+	// dashboards always use raw logs because hourly aggregates omit this dimension.
+	APIKeyIDs []int64
 
 	// QueryMode controls whether dashboard queries should use raw logs or pre-aggregated tables.
 	// Expected values: auto/raw/preagg (see OpsQueryMode).

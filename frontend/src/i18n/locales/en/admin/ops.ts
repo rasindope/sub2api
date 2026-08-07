@@ -28,6 +28,16 @@ export default {
       loadingText: 'loading',
       ready: 'ready',
       autoRefreshRemaining: 'Remaining {seconds}s',
+      sourceKeyFilter: {
+        title: 'Filter source Keys',
+        all: 'Source: all Keys',
+        selected: 'Source: {count} Keys',
+        searchPlaceholder: 'Search Key name',
+        selectedCount: '{count} Keys selected',
+        selectVisible: 'Select visible',
+        clearAndApply: 'Clear and apply',
+        apply: 'Apply filter'
+      },
       systemLogs: {
         title: 'System Logs',
         description: 'Newest logs are shown first. Filter, search, and clean up by condition.',

@@ -27,8 +27,7 @@ func (s *OpsService) GetDashboardOverview(ctx context.Context, filter *OpsDashbo
 		return nil, infraerrors.BadRequest("OPS_TIME_RANGE_INVALID", "start_time must be <= end_time")
 	}
 
-	// Resolve query mode (requested via query param, or DB default).
-	filter.QueryMode = s.resolveOpsQueryMode(ctx, filter.QueryMode)
+	s.resolveDashboardFilterQueryMode(ctx, filter)
 
 	overview, err := s.opsRepo.GetDashboardOverview(ctx, filter)
 	if err != nil && shouldFallbackOpsPreagg(filter, err) {
@@ -68,6 +67,14 @@ func (s *OpsService) GetDashboardOverview(ctx context.Context, filter *OpsDashbo
 	overview.HealthScore = computeDashboardHealthScore(time.Now().UTC(), overview)
 
 	return overview, nil
+}
+
+func (s *OpsService) resolveDashboardFilterQueryMode(ctx context.Context, filter *OpsDashboardFilter) {
+	if len(filter.APIKeyIDs) > 0 {
+		filter.QueryMode = OpsQueryModeRaw
+		return
+	}
+	filter.QueryMode = s.resolveOpsQueryMode(ctx, filter.QueryMode)
 }
 
 func (s *OpsService) resolveOpsQueryMode(ctx context.Context, requested OpsQueryMode) OpsQueryMode {
