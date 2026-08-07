@@ -119,7 +119,7 @@
             />
 
             <div class="flex items-center justify-between gap-3 text-xs">
-              <span class="text-gray-500 dark:text-gray-400">{{ t('admin.ops.sourceKeyFilter.selectedCount', { count: pendingApiKeyIds.length }) }}</span>
+              <span class="text-gray-500 dark:text-gray-400">{{ pendingApiKeyFilterIsAll ? t('admin.ops.sourceKeyFilter.all') : t('admin.ops.sourceKeyFilter.selectedCount', { count: pendingApiKeyIds.length }) }}</span>
               <button type="button" class="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" @click="selectVisibleApiKeys">
                 {{ t('admin.ops.sourceKeyFilter.selectVisible') }}
               </button>
@@ -136,7 +136,7 @@
                 <input
                   type="checkbox"
                   class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  :checked="pendingApiKeyIds.includes(key.id)"
+                  :checked="pendingApiKeyFilterIsAll || pendingApiKeyIds.includes(key.id)"
                   @change="toggleApiKey(key.id)"
                 />
                 <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">{{ key.name || `Key #${key.id}` }}</span>
@@ -252,6 +252,7 @@ const platform = ref<string>('')
 const groupId = ref<number | null>(null)
 const selectedApiKeyIds = ref<number[]>([])
 const pendingApiKeyIds = ref<number[]>([])
+const pendingApiKeyFilterIsAll = ref(false)
 const showApiKeyFilter = ref(false)
 const apiKeySearch = ref('')
 const apiKeyOptions = ref<SimpleApiKey[]>([])
@@ -546,6 +547,7 @@ const reloadApiKeyOptions = useDebounceFn(() => {
 
 function openApiKeyFilter() {
   pendingApiKeyIds.value = [...selectedApiKeyIds.value]
+  pendingApiKeyFilterIsAll.value = selectedApiKeyIds.value.length === 0
   apiKeySearch.value = ''
   showApiKeyFilter.value = true
   void loadApiKeyOptions()
@@ -553,17 +555,26 @@ function openApiKeyFilter() {
 
 function closeApiKeyFilter() {
   pendingApiKeyIds.value = [...selectedApiKeyIds.value]
+  pendingApiKeyFilterIsAll.value = selectedApiKeyIds.value.length === 0
   showApiKeyFilter.value = false
 }
 
 function toggleApiKey(id: number) {
+  if (pendingApiKeyFilterIsAll.value) {
+    pendingApiKeyFilterIsAll.value = false
+    pendingApiKeyIds.value = normalizeApiKeyIds(apiKeyOptions.value.map((key) => key.id))
+  }
+
   const next = new Set(pendingApiKeyIds.value)
   if (next.has(id)) next.delete(id)
   else next.add(id)
   pendingApiKeyIds.value = normalizeApiKeyIds([...next])
+  pendingApiKeyFilterIsAll.value = pendingApiKeyIds.value.length === 0
 }
 
 function selectVisibleApiKeys() {
+  if (pendingApiKeyFilterIsAll.value) return
+
   pendingApiKeyIds.value = normalizeApiKeyIds([
     ...pendingApiKeyIds.value,
     ...apiKeyOptions.value.map((key) => key.id)
@@ -571,7 +582,7 @@ function selectVisibleApiKeys() {
 }
 
 function applyApiKeyFilter() {
-  selectedApiKeyIds.value = normalizeApiKeyIds(pendingApiKeyIds.value)
+  selectedApiKeyIds.value = pendingApiKeyFilterIsAll.value ? [] : normalizeApiKeyIds(pendingApiKeyIds.value)
   persistApiKeyFilter()
   showApiKeyFilter.value = false
 }
@@ -579,6 +590,7 @@ function applyApiKeyFilter() {
 function clearApiKeyFilter() {
   selectedApiKeyIds.value = []
   pendingApiKeyIds.value = []
+  pendingApiKeyFilterIsAll.value = true
   persistApiKeyFilter()
   showApiKeyFilter.value = false
 }
