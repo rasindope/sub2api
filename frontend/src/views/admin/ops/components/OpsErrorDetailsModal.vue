@@ -11,6 +11,7 @@ interface Props {
   timeRange: string
   platform?: string
   groupId?: number | null
+  apiKeyIds?: number[]
   errorType: 'request' | 'upstream'
 }
 
@@ -112,6 +113,7 @@ async function fetchErrorLogs() {
     const platform = String(props.platform || '').trim()
     if (platform) params.platform = platform
     if (typeof props.groupId === 'number' && props.groupId > 0) params.group_id = props.groupId
+    if (props.apiKeyIds?.length) params.api_key_ids = props.apiKeyIds.join(',')
 
     if (q.value.trim()) params.q = q.value.trim()
     if (statusCode.value === 'other') params.status_codes_other = '1'
@@ -160,7 +162,7 @@ watch(
 )
 
 watch(
-  () => [props.timeRange, props.platform, props.groupId] as const,
+  () => [props.timeRange, props.platform, props.groupId, props.apiKeyIds?.join(',')] as const,
   () => {
     if (!props.show) return
     page.value = 1
