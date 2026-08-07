@@ -2,10 +2,22 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import Icon from '@/components/icons/Icon.vue'
 import { opsAPI, type OpsNginxTimingKeyDetails, type OpsNginxTimingKeyMetric, type OpsNginxTimingMetric, type OpsPercentiles } from '@/api/admin/ops'
-import { formatNumber } from '@/utils/format'
+import { formatNumberLocaleString } from '@/utils/format'
 
 type PercentileField = 'p99_ms' | 'p95_ms' | 'p90_ms' | 'p50_ms' | 'avg_ms' | 'max_ms'
+type SortOrder = 'asc' | 'desc'
+type SortKey =
+  | 'key_name'
+  | 'http_request_count'
+  | 'success_count'
+  | 'websocket_session_count'
+  | 'client_timeout_408_count'
+  | 'client_closed_499_count'
+  | 'server_error_5xx_count'
+  | 'error_count'
+  | PercentileField
 
 interface Props {
   modelValue: boolean
@@ -14,6 +26,8 @@ interface Props {
   customStartTime?: string | null
   customEndTime?: string | null
   apiKeyIds?: number[]
+  summary?: OpsPercentiles
+  thresholdMs?: number | null
 }
 
 const props = defineProps<Props>()
@@ -33,30 +47,44 @@ const percentileFields: Array<{ key: PercentileField, label: string }> = [
 ]
 
 const modalTitle = computed(() => t(`admin.ops.nginxTiming.metricTitles.${props.metric}`))
+const hasDurationMetric = computed(() => props.metric !== 'requests' && props.metric !== 'ingress_errors')
+const metricDescriptionKeys: Partial<Record<OpsNginxTimingMetric, string>> = {
+  request_time: 'requestTime',
+  upstream_response: 'upstreamResponse',
+  client_overhead: 'clientOverhead'
+}
+const metricDescription = computed(() => {
+  const key = metricDescriptionKeys[props.metric]
+  return key ? t(`admin.ops.nginxTiming.tooltips.${key}`) : ''
+})
+const sortKey = ref<SortKey>(defaultSortKey(props.metric))
+const sortOrder = ref<SortOrder>('desc')
 const rows = computed(() => {
   const items = [...(details.value?.items ?? [])]
-  return items.sort((a, b) => metricScore(b) - metricScore(a) || b.http_request_count - a.http_request_count || a.api_key_id - b.api_key_id)
+  return items.sort((a, b) => {
+    const comparison = compareSortValues(sortValue(a, sortKey.value), sortValue(b, sortKey.value), sortOrder.value)
+    if (comparison !== 0) return comparison
+    return a.api_key_id - b.api_key_id
+  })
 })
 
 function close() {
   emit('update:modelValue', false)
 }
 
-function metricScore(row: OpsNginxTimingKeyMetric): number {
-  switch (props.metric) {
+function defaultSortKey(metric: OpsNginxTimingMetric): SortKey {
+  switch (metric) {
     case 'requests':
-      return row.http_request_count
+      return 'http_request_count'
     case 'ingress_errors':
-      return row.client_timeout_408_count + row.client_closed_499_count + row.server_error_5xx_count
+      return 'error_count'
     default:
-      return metricPercentiles(row).p99_ms ?? -1
+      return 'p99_ms'
   }
 }
 
 function metricPercentiles(row: OpsNginxTimingKeyMetric): OpsPercentiles {
   switch (props.metric) {
-    case 'gateway_connect':
-      return row.upstream_connect_time
     case 'upstream_response':
       return row.upstream_response_time
     case 'client_overhead':
@@ -66,12 +94,89 @@ function metricPercentiles(row: OpsNginxTimingKeyMetric): OpsPercentiles {
   }
 }
 
+function sortValue(row: OpsNginxTimingKeyMetric, key: SortKey): string | number | null {
+  switch (key) {
+    case 'key_name':
+      return row.key_name || `Key #${row.api_key_id}`
+    case 'http_request_count':
+      return row.http_request_count
+    case 'success_count':
+      return row.success_count
+    case 'websocket_session_count':
+      return row.websocket_session_count
+    case 'client_timeout_408_count':
+      return row.client_timeout_408_count
+    case 'client_closed_499_count':
+      return row.client_closed_499_count
+    case 'server_error_5xx_count':
+      return row.server_error_5xx_count
+    case 'error_count':
+      return row.client_timeout_408_count + row.client_closed_499_count + row.server_error_5xx_count
+    default:
+      return metricPercentiles(row)[key] ?? null
+  }
+}
+
+function compareSortValues(left: string | number | null, right: string | number | null, order: SortOrder): number {
+  if (left === null && right === null) return 0
+  if (left === null) return 1
+  if (right === null) return -1
+  let comparison: number
+  if (typeof left === 'string' && typeof right === 'string') {
+    comparison = left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' })
+  } else {
+    comparison = Number(left) - Number(right)
+  }
+  return order === 'asc' ? comparison : -comparison
+}
+
+function toggleSort(key: SortKey) {
+  if (sortKey.value === key) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+    return
+  }
+  sortKey.value = key
+  sortOrder.value = key === 'key_name' ? 'asc' : 'desc'
+}
+
+function sortIconName(key: SortKey): 'arrowUp' | 'arrowDown' | 'arrowsUpDown' {
+  if (sortKey.value !== key) return 'arrowsUpDown'
+  return sortOrder.value === 'asc' ? 'arrowUp' : 'arrowDown'
+}
+
+function sortHeaderClass(key: SortKey, align: 'left' | 'right'): string {
+  const alignment = align === 'left' ? 'justify-start' : 'justify-end'
+  const color = sortKey.value === key ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100'
+  return `inline-flex w-full items-center gap-1 ${alignment} ${color}`
+}
+
+function ariaSort(key: SortKey): 'ascending' | 'descending' | 'none' {
+  if (sortKey.value !== key) return 'none'
+  return sortOrder.value === 'asc' ? 'ascending' : 'descending'
+}
+
 function formatMs(value?: number | null): string {
-  return typeof value === 'number' && Number.isFinite(value) ? formatNumber(value) : '-'
+  return typeof value === 'number' && Number.isFinite(value) ? formatNumberLocaleString(value) : '-'
+}
+
+function formatCount(value?: number | null): string {
+  return typeof value === 'number' && Number.isFinite(value) ? formatNumberLocaleString(value) : '-'
+}
+
+function isThresholdExceeded(value?: number | null): boolean {
+  return props.thresholdMs != null && value != null && value > props.thresholdMs
+}
+
+function durationValueClass(value?: number | null): string {
+  return isThresholdExceeded(value) ? 'text-rose-600 dark:text-rose-400' : 'text-gray-700 dark:text-gray-200'
 }
 
 function formatMetricPercentile(row: OpsNginxTimingKeyMetric, field: PercentileField): string {
   return formatMs(metricPercentiles(row)[field])
+}
+
+function metricPercentileClass(row: OpsNginxTimingKeyMetric, field: PercentileField): string {
+  return durationValueClass(metricPercentiles(row)[field])
 }
 
 function buildParams() {
@@ -119,6 +224,14 @@ watch(
     if (props.modelValue) void fetchDetails()
   }
 )
+
+watch(
+  () => props.metric,
+  (metric) => {
+    sortKey.value = defaultSortKey(metric)
+    sortOrder.value = 'desc'
+  }
+)
 </script>
 
 <template>
@@ -127,9 +240,20 @@ watch(
       <div class="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 pb-4 text-xs text-gray-500 dark:border-dark-700 dark:text-gray-400">
         <div class="space-y-1">
           <div>{{ t('admin.ops.nginxTiming.details.description') }}</div>
-          <div v-if="details?.available">{{ t('admin.ops.nginxTiming.details.matchedRequests', { count: formatNumber(details.matched_request_count) }) }}</div>
+          <div v-if="details?.available">{{ t('admin.ops.nginxTiming.details.matchedRequests', { count: formatCount(details.matched_request_count) }) }}</div>
           <div v-if="details?.unattributed_error_count" class="text-amber-600 dark:text-amber-400">
-            {{ t('admin.ops.nginxTiming.details.unattributedErrors', { count: formatNumber(details.unattributed_error_count) }) }}
+            {{ t('admin.ops.nginxTiming.details.unattributedErrors', { count: formatCount(details.unattributed_error_count) }) }}
+          </div>
+          <div v-if="hasDurationMetric" class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-dark-900 dark:text-gray-300">
+            <span>{{ t('admin.ops.nginxTiming.details.meaning', { value: metricDescription }) }}</span>
+            <span>
+              {{ t('admin.ops.nginxTiming.details.currentP99') }}:
+              <strong :class="durationValueClass(summary?.p99_ms)">{{ formatMs(summary?.p99_ms) }} ms</strong>
+            </span>
+            <span v-if="thresholdMs != null">
+              {{ t('admin.ops.nginxTiming.details.redThreshold') }}:
+              <strong>{{ formatMs(thresholdMs) }} ms</strong>
+            </span>
           </div>
         </div>
         <button type="button" class="btn btn-secondary btn-sm" @click="fetchDetails">
@@ -153,22 +277,46 @@ watch(
         <table class="min-w-full divide-y divide-gray-200 dark:divide-dark-700">
           <thead class="bg-gray-50 dark:bg-dark-900">
             <tr>
-              <th class="sticky left-0 bg-gray-50 px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:bg-dark-900 dark:text-gray-400">Key</th>
+              <th :aria-sort="ariaSort('key_name')" class="sticky left-0 bg-gray-50 px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider dark:bg-dark-900">
+                <button type="button" :class="sortHeaderClass('key_name', 'left')" @click="toggleSort('key_name')">
+                  Key
+                  <Icon :name="sortIconName('key_name')" size="xs" aria-hidden="true" />
+                </button>
+              </th>
               <template v-if="props.metric === 'requests'">
-                <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">HTTP</th>
-                <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ t('admin.ops.nginxTiming.details.success') }}</th>
-                <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">WS</th>
+                <th :aria-sort="ariaSort('http_request_count')" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
+                  <button type="button" :class="sortHeaderClass('http_request_count', 'right')" @click="toggleSort('http_request_count')">HTTP<Icon :name="sortIconName('http_request_count')" size="xs" aria-hidden="true" /></button>
+                </th>
+                <th :aria-sort="ariaSort('success_count')" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
+                  <button type="button" :class="sortHeaderClass('success_count', 'right')" @click="toggleSort('success_count')">{{ t('admin.ops.nginxTiming.details.success') }}<Icon :name="sortIconName('success_count')" size="xs" aria-hidden="true" /></button>
+                </th>
+                <th :aria-sort="ariaSort('websocket_session_count')" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
+                  <button type="button" :class="sortHeaderClass('websocket_session_count', 'right')" @click="toggleSort('websocket_session_count')">WS<Icon :name="sortIconName('websocket_session_count')" size="xs" aria-hidden="true" /></button>
+                </th>
               </template>
               <template v-else-if="props.metric === 'ingress_errors'">
-                <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">HTTP</th>
-                <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">408</th>
-                <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">499</th>
-                <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">5xx</th>
+                <th :aria-sort="ariaSort('http_request_count')" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
+                  <button type="button" :class="sortHeaderClass('http_request_count', 'right')" @click="toggleSort('http_request_count')">HTTP<Icon :name="sortIconName('http_request_count')" size="xs" aria-hidden="true" /></button>
+                </th>
+                <th :aria-sort="ariaSort('client_timeout_408_count')" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
+                  <button type="button" :class="sortHeaderClass('client_timeout_408_count', 'right')" @click="toggleSort('client_timeout_408_count')">408<Icon :name="sortIconName('client_timeout_408_count')" size="xs" aria-hidden="true" /></button>
+                </th>
+                <th :aria-sort="ariaSort('client_closed_499_count')" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
+                  <button type="button" :class="sortHeaderClass('client_closed_499_count', 'right')" @click="toggleSort('client_closed_499_count')">499<Icon :name="sortIconName('client_closed_499_count')" size="xs" aria-hidden="true" /></button>
+                </th>
+                <th :aria-sort="ariaSort('server_error_5xx_count')" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
+                  <button type="button" :class="sortHeaderClass('server_error_5xx_count', 'right')" @click="toggleSort('server_error_5xx_count')">5xx<Icon :name="sortIconName('server_error_5xx_count')" size="xs" aria-hidden="true" /></button>
+                </th>
               </template>
               <template v-else>
-                <th class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">HTTP</th>
-                <th v-for="field in percentileFields" :key="field.key" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {{ field.label }} (ms)
+                <th :aria-sort="ariaSort('http_request_count')" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
+                  <button type="button" :class="sortHeaderClass('http_request_count', 'right')" @click="toggleSort('http_request_count')">HTTP<Icon :name="sortIconName('http_request_count')" size="xs" aria-hidden="true" /></button>
+                </th>
+                <th v-for="field in percentileFields" :key="field.key" :aria-sort="ariaSort(field.key)" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
+                  <button type="button" :class="sortHeaderClass(field.key, 'right')" @click="toggleSort(field.key)">
+                    {{ field.label }} (ms)
+                    <Icon :name="sortIconName(field.key)" size="xs" aria-hidden="true" />
+                  </button>
                 </th>
               </template>
             </tr>
@@ -179,19 +327,19 @@ watch(
                 {{ row.key_name || `Key #${row.api_key_id}` }}
               </td>
               <template v-if="props.metric === 'requests'">
-                <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatNumber(row.http_request_count) }}</td>
-                <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatNumber(row.success_count) }}</td>
-                <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatNumber(row.websocket_session_count) }}</td>
+                <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatCount(row.http_request_count) }}</td>
+                <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatCount(row.success_count) }}</td>
+                <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatCount(row.websocket_session_count) }}</td>
               </template>
               <template v-else-if="props.metric === 'ingress_errors'">
-                <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatNumber(row.http_request_count) }}</td>
-                <td class="px-4 py-3 text-right text-sm text-rose-600 dark:text-rose-400">{{ formatNumber(row.client_timeout_408_count) }}</td>
-                <td class="px-4 py-3 text-right text-sm text-rose-600 dark:text-rose-400">{{ formatNumber(row.client_closed_499_count) }}</td>
-                <td class="px-4 py-3 text-right text-sm text-rose-600 dark:text-rose-400">{{ formatNumber(row.server_error_5xx_count) }}</td>
+                <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatCount(row.http_request_count) }}</td>
+                <td class="px-4 py-3 text-right text-sm text-rose-600 dark:text-rose-400">{{ formatCount(row.client_timeout_408_count) }}</td>
+                <td class="px-4 py-3 text-right text-sm text-rose-600 dark:text-rose-400">{{ formatCount(row.client_closed_499_count) }}</td>
+                <td class="px-4 py-3 text-right text-sm text-rose-600 dark:text-rose-400">{{ formatCount(row.server_error_5xx_count) }}</td>
               </template>
               <template v-else>
-                <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatNumber(row.http_request_count) }}</td>
-                <td v-for="field in percentileFields" :key="field.key" class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">
+                <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatCount(row.http_request_count) }}</td>
+                <td v-for="field in percentileFields" :key="field.key" class="px-4 py-3 text-right text-sm" :class="metricPercentileClass(row, field.key)">
                   {{ formatMetricPercentile(row, field.key) }}
                 </td>
               </template>

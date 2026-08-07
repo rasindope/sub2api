@@ -43,10 +43,9 @@ export default {
         requestsUnit: 'requests',
         success: 'Success',
         requestTime: 'Per-request completion time',
-        gatewayConnect: 'Per-request internal connect time',
         gatewayHeader: 'Gateway header P90: {value} ms',
         upstreamResponse: 'Per-request server time',
-        clientOverhead: 'Per-request upload/download time',
+        clientOverhead: 'Per-request client overhead',
         ingressErrors: 'Ingress interrupted/errors',
         unattributed: 'Unattributed',
         websocketSessions: 'WS sessions {count}',
@@ -58,14 +57,16 @@ export default {
         metricTitles: {
           requests: 'HTTP Requests',
           request_time: 'Per-request completion time',
-          gateway_connect: 'Per-request internal connect time',
           upstream_response: 'Per-request server time',
-          client_overhead: 'Per-request upload/download time',
+          client_overhead: 'Per-request client overhead',
           ingress_errors: 'Ingress interrupted/errors'
         },
         details: {
           title: '{metric}: per-Key details',
           description: 'Each row is one Key. HTTP timing covers correlated HTTP requests; WebSocket traffic is counted only by sessions.',
+          meaning: 'Meaning: {value}',
+          currentP99: 'Current P99',
+          redThreshold: 'Red threshold',
           matchedRequests: '{count} correlated gateway records',
           unattributedErrors: '{count} ingress errors did not reach Sub2API and cannot be attributed to a Key.',
           success: 'Success',
@@ -74,9 +75,8 @@ export default {
         tooltips: {
           requests: 'Counts HTTP gateway requests only. WebSocket connections are counted separately as sessions, not as HTTP requests.',
           requestTime: 'For each HTTP request, time from Nginx receiving it until the response completes, including client upload, server work, and client download.',
-          gatewayConnect: 'For each HTTP request, time for Nginx to connect to local Sub2API. It should normally be near zero.',
           upstreamResponse: 'For each HTTP request, time Nginx waits for Sub2API to complete the response, including gateway work and upstream calls.',
-          clientOverhead: 'For each HTTP request, completion time minus server time. It includes client upload and response drain, not pure network latency.',
+          clientOverhead: 'Completion time minus server time. It includes client upload and response drain, not pure network latency.',
           ingressErrors: 'Ingress-layer 408, 499, and 5xx errors. With a Key filter, requests that never reach the gateway remain unattributed.'
         }
       },
@@ -668,6 +668,7 @@ export default {
           lockTtlRange: 'Distributed lock TTL must be between 1 and 86400 seconds',
           slaMinPercentRange: 'SLA minimum percentage must be between 0 and 100',
           ttftP99MaxRange: 'TTFT P99 maximum must be a number ≥ 0',
+          nginxClientOverheadMaxRange: 'Client overhead red threshold must be a number ≥ 0',
           requestErrorRateMaxRange: 'Request error rate maximum must be between 0 and 100',
           upstreamErrorRateMaxRange: 'Upstream error rate maximum must be between 0 and 100'
         }
@@ -736,6 +737,8 @@ export default {
         slaMinPercentHint: 'SLA below this value will be displayed in red (default: 99.5%)',
         ttftP99MaxMs: 'TTFT P99 Maximum (ms)',
         ttftP99MaxMsHint: 'TTFT P99 above this value will be displayed in red (default: 500ms)',
+        nginxClientOverheadMaxMs: 'Client Overhead Red Threshold (ms)',
+        nginxClientOverheadMaxMsHint: 'Client overhead above this value will be displayed in red (default: 60,000ms)',
         requestErrorRateMaxPercent: 'Request Error Rate Maximum (%)',
         requestErrorRateMaxPercentHint: 'Request error rate above this value will be displayed in red (default: 5%)',
         upstreamErrorRateMaxPercent: 'Upstream Error Rate Maximum (%)',
