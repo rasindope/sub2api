@@ -20,25 +20,58 @@ func (h *OpsHandler) GetNginxTimingOverview(c *gin.Context) {
 		return
 	}
 
-	startTime, endTime, err := parseOpsTimeRange(c, "1h")
-	if err != nil {
-		response.BadRequest(c, err.Error())
-		return
-	}
-	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	filter, err := parseNginxTimingFilter(c)
 	if err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	data, err := h.opsService.GetNginxTimingOverview(c.Request.Context(), &service.OpsNginxTimingFilter{
-		StartTime: startTime,
-		EndTime:   endTime,
-		APIKeyIDs: apiKeyIDs,
-	})
+	data, err := h.opsService.GetNginxTimingOverview(c.Request.Context(), filter)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 	response.Success(c, data)
+}
+
+// GetNginxTimingKeyDetails returns the per-Key metrics for one Nginx card.
+// GET /api/v1/admin/ops/dashboard/nginx-timing/keys
+func (h *OpsHandler) GetNginxTimingKeyDetails(c *gin.Context) {
+	if h.opsService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Ops service not available")
+		return
+	}
+	if err := h.opsService.RequireMonitoringEnabled(c.Request.Context()); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	filter, err := parseNginxTimingFilter(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	data, err := h.opsService.GetNginxTimingKeyDetails(c.Request.Context(), filter)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, data)
+}
+
+func parseNginxTimingFilter(c *gin.Context) (*service.OpsNginxTimingFilter, error) {
+	startTime, endTime, err := parseOpsTimeRange(c, "1h")
+	if err != nil {
+		return nil, err
+	}
+	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	if err != nil {
+		return nil, err
+	}
+	return &service.OpsNginxTimingFilter{
+		StartTime: startTime,
+		EndTime:   endTime,
+		APIKeyIDs: apiKeyIDs,
+	}, nil
 }
