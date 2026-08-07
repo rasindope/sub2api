@@ -15,6 +15,7 @@
         :overview="overview"
         :platform="platform"
         :group-id="groupId"
+        :api-key-ids="selectedApiKeyIds"
         :time-range="timeRange"
         :query-mode="queryMode"
         :loading="loading"
@@ -28,6 +29,7 @@
         @update:time-range="onTimeRangeChange"
         @update:platform="onPlatformChange"
         @update:group="onGroupChange"
+        @open-api-key-filter="openApiKeyFilter"
         @update:query-mode="onQueryModeChange"
         @update:custom-time-range="onCustomTimeRangeChange"
         @refresh="fetchData"
@@ -89,6 +91,7 @@
         <OpsOpenAITokenStatsCard
           :platform-filter="platform"
           :group-id-filter="groupId"
+          :api-key-ids="selectedApiKeyIds"
           :refresh-token="dashboardRefreshToken"
         />
       </div>
@@ -105,6 +108,52 @@
 
       <!-- Settings Dialog (hidden in fullscreen mode) -->
       <template v-if="!isFullscreen">
+        <BaseDialog :show="showApiKeyFilter" :title="t('admin.ops.sourceKeyFilter.title')" width="wide" @close="closeApiKeyFilter">
+          <div class="space-y-4">
+            <input
+              v-model="apiKeySearch"
+              type="search"
+              :placeholder="t('admin.ops.sourceKeyFilter.searchPlaceholder')"
+              class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-dark-600 dark:bg-dark-800 dark:text-white"
+            />
+
+            <div class="flex items-center justify-between gap-3 text-xs">
+              <span class="text-gray-500 dark:text-gray-400">{{ t('admin.ops.sourceKeyFilter.selectedCount', { count: pendingApiKeyIds.length }) }}</span>
+              <button type="button" class="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" @click="selectVisibleApiKeys">
+                {{ t('admin.ops.sourceKeyFilter.selectVisible') }}
+              </button>
+            </div>
+
+            <div class="max-h-[420px] overflow-y-auto rounded-lg border border-gray-200 dark:border-dark-700">
+              <div v-if="loadingApiKeys" class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">{{ t('common.loading') }}</div>
+              <div v-else-if="apiKeyOptions.length === 0" class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">{{ t('common.noData') }}</div>
+              <label
+                v-for="key in apiKeyOptions"
+                :key="key.id"
+                class="flex cursor-pointer items-center gap-3 border-b border-gray-100 px-4 py-3 last:border-b-0 hover:bg-gray-50 dark:border-dark-700 dark:hover:bg-dark-800"
+              >
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  :checked="pendingApiKeyIds.includes(key.id)"
+                  @change="toggleApiKey(key.id)"
+                />
+                <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">{{ key.name || `Key #${key.id}` }}</span>
+                <span class="font-mono text-xs text-gray-400">#{{ key.id }}</span>
+              </label>
+            </div>
+          </div>
+          <template #footer>
+            <div class="flex items-center justify-between gap-3">
+              <button type="button" class="btn btn-secondary" @click="clearApiKeyFilter">{{ t('admin.ops.sourceKeyFilter.clearAndApply') }}</button>
+              <div class="flex gap-3">
+                <button type="button" class="btn btn-secondary" @click="closeApiKeyFilter">{{ t('common.cancel') }}</button>
+                <button type="button" class="btn btn-primary" @click="applyApiKeyFilter">{{ t('admin.ops.sourceKeyFilter.apply') }}</button>
+              </div>
+            </div>
+          </template>
+        </BaseDialog>
+
         <OpsSettingsDialog :show="showSettingsDialog" @close="showSettingsDialog = false" @saved="onSettingsSaved" />
 
         <BaseDialog :show="showAlertRulesCard" :title="t('admin.ops.alertRules.title')" width="extra-wide" @close="showAlertRulesCard = false">
@@ -118,6 +167,7 @@
           :custom-end-time="customEndTime"
           :platform="platform"
           :group-id="groupId"
+          :api-key-ids="selectedApiKeyIds"
           :error-type="errorDetailsType"
           @update:show="showErrorDetails = $event"
           @openErrorDetail="openError"
@@ -131,6 +181,7 @@
           :preset="requestDetailsPreset"
           :platform="platform"
           :group-id="groupId"
+          :api-key-ids="selectedApiKeyIds"
           @openErrorDetail="openError"
         />
       </template>
@@ -145,6 +196,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import { adminAPI } from '@/api'
 import {
   opsAPI,
   type OpsDashboardOverview,
@@ -154,7 +206,8 @@ import {
   type OpsThroughputTrendResponse,
   type OpsMetricThresholds
 } from '@/api/admin/ops'
-import { useAdminSettingsStore, useAppStore } from '@/stores'
+import type { SimpleApiKey } from '@/api/admin/usage'
+import { useAdminSettingsStore, useAppStore, useAuthStore } from '@/stores'
 import OpsDashboardHeader from './components/OpsDashboardHeader.vue'
 import OpsDashboardSkeleton from './components/OpsDashboardSkeleton.vue'
 import OpsConcurrencyCard from './components/OpsConcurrencyCard.vue'
@@ -176,6 +229,7 @@ const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
 const adminSettingsStore = useAdminSettingsStore()
+const authStore = useAuthStore()
 const { t } = useI18n()
 
 const opsEnabled = computed(() => adminSettingsStore.opsMonitoringEnabled)
@@ -194,6 +248,12 @@ const lastUpdated = ref<Date | null>(new Date())
 const timeRange = ref<TimeRange>('1h')
 const platform = ref<string>('')
 const groupId = ref<number | null>(null)
+const selectedApiKeyIds = ref<number[]>([])
+const pendingApiKeyIds = ref<number[]>([])
+const showApiKeyFilter = ref(false)
+const apiKeySearch = ref('')
+const apiKeyOptions = ref<SimpleApiKey[]>([])
+const loadingApiKeys = ref(false)
 const queryMode = ref<QueryMode>('auto')
 const customStartTime = ref<string | null>(null)
 const customEndTime = ref<string | null>(null)
@@ -205,6 +265,7 @@ const QUERY_KEYS = {
   timeRange: 'tr',
   platform: 'platform',
   groupId: 'group_id',
+  apiKeyIds: 'api_key_ids',
   queryMode: 'mode',
   fullscreen: 'fullscreen',
 
@@ -274,6 +335,33 @@ const readQueryNumber = (key: string): number | null => {
   return Number.isFinite(n) ? n : null
 }
 
+function normalizeApiKeyIds(ids: number[]): number[] {
+  return [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))]
+    .sort((a, b) => a - b)
+    .slice(0, 100)
+}
+
+function parseApiKeyIds(raw: string): number[] {
+  if (!raw) return []
+  return normalizeApiKeyIds(raw.split(',').map((value) => Number.parseInt(value, 10)))
+}
+
+const apiKeyFilterStorageKey = computed(() => `ops-dashboard:key-filter:${authStore.user?.id ?? 'anonymous'}`)
+
+function readPersistedApiKeyFilter(): number[] {
+  try {
+    const raw = window.localStorage.getItem(apiKeyFilterStorageKey.value)
+    const ids = raw ? JSON.parse(raw) : []
+    return Array.isArray(ids) ? normalizeApiKeyIds(ids.map(Number)) : []
+  } catch {
+    return []
+  }
+}
+
+function persistApiKeyFilter(): void {
+  window.localStorage.setItem(apiKeyFilterStorageKey.value, JSON.stringify(selectedApiKeyIds.value))
+}
+
 const applyRouteQueryToState = () => {
   const nextTimeRange = readQueryString(QUERY_KEYS.timeRange)
   if (nextTimeRange && allowedTimeRanges.has(nextTimeRange as TimeRange)) {
@@ -284,6 +372,10 @@ const applyRouteQueryToState = () => {
 
   const groupIdRaw = readQueryNumber(QUERY_KEYS.groupId)
   groupId.value = typeof groupIdRaw === 'number' && groupIdRaw > 0 ? groupIdRaw : null
+
+  if (Object.prototype.hasOwnProperty.call(route.query, QUERY_KEYS.apiKeyIds)) {
+    selectedApiKeyIds.value = parseApiKeyIds(readQueryString(QUERY_KEYS.apiKeyIds))
+  }
 
   const nextMode = readQueryString(QUERY_KEYS.queryMode)
   if (nextMode && allowedQueryModes.has(nextMode as QueryMode)) {
@@ -322,6 +414,7 @@ const buildQueryFromState = () => {
   if (timeRange.value !== '1h') next[QUERY_KEYS.timeRange] = timeRange.value
   if (platform.value) next[QUERY_KEYS.platform] = platform.value
   if (typeof groupId.value === 'number' && groupId.value > 0) next[QUERY_KEYS.groupId] = String(groupId.value)
+  if (selectedApiKeyIds.value.length > 0) next[QUERY_KEYS.apiKeyIds] = selectedApiKeyIds.value.join(',')
   if (queryMode.value !== 'auto') next[QUERY_KEYS.queryMode] = queryMode.value
 
   return next
@@ -431,6 +524,61 @@ async function loadDashboardAdvancedSettings() {
   }
 }
 
+async function loadApiKeyOptions() {
+  loadingApiKeys.value = true
+  try {
+    apiKeyOptions.value = await adminAPI.usage.searchApiKeys(undefined, apiKeySearch.value.trim(), 100)
+  } catch (err) {
+    console.error('[OpsDashboard] Failed to load API key filter options', err)
+    apiKeyOptions.value = []
+  } finally {
+    loadingApiKeys.value = false
+  }
+}
+
+const reloadApiKeyOptions = useDebounceFn(() => {
+  void loadApiKeyOptions()
+}, 250)
+
+function openApiKeyFilter() {
+  pendingApiKeyIds.value = [...selectedApiKeyIds.value]
+  apiKeySearch.value = ''
+  showApiKeyFilter.value = true
+  void loadApiKeyOptions()
+}
+
+function closeApiKeyFilter() {
+  pendingApiKeyIds.value = [...selectedApiKeyIds.value]
+  showApiKeyFilter.value = false
+}
+
+function toggleApiKey(id: number) {
+  const next = new Set(pendingApiKeyIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  pendingApiKeyIds.value = normalizeApiKeyIds([...next])
+}
+
+function selectVisibleApiKeys() {
+  pendingApiKeyIds.value = normalizeApiKeyIds([
+    ...pendingApiKeyIds.value,
+    ...apiKeyOptions.value.map((key) => key.id)
+  ])
+}
+
+function applyApiKeyFilter() {
+  selectedApiKeyIds.value = normalizeApiKeyIds(pendingApiKeyIds.value)
+  persistApiKeyFilter()
+  showApiKeyFilter.value = false
+}
+
+function clearApiKeyFilter() {
+  selectedApiKeyIds.value = []
+  pendingApiKeyIds.value = []
+  persistApiKeyFilter()
+  showApiKeyFilter.value = false
+}
+
 function handleThroughputSelectPlatform(nextPlatform: string) {
   platform.value = nextPlatform || ''
   groupId.value = null
@@ -518,6 +666,7 @@ function buildApiParams() {
   const params: any = {
     platform: platform.value || undefined,
     group_id: groupId.value ?? undefined,
+    api_key_ids: selectedApiKeyIds.value.length ? selectedApiKeyIds.value.join(',') : undefined,
     mode: queryMode.value
   }
 
@@ -540,6 +689,7 @@ function buildSwitchTrendParams() {
   const params: any = {
     platform: platform.value || undefined,
     group_id: groupId.value ?? undefined,
+    api_key_ids: selectedApiKeyIds.value.length ? selectedApiKeyIds.value.join(',') : undefined,
     mode: queryMode.value
   }
   const endTime = new Date()
@@ -739,7 +889,7 @@ async function fetchData() {
 }
 
 watch(
-  () => [timeRange.value, platform.value, groupId.value, queryMode.value] as const,
+  () => [timeRange.value, platform.value, groupId.value, selectedApiKeyIds.value.join(','), queryMode.value] as const,
   () => {
     if (isApplyingRouteQuery.value) return
     if (opsEnabled.value) {
@@ -757,13 +907,17 @@ watch(
     const prevTimeRange = timeRange.value
     const prevPlatform = platform.value
     const prevGroupId = groupId.value
+    const prevApiKeyIds = selectedApiKeyIds.value.join(',')
 
     isApplyingRouteQuery.value = true
     applyRouteQueryToState()
     isApplyingRouteQuery.value = false
 
     const changed =
-      prevTimeRange !== timeRange.value || prevPlatform !== platform.value || prevGroupId !== groupId.value
+      prevTimeRange !== timeRange.value ||
+      prevPlatform !== platform.value ||
+      prevGroupId !== groupId.value ||
+      prevApiKeyIds !== selectedApiKeyIds.value.join(',')
     if (changed) {
       if (opsEnabled.value) {
         fetchData()
@@ -772,9 +926,17 @@ watch(
   }
 )
 
+watch(apiKeySearch, () => {
+  if (showApiKeyFilter.value) reloadApiKeyOptions()
+})
+
 onMounted(async () => {
   // Fullscreen mode: listen for ESC key
   window.addEventListener('keydown', handleKeydown)
+
+  if (!Object.prototype.hasOwnProperty.call(route.query, QUERY_KEYS.apiKeyIds)) {
+    selectedApiKeyIds.value = readPersistedApiKeyFilter()
+  }
 
   await adminSettingsStore.fetch()
   if (!adminSettingsStore.opsMonitoringEnabled) {
