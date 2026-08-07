@@ -43,10 +43,9 @@ export default {
         requestsUnit: '次',
         success: '成功',
         requestTime: '每次请求完整耗时',
-        gatewayConnect: '每次请求内部连接耗时',
         gatewayHeader: '应用首包 P90：{value} ms',
         upstreamResponse: '每次请求服务端耗时',
-        clientOverhead: '每次请求上传/下载耗时',
+        clientOverhead: '每次请求客户端附加耗时',
         ingressErrors: '入口中断/错误',
         unattributed: '未归属',
         websocketSessions: 'WS 会话 {count}',
@@ -58,14 +57,16 @@ export default {
         metricTitles: {
           requests: 'HTTP 请求数',
           request_time: '每次请求完整耗时',
-          gateway_connect: '每次请求内部连接耗时',
           upstream_response: '每次请求服务端耗时',
-          client_overhead: '每次请求上传/下载耗时',
+          client_overhead: '每次请求客户端附加耗时',
           ingress_errors: '入口中断/错误'
         },
         details: {
           title: '{metric}：每个 Key 明细',
           description: '每一行是一个 Key。HTTP 耗时只统计已关联的每一次 HTTP 请求；WS 只按会话数统计。',
+          meaning: '含义：{value}',
+          currentP99: '当前 P99',
+          redThreshold: '标红阈值',
           matchedRequests: '已关联 {count} 条网关记录',
           unattributedErrors: '另有 {count} 条入口错误未进入 Sub2API，无法归属到 Key。',
           success: '成功',
@@ -74,9 +75,8 @@ export default {
         tooltips: {
           requests: '仅统计 HTTP 网关请求。WebSocket 连接按会话单独计数，不与每次 HTTP 请求混算。',
           requestTime: '每一条 HTTP 请求从 Nginx 接收请求到响应完成的时长，包含客户端上传、服务端处理和客户端下载。',
-          gatewayConnect: '每一条 HTTP 请求中，Nginx 连接本机 Sub2API 的耗时，通常应接近 0。',
           upstreamResponse: '每一条 HTTP 请求中，Nginx 等待 Sub2API 完成响应的耗时，包含网关处理和上游调用。',
-          clientOverhead: '每一条 HTTP 请求的完整耗时减去服务端耗时，包含客户端上传和接收响应，不等同于纯网络延迟。',
+          clientOverhead: '完整耗时 - 服务端耗时，包含客户端上传请求体和接收响应的附加时间，不等同于纯网络延迟。',
           ingressErrors: '408、499 和 5xx 的入口层错误。按 Key 筛选时，未进入网关的请求会单独保留为不可归属异常。'
         }
       },
@@ -736,6 +736,8 @@ export default {
         slaMinPercentHint: 'SLA低于此值时显示为红色（默认：99.5%）',
         ttftP99MaxMs: 'TTFT P99最大值（毫秒）',
         ttftP99MaxMsHint: 'TTFT P99高于此值时显示为红色（默认：500ms）',
+        nginxClientOverheadMaxMs: '客户端附加耗时标红阈值（毫秒）',
+        nginxClientOverheadMaxMsHint: '客户端附加耗时高于此值时显示为红色（默认：60,000ms）',
         requestErrorRateMaxPercent: '请求错误率最大值（%）',
         requestErrorRateMaxPercentHint: '请求错误率高于此值时显示为红色（默认：5%）',
         upstreamErrorRateMaxPercent: '上游错误率最大值（%）',
@@ -785,6 +787,7 @@ export default {
           retentionDaysRange: '保留天数必须在 0-365 天之间（0 = 每次清理时清空所有）',
           slaMinPercentRange: 'SLA最低百分比必须在0-100之间',
           ttftP99MaxRange: 'TTFT P99最大值必须大于等于0',
+          nginxClientOverheadMaxRange: '客户端附加耗时标红阈值必须大于等于0',
           requestErrorRateMaxRange: '请求错误率最大值必须在0-100之间',
           upstreamErrorRateMaxRange: '上游错误率最大值必须在0-100之间',
           openaiQuotaAutoPauseRange: 'OpenAI 配额自动暂停阈值必须在 0-100 之间'
