@@ -38,6 +38,29 @@ export default {
         clearAndApply: 'Clear and apply',
         apply: 'Apply filter'
       },
+      nginxTiming: {
+        requests: 'Nginx Requests',
+        requestTime: 'Nginx Total P90',
+        gatewayConnect: 'Gateway Connect P90',
+        gatewayHeader: 'Gateway header P90: {value} ms',
+        upstreamResponse: 'Gateway Response P90',
+        clientOverhead: 'Client Overhead P90',
+        ingressErrors: 'Ingress Errors',
+        websocketSessions: 'WS sessions {count}',
+        p50: 'P50: {value} ms',
+        allGatewayTraffic: 'All gateway traffic',
+        matchedKeys: 'Matched Keys {count}',
+        ingressErrorBreakdown: '408 {timeout} · 499 {closed} · unattributed {unattributed}',
+        logUnavailable: 'Waiting for Nginx log',
+        tooltips: {
+          requests: 'Counts gateway API paths only. WebSocket connections are counted separately as sessions, not HTTP requests.',
+          requestTime: 'Nginx time from receiving the client request until the response completes, including client upload and download.',
+          gatewayConnect: 'Time for Nginx to connect to the local Sub2API gateway. Gateway header is when Nginx receives the first response header.',
+          upstreamResponse: 'Time Nginx waits for Sub2API to complete the response, including gateway work and upstream calls.',
+          clientOverhead: 'Total time minus gateway response time. It includes client upload and response drain, not pure client network latency.',
+          ingressErrors: 'Ingress-layer 408, 499, and 5xx errors. With a Key filter, requests that never reach the gateway remain unattributed.'
+        }
+      },
       systemLogs: {
         title: 'System Logs',
         description: 'Newest logs are shown first. Filter, search, and clean up by condition.',
@@ -130,6 +153,7 @@ export default {
       failedToLoadLatencyHistogram: 'Failed to load request duration histogram',
       failedToLoadErrorTrend: 'Failed to load error trend',
       failedToLoadErrorDistribution: 'Failed to load error distribution',
+      failedToLoadNginxTiming: 'Failed to load Nginx request-path data',
       failedToLoadErrorDetail: 'Failed to load error detail',
       retryFailed: 'Retry failed',
       tpsK: 'TPS (K)',
