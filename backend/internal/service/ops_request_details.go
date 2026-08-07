@@ -52,6 +52,7 @@ type OpsRequestDetailFilter struct {
 
 	UserID    *int64
 	APIKeyID  *int64
+	APIKeyIDs []int64
 	AccountID *int64
 
 	Model     string

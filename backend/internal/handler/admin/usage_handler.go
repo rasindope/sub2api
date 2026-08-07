@@ -414,6 +414,15 @@ func (h *UsageHandler) SearchUsers(c *gin.Context) {
 func (h *UsageHandler) SearchAPIKeys(c *gin.Context) {
 	userIDStr := c.Query("user_id")
 	keyword := c.Query("q")
+	limit := 30
+	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 || parsed > 100 {
+			response.BadRequest(c, "Invalid limit")
+			return
+		}
+		limit = parsed
+	}
 
 	var userID int64
 	if userIDStr != "" {
@@ -425,7 +434,7 @@ func (h *UsageHandler) SearchAPIKeys(c *gin.Context) {
 		userID = id
 	}
 
-	keys, err := h.apiKeyService.SearchAPIKeys(c.Request.Context(), userID, keyword, 30)
+	keys, err := h.apiKeyService.SearchAPIKeys(c.Request.Context(), userID, keyword, limit)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
