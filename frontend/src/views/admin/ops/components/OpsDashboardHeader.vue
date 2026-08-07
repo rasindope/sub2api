@@ -6,11 +6,11 @@ import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api'
-import { opsAPI, type OpsDashboardOverview, type OpsMetricThresholds, type OpsNginxTimingMetric, type OpsNginxTimingOverview, type OpsRealtimeTrafficSummary } from '@/api/admin/ops'
+import { opsAPI, type OpsDashboardOverview, type OpsMetricThresholds, type OpsNginxTimingMetric, type OpsNginxTimingOverview, type OpsPercentiles, type OpsRealtimeTrafficSummary } from '@/api/admin/ops'
 import type { OpsRequestDetailsPreset } from './OpsRequestDetailsModal.vue'
 import OpsNginxTimingDetailsModal from './OpsNginxTimingDetailsModal.vue'
 import { useAdminSettingsStore } from '@/stores'
-import { formatNumber } from '@/utils/format'
+import { formatNumber, formatNumberLocaleString } from '@/utils/format'
 import { formatMemorySizeMB } from '../utils/opsFormatters'
 
 type RealtimeWindow = '1min' | '5min' | '30min' | '1h'
@@ -661,7 +661,11 @@ function formatTimeShort(ts?: string | null): string {
 }
 
 function formatNginxMs(value?: number | null): string {
-  return typeof value === 'number' && Number.isFinite(value) ? formatNumber(value) : '-'
+  return typeof value === 'number' && Number.isFinite(value) ? formatNumberLocaleString(value) : '-'
+}
+
+function formatNginxCount(value?: number | null): string {
+  return typeof value === 'number' && Number.isFinite(value) ? formatNumberLocaleString(value) : '-'
 }
 
 const nginxIngressErrorCount = computed(() => {
@@ -677,6 +681,7 @@ const nginxIngressErrorClass = computed(() => {
 
 const showNginxTimingDetails = ref(false)
 const nginxTimingDetailMetric = ref<OpsNginxTimingMetric>('requests')
+const nginxClientOverheadThreshold = computed(() => props.thresholds?.nginx_client_overhead_ms_max ?? null)
 
 const nginxDurationCards = computed(() => {
   const metrics = nginxTiming.value
@@ -686,12 +691,6 @@ const nginxDurationCards = computed(() => {
       title: t('admin.ops.nginxTiming.requestTime'),
       tooltip: t('admin.ops.nginxTiming.tooltips.requestTime'),
       values: metrics?.request_time
-    },
-    {
-      metric: 'gateway_connect' as const,
-      title: t('admin.ops.nginxTiming.gatewayConnect'),
-      tooltip: t('admin.ops.nginxTiming.tooltips.gatewayConnect'),
-      values: metrics?.upstream_connect_time
     },
     {
       metric: 'upstream_response' as const,
@@ -707,6 +706,17 @@ const nginxDurationCards = computed(() => {
     }
   ]
 })
+
+const nginxTimingDetailSummary = computed<OpsPercentiles | undefined>(() => {
+  return nginxDurationCards.value.find((card) => card.metric === nginxTimingDetailMetric.value)?.values
+})
+
+function nginxTimingValueClass(metric: OpsNginxTimingMetric, value?: number | null): string {
+  if (metric === 'client_overhead' && nginxClientOverheadThreshold.value != null && value != null && value > nginxClientOverheadThreshold.value) {
+    return 'text-rose-600 dark:text-rose-400'
+  }
+  return 'text-gray-900 dark:text-white'
+}
 
 function openNginxTimingDetails(metric: OpsNginxTimingMetric) {
   nginxTimingDetailMetric.value = metric
@@ -1523,12 +1533,12 @@ function handleToolbarRefresh() {
             </button>
           </div>
           <div class="mt-2 flex items-baseline gap-2">
-            <div class="text-3xl font-black text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNumber(nginxTiming.http_request_count) : '-' }}</div>
+            <div class="text-3xl font-black text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.http_request_count) : '-' }}</div>
             <span class="text-xs font-bold text-gray-400">{{ t('admin.ops.nginxTiming.requestsUnit') }}</span>
           </div>
           <div class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">{{ t('admin.ops.nginxTiming.success') }}:</span><span class="font-bold text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNumber(nginxTiming.success_count) : '-' }}</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">WS:</span><span class="font-bold text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNumber(nginxTiming.websocket_session_count) : '-' }}</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">{{ t('admin.ops.nginxTiming.success') }}:</span><span class="font-bold text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.success_count) : '-' }}</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">WS:</span><span class="font-bold text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.websocket_session_count) : '-' }}</span></div>
           </div>
         </div>
 
@@ -1543,15 +1553,18 @@ function handleToolbarRefresh() {
             </button>
           </div>
           <div class="mt-2 flex items-baseline gap-2">
-            <div class="text-3xl font-black text-gray-900 dark:text-white">{{ formatNginxMs(card.values?.p99_ms) }}</div>
+            <div class="text-3xl font-black" :class="nginxTimingValueClass(card.metric, card.values?.p99_ms)">{{ formatNginxMs(card.values?.p99_ms) }}</div>
             <span class="text-xs font-bold text-gray-400">ms (P99)</span>
           </div>
           <div class="mt-3 grid grid-cols-1 gap-x-3 gap-y-1 text-xs 2xl:grid-cols-2">
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">P95:</span><span class="font-bold text-gray-900 dark:text-white">{{ formatNginxMs(card.values?.p95_ms) }}</span><span class="text-gray-400">ms</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">P90:</span><span class="font-bold text-gray-900 dark:text-white">{{ formatNginxMs(card.values?.p90_ms) }}</span><span class="text-gray-400">ms</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">P50:</span><span class="font-bold text-gray-900 dark:text-white">{{ formatNginxMs(card.values?.p50_ms) }}</span><span class="text-gray-400">ms</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">Avg:</span><span class="font-bold text-gray-900 dark:text-white">{{ formatNginxMs(card.values?.avg_ms) }}</span><span class="text-gray-400">ms</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">Max:</span><span class="font-bold text-gray-900 dark:text-white">{{ formatNginxMs(card.values?.max_ms) }}</span><span class="text-gray-400">ms</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">P95:</span><span class="font-bold" :class="nginxTimingValueClass(card.metric, card.values?.p95_ms)">{{ formatNginxMs(card.values?.p95_ms) }}</span><span class="text-gray-400">ms</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">P90:</span><span class="font-bold" :class="nginxTimingValueClass(card.metric, card.values?.p90_ms)">{{ formatNginxMs(card.values?.p90_ms) }}</span><span class="text-gray-400">ms</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">P50:</span><span class="font-bold" :class="nginxTimingValueClass(card.metric, card.values?.p50_ms)">{{ formatNginxMs(card.values?.p50_ms) }}</span><span class="text-gray-400">ms</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">Avg:</span><span class="font-bold" :class="nginxTimingValueClass(card.metric, card.values?.avg_ms)">{{ formatNginxMs(card.values?.avg_ms) }}</span><span class="text-gray-400">ms</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">Max:</span><span class="font-bold" :class="nginxTimingValueClass(card.metric, card.values?.max_ms)">{{ formatNginxMs(card.values?.max_ms) }}</span><span class="text-gray-400">ms</span></div>
+          </div>
+          <div v-if="card.metric === 'client_overhead' && nginxClientOverheadThreshold != null" class="mt-2 text-xs text-gray-500">
+            {{ t('admin.ops.nginxTiming.details.redThreshold') }}: {{ formatNginxMs(nginxClientOverheadThreshold) }} ms
           </div>
         </div>
 
@@ -1566,14 +1579,14 @@ function handleToolbarRefresh() {
             </button>
           </div>
           <div class="mt-2 flex items-baseline gap-2">
-            <div class="text-3xl font-black" :class="nginxIngressErrorClass">{{ nginxIngressErrorCount == null ? '-' : formatNumber(nginxIngressErrorCount) }}</div>
+            <div class="text-3xl font-black" :class="nginxIngressErrorClass">{{ nginxIngressErrorCount == null ? '-' : formatNginxCount(nginxIngressErrorCount) }}</div>
             <span class="text-xs font-bold text-gray-400">{{ t('admin.ops.nginxTiming.requestsUnit') }}</span>
           </div>
           <div class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">408:</span><span class="font-bold text-rose-600 dark:text-rose-400">{{ nginxTiming?.available ? formatNumber(nginxTiming.client_timeout_408_count) : '-' }}</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">499:</span><span class="font-bold text-rose-600 dark:text-rose-400">{{ nginxTiming?.available ? formatNumber(nginxTiming.client_closed_499_count) : '-' }}</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">5xx:</span><span class="font-bold text-rose-600 dark:text-rose-400">{{ nginxTiming?.available ? formatNumber(nginxTiming.server_error_5xx_count) : '-' }}</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">{{ t('admin.ops.nginxTiming.unattributed') }}:</span><span class="font-bold text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNumber(nginxTiming.unattributed_error_count) : '-' }}</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">408:</span><span class="font-bold text-rose-600 dark:text-rose-400">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.client_timeout_408_count) : '-' }}</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">499:</span><span class="font-bold text-rose-600 dark:text-rose-400">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.client_closed_499_count) : '-' }}</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">5xx:</span><span class="font-bold text-rose-600 dark:text-rose-400">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.server_error_5xx_count) : '-' }}</span></div>
+            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">{{ t('admin.ops.nginxTiming.unattributed') }}:</span><span class="font-bold text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.unattributed_error_count) : '-' }}</span></div>
           </div>
         </div>
       </div>
@@ -1585,6 +1598,8 @@ function handleToolbarRefresh() {
         :custom-start-time="props.customStartTime"
         :custom-end-time="props.customEndTime"
         :api-key-ids="props.apiKeyIds"
+        :summary="nginxTimingDetailSummary"
+        :threshold-ms="nginxTimingDetailMetric === 'client_overhead' ? nginxClientOverheadThreshold : null"
       />
     </div>
 
