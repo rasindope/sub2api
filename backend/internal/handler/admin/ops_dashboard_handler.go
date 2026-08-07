@@ -3,6 +3,7 @@ package admin
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -44,6 +45,12 @@ func (h *OpsHandler) GetDashboardOverview(c *gin.Context) {
 		}
 		filter.GroupID = &id
 	}
+	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	filter.APIKeyIDs = apiKeyIDs
 
 	data, err := h.opsService.GetDashboardOverview(c.Request.Context(), filter)
 	if err != nil {
@@ -85,6 +92,12 @@ func (h *OpsHandler) GetDashboardThroughputTrend(c *gin.Context) {
 		}
 		filter.GroupID = &id
 	}
+	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	filter.APIKeyIDs = apiKeyIDs
 
 	bucketSeconds := pickThroughputBucketSeconds(endTime.Sub(startTime))
 	data, err := h.opsService.GetThroughputTrend(c.Request.Context(), filter, bucketSeconds)
@@ -127,6 +140,12 @@ func (h *OpsHandler) GetDashboardLatencyHistogram(c *gin.Context) {
 		}
 		filter.GroupID = &id
 	}
+	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	filter.APIKeyIDs = apiKeyIDs
 
 	data, err := h.opsService.GetLatencyHistogram(c.Request.Context(), filter)
 	if err != nil {
@@ -168,6 +187,12 @@ func (h *OpsHandler) GetDashboardErrorTrend(c *gin.Context) {
 		}
 		filter.GroupID = &id
 	}
+	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	filter.APIKeyIDs = apiKeyIDs
 
 	bucketSeconds := pickThroughputBucketSeconds(endTime.Sub(startTime))
 	data, err := h.opsService.GetErrorTrend(c.Request.Context(), filter, bucketSeconds)
@@ -210,6 +235,12 @@ func (h *OpsHandler) GetDashboardErrorDistribution(c *gin.Context) {
 		}
 		filter.GroupID = &id
 	}
+	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	filter.APIKeyIDs = apiKeyIDs
 
 	data, err := h.opsService.GetErrorDistribution(c.Request.Context(), filter)
 	if err != nil {
@@ -275,6 +306,11 @@ func parseOpsOpenAITokenStatsFilter(c *gin.Context) (*service.OpsOpenAITokenStat
 		}
 		filter.GroupID = &id
 	}
+	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	if err != nil {
+		return nil, err
+	}
+	filter.APIKeyIDs = apiKeyIDs
 
 	topNRaw := strings.TrimSpace(c.Query("top_n"))
 	pageRaw := strings.TrimSpace(c.Query("page"))
@@ -350,4 +386,33 @@ func parseOpsQueryMode(c *gin.Context) service.OpsQueryMode {
 		return ""
 	}
 	return service.ParseOpsQueryMode(raw)
+}
+
+func parseOpsAPIKeyIDs(c *gin.Context) ([]int64, error) {
+	if c == nil {
+		return nil, nil
+	}
+	raw := strings.TrimSpace(c.Query("api_key_ids"))
+	if raw == "" {
+		return nil, nil
+	}
+
+	seen := make(map[int64]struct{})
+	for _, part := range strings.Split(raw, ",") {
+		id, err := strconv.ParseInt(strings.TrimSpace(part), 10, 64)
+		if err != nil || id <= 0 {
+			return nil, fmt.Errorf("invalid api_key_ids")
+		}
+		seen[id] = struct{}{}
+	}
+	if len(seen) > 100 {
+		return nil, fmt.Errorf("api_key_ids supports at most 100 keys")
+	}
+
+	ids := make([]int64, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	return ids, nil
 }

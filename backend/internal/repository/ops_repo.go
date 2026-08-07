@@ -1018,6 +1018,10 @@ func buildOpsErrorLogsWhere(filter *service.OpsErrorLogFilter) (string, []any) {
 		args = append(args, *filter.APIKeyID)
 		clauses = append(clauses, "e.api_key_id = $"+itoa(len(args)))
 	}
+	if len(filter.APIKeyIDs) > 0 {
+		args = append(args, pq.Array(filter.APIKeyIDs))
+		clauses = append(clauses, "e.api_key_id = ANY($"+itoa(len(args))+")")
+	}
 	if m := strings.TrimSpace(filter.Model); m != "" {
 		if filter.ModelFuzzy {
 			args = append(args, "%"+escapeLikePattern(m)+"%")

@@ -170,6 +170,12 @@ func (h *OpsHandler) GetErrorLogs(c *gin.Context) {
 		}
 		filter.APIKeyID = &id
 	}
+	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	filter.APIKeyIDs = apiKeyIDs
 	if v := strings.TrimSpace(c.Query("resolved")); v != "" {
 		switch strings.ToLower(v) {
 		case "1", "true", "yes":
@@ -282,6 +288,12 @@ func (h *OpsHandler) ListRequestErrors(c *gin.Context) {
 		}
 		filter.AccountID = &id
 	}
+	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	filter.APIKeyIDs = apiKeyIDs
 
 	if v := strings.TrimSpace(c.Query("resolved")); v != "" {
 		switch strings.ToLower(v) {
@@ -496,6 +508,12 @@ func (h *OpsHandler) ListUpstreamErrors(c *gin.Context) {
 		}
 		filter.AccountID = &id
 	}
+	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	filter.APIKeyIDs = apiKeyIDs
 
 	if v := strings.TrimSpace(c.Query("resolved")); v != "" {
 		switch strings.ToLower(v) {
@@ -605,6 +623,12 @@ func (h *OpsHandler) ListRequestDetails(c *gin.Context) {
 		}
 		filter.APIKeyID = &id
 	}
+	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	filter.APIKeyIDs = apiKeyIDs
 	if v := strings.TrimSpace(c.Query("account_id")); v != "" {
 		id, err := strconv.ParseInt(v, 10, 64)
 		if err != nil || id <= 0 {

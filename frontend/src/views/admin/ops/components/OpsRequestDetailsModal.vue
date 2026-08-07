@@ -24,6 +24,7 @@ interface Props {
   platform?: string
   groupId?: number | null
   resumeState?: boolean
+  apiKeyIds?: number[]
 }
 
 const props = defineProps<Props>()
@@ -78,6 +79,7 @@ const fetchData = async () => {
     const platform = (props.platform || '').trim()
     if (platform) params.platform = platform
     if (typeof props.groupId === 'number' && props.groupId > 0) params.group_id = props.groupId
+    if (props.apiKeyIds?.length) params.api_key_ids = props.apiKeyIds.join(',')
 
     if (typeof props.preset.min_duration_ms === 'number') params.min_duration_ms = props.preset.min_duration_ms
     if (typeof props.preset.max_duration_ms === 'number') params.max_duration_ms = props.preset.max_duration_ms
@@ -112,6 +114,7 @@ watch(
     props.timeRange,
     props.platform,
     props.groupId,
+    props.apiKeyIds?.join(','),
     props.preset.kind,
     props.preset.sort,
     props.preset.min_duration_ms,

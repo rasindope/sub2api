@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/lib/pq"
 )
 
 func (r *opsRepository) ListRequestDetails(ctx context.Context, filter *service.OpsRequestDetailFilter) ([]*service.OpsRequestDetail, int64, error) {
@@ -49,6 +50,9 @@ func (r *opsRepository) ListRequestDetails(ctx context.Context, filter *service.
 		}
 		if filter.APIKeyID != nil && *filter.APIKeyID > 0 {
 			addCondition(fmt.Sprintf("api_key_id = $%d", len(args)+1), *filter.APIKeyID)
+		}
+		if len(filter.APIKeyIDs) > 0 {
+			addCondition(fmt.Sprintf("api_key_id = ANY($%d)", len(args)+1), pq.Array(filter.APIKeyIDs))
 		}
 		if filter.AccountID != nil && *filter.AccountID > 0 {
 			addCondition(fmt.Sprintf("account_id = $%d", len(args)+1), *filter.AccountID)

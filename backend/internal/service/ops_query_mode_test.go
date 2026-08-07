@@ -3,6 +3,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -63,4 +64,15 @@ func TestCloneOpsFilterWithMode(t *testing.T) {
 		require.Equal(t, original.StartTime, cloned.StartTime)
 		require.Equal(t, original.GroupID, cloned.GroupID)
 	})
+}
+
+func TestResolveDashboardFilterQueryMode_UsesRawForAPIKeys(t *testing.T) {
+	filter := &OpsDashboardFilter{
+		APIKeyIDs: []int64{2, 8},
+		QueryMode: OpsQueryModePreagg,
+	}
+
+	(&OpsService{}).resolveDashboardFilterQueryMode(context.Background(), filter)
+
+	require.Equal(t, OpsQueryModeRaw, filter.QueryMode)
 }

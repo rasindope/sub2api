@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/lib/pq"
 )
 
 const (
@@ -181,6 +182,9 @@ type opsDashboardPartial struct {
 func (r *opsRepository) getDashboardOverviewPreaggregated(ctx context.Context, filter *service.OpsDashboardFilter) (*service.OpsDashboardOverview, error) {
 	if filter == nil {
 		return nil, fmt.Errorf("nil filter")
+	}
+	if len(filter.APIKeyIDs) > 0 {
+		return r.getDashboardOverviewRaw(ctx, filter)
 	}
 
 	start := filter.StartTime.UTC()
@@ -975,9 +979,11 @@ func isQueryTimeoutErr(err error) bool {
 func buildUsageWhere(filter *service.OpsDashboardFilter, start, end time.Time, startIndex int) (join string, where string, args []any, nextIndex int) {
 	platform := ""
 	groupID := (*int64)(nil)
+	var apiKeyIDs []int64
 	if filter != nil {
 		platform = strings.TrimSpace(strings.ToLower(filter.Platform))
 		groupID = filter.GroupID
+		apiKeyIDs = filter.APIKeyIDs
 	}
 
 	idx := startIndex
@@ -996,6 +1002,11 @@ func buildUsageWhere(filter *service.OpsDashboardFilter, start, end time.Time, s
 		clauses = append(clauses, fmt.Sprintf("ul.group_id = $%d", idx))
 		idx++
 	}
+	if len(apiKeyIDs) > 0 {
+		args = append(args, pq.Array(apiKeyIDs))
+		clauses = append(clauses, fmt.Sprintf("ul.api_key_id = ANY($%d)", idx))
+		idx++
+	}
 	if platform != "" {
 		// Prefer group.platform when available; fall back to account.platform so we don't
 		// drop rows where group_id is NULL.
@@ -1012,9 +1023,11 @@ func buildUsageWhere(filter *service.OpsDashboardFilter, start, end time.Time, s
 func buildErrorWhere(filter *service.OpsDashboardFilter, start, end time.Time, startIndex int) (where string, args []any, nextIndex int) {
 	platform := ""
 	groupID := (*int64)(nil)
+	var apiKeyIDs []int64
 	if filter != nil {
 		platform = strings.TrimSpace(strings.ToLower(filter.Platform))
 		groupID = filter.GroupID
+		apiKeyIDs = filter.APIKeyIDs
 	}
 
 	idx := startIndex
@@ -1033,6 +1046,11 @@ func buildErrorWhere(filter *service.OpsDashboardFilter, start, end time.Time, s
 	if groupID != nil && *groupID > 0 {
 		args = append(args, *groupID)
 		clauses = append(clauses, fmt.Sprintf("group_id = $%d", idx))
+		idx++
+	}
+	if len(apiKeyIDs) > 0 {
+		args = append(args, pq.Array(apiKeyIDs))
+		clauses = append(clauses, fmt.Sprintf("api_key_id = ANY($%d)", idx))
 		idx++
 	}
 	if platform != "" {

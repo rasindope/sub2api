@@ -144,6 +144,7 @@ export interface OpsRequestDetailsParams {
 
   user_id?: number
   api_key_id?: number
+  api_key_ids?: string
   account_id?: number
 
   model?: string
@@ -239,6 +240,7 @@ export interface OpsOpenAITokenStatsParams {
   time_range?: OpsOpenAITokenStatsTimeRange
   platform?: string
   group_id?: number | null
+  api_key_ids?: string
   page?: number
   page_size?: number
   top_n?: number
@@ -437,7 +439,8 @@ export interface OpsRealtimeTrafficSummaryResponse {
 export async function getRealtimeTrafficSummary(
   window: string,
   platform?: string,
-  groupId?: number | null
+  groupId?: number | null,
+  apiKeyIds?: number[]
 ): Promise<OpsRealtimeTrafficSummaryResponse> {
   const params: Record<string, any> = { window }
   if (platform) {
@@ -445,6 +448,9 @@ export async function getRealtimeTrafficSummary(
   }
   if (typeof groupId === 'number' && groupId > 0) {
     params.group_id = groupId
+  }
+  if (apiKeyIds?.length) {
+    params.api_key_ids = apiKeyIds.join(',')
   }
 
   const { data } = await apiClient.get<OpsRealtimeTrafficSummaryResponse>('/admin/ops/realtime-traffic', { params })
@@ -968,6 +974,7 @@ export async function getDashboardOverview(
   end_time?: string
   platform?: string
   group_id?: number | null
+  api_key_ids?: string
   mode?: OpsQueryMode
   },
   options: OpsRequestOptions = {}
@@ -986,6 +993,7 @@ export async function getDashboardSnapshotV2(
   end_time?: string
   platform?: string
   group_id?: number | null
+  api_key_ids?: string
   mode?: OpsQueryMode
   },
   options: OpsRequestOptions = {}
@@ -1004,6 +1012,7 @@ export async function getThroughputTrend(
   end_time?: string
   platform?: string
   group_id?: number | null
+  api_key_ids?: string
   mode?: OpsQueryMode
   },
   options: OpsRequestOptions = {}
@@ -1022,6 +1031,7 @@ export async function getLatencyHistogram(
   end_time?: string
   platform?: string
   group_id?: number | null
+  api_key_ids?: string
   mode?: OpsQueryMode
   },
   options: OpsRequestOptions = {}
@@ -1040,6 +1050,7 @@ export async function getErrorTrend(
   end_time?: string
   platform?: string
   group_id?: number | null
+  api_key_ids?: string
   mode?: OpsQueryMode
   },
   options: OpsRequestOptions = {}
@@ -1058,6 +1069,7 @@ export async function getErrorDistribution(
   end_time?: string
   platform?: string
   group_id?: number | null
+  api_key_ids?: string
   mode?: OpsQueryMode
   },
   options: OpsRequestOptions = {}
@@ -1093,6 +1105,7 @@ export type OpsErrorListQueryParams = {
   account_id?: number | null
   user_id?: number
   api_key_id?: number
+  api_key_ids?: string
   // 模型过滤：后端以 COALESCE(requested_model, model) 精确匹配（admin 路径）。
   model?: string
 

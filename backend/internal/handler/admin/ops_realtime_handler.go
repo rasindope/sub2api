@@ -46,7 +46,6 @@ func (h *OpsHandler) GetConcurrencyStats(c *gin.Context) {
 		}
 		groupID = &id
 	}
-
 	platform, group, account, collectedAt, err := h.opsService.GetConcurrencyStats(c.Request.Context(), platformFilter, groupID)
 	if err != nil {
 		if isOpsRealtimeRequestCanceled(c, err) {
@@ -228,6 +227,11 @@ func (h *OpsHandler) GetRealtimeTrafficSummary(c *gin.Context) {
 		}
 		groupID = &id
 	}
+	apiKeyIDs, err := parseOpsAPIKeyIDs(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 
 	endTime := time.Now().UTC()
 	startTime := endTime.Add(-windowDur)
@@ -255,6 +259,7 @@ func (h *OpsHandler) GetRealtimeTrafficSummary(c *gin.Context) {
 		EndTime:   endTime,
 		Platform:  platform,
 		GroupID:   groupID,
+		APIKeyIDs: apiKeyIDs,
 		QueryMode: service.OpsQueryModeRaw,
 	}
 

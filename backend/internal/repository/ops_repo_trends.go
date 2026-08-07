@@ -161,13 +161,13 @@ ORDER BY bucket ASC`
 	// Drilldown helpers:
 	// - No platform/group: totals by platform
 	// - Platform selected but no group: top groups in that platform
-	if platform == "" && (groupID == nil || *groupID <= 0) {
+	if len(filter.APIKeyIDs) == 0 && platform == "" && (groupID == nil || *groupID <= 0) {
 		items, err := r.getThroughputBreakdownByPlatform(ctx, start, end)
 		if err != nil {
 			return nil, err
 		}
 		byPlatform = items
-	} else if platform != "" && (groupID == nil || *groupID <= 0) {
+	} else if len(filter.APIKeyIDs) == 0 && platform != "" && (groupID == nil || *groupID <= 0) {
 		items, err := r.getThroughputTopGroupsByPlatform(ctx, start, end, platform, 10)
 		if err != nil {
 			return nil, err
