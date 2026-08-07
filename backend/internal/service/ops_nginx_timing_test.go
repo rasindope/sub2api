@@ -43,7 +43,9 @@ func TestReadOpsNginxTimingLogSeparatesGatewayAndKeyScope(t *testing.T) {
 	}
 
 	filter.APIKeyIDs = []int64{7}
-	selected, err := readOpsNginxTimingLog(path, filter, map[string]struct{}{"key-a": {}})
+	selected, err := readOpsNginxTimingLog(path, filter, map[string]OpsNginxTimingRequestKey{
+		"key-a": {APIKeyID: 7, KeyName: "Key A"},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,6 +54,23 @@ func TestReadOpsNginxTimingLogSeparatesGatewayAndKeyScope(t *testing.T) {
 	}
 	if selected.UnattributedErrorCount != 2 || selected.ClientTimeout408Count != 0 || selected.ClientClosed499Count != 0 {
 		t.Fatalf("unexpected unattributed split: %+v", selected)
+	}
+
+	details, err := readOpsNginxTimingKeyDetailsLog(path, &OpsNginxTimingFilter{StartTime: base, EndTime: base.Add(10 * time.Minute)}, map[string]OpsNginxTimingRequestKey{
+		"key-a": {APIKeyID: 7, KeyName: "Key A"},
+		"key-b": {APIKeyID: 8, KeyName: "Key B"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !details.Available || details.MatchedRequestCount != 3 || details.UnattributedErrorCount != 2 || len(details.Items) != 2 {
+		t.Fatalf("unexpected Key details: %+v", details)
+	}
+	if details.Items[0].APIKeyID != 7 || details.Items[0].HTTPRequestCount != 1 || details.Items[0].WebSocketSessionCount != 1 {
+		t.Fatalf("unexpected Key A details: %+v", details.Items[0])
+	}
+	if details.Items[1].APIKeyID != 8 || details.Items[1].RequestTime.P99 == nil || *details.Items[1].RequestTime.P99 != 3000 {
+		t.Fatalf("unexpected Key B details: %+v", details.Items[1])
 	}
 }
 
@@ -71,7 +90,7 @@ func TestReadOpsNginxTimingLogReadsLegacyRetention(t *testing.T) {
 		StartTime: base,
 		EndTime:   base.Add(10 * time.Minute),
 		APIKeyIDs: []int64{7},
-	}, map[string]struct{}{"key-a": {}})
+	}, map[string]OpsNginxTimingRequestKey{"key-a": {APIKeyID: 7, KeyName: "Key A"}})
 	if err != nil {
 		t.Fatal(err)
 	}

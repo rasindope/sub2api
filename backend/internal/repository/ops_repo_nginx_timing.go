@@ -9,55 +9,74 @@ import (
 	"github.com/lib/pq"
 )
 
-// ListNginxTimingClientRequestIDs maps Nginx's response correlation header to
-// selected Key IDs without ever persisting Key material in the Nginx log.
-func (r *opsRepository) ListNginxTimingClientRequestIDs(ctx context.Context, filter *service.OpsNginxTimingFilter) (map[string]struct{}, error) {
+// ListNginxTimingRequestKeys maps Nginx's response correlation header to API
+// Key metadata without ever persisting Key material in the Nginx log.
+func (r *opsRepository) ListNginxTimingRequestKeys(ctx context.Context, filter *service.OpsNginxTimingFilter) (map[string]service.OpsNginxTimingRequestKey, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("nil ops repository")
 	}
-	if filter == nil || len(filter.APIKeyIDs) == 0 {
-		return map[string]struct{}{}, nil
+	if filter == nil {
+		return map[string]service.OpsNginxTimingRequestKey{}, nil
+	}
+
+	args := []any{filter.StartTime, filter.EndTime}
+	keyWhere := ""
+	if len(filter.APIKeyIDs) > 0 {
+		keyWhere = " AND api_key_id = ANY($3)"
+		args = append(args, pq.Array(filter.APIKeyIDs))
 	}
 
 	rows, err := r.db.QueryContext(ctx, `
-SELECT client_request_id
-FROM (
-  SELECT substring(request_id FROM 8) AS client_request_id
+WITH matched AS (
+  SELECT substring(request_id FROM 8) AS client_request_id, api_key_id
   FROM usage_logs
-  WHERE api_key_id = ANY($1)
-    AND created_at >= $2
-    AND created_at <= $3
-    AND request_id LIKE 'client:%'
+  WHERE created_at >= $1
+    AND created_at <= $2
+    AND request_id LIKE 'client:%'`+keyWhere+`
 
   UNION
 
-  SELECT client_request_id
+  SELECT client_request_id, api_key_id
   FROM ops_error_logs
-  WHERE api_key_id = ANY($1)
-    AND created_at >= $2
-    AND created_at <= $3
+  WHERE created_at >= $1
+    AND created_at <= $2
     AND client_request_id IS NOT NULL
-    AND client_request_id <> ''
-) matched
-WHERE client_request_id IS NOT NULL
-  AND client_request_id <> ''`, pq.Array(filter.APIKeyIDs), filter.StartTime, filter.EndTime)
+    AND client_request_id <> ''`+keyWhere+`
+)
+SELECT DISTINCT ON (matched.client_request_id)
+  matched.client_request_id,
+  matched.api_key_id,
+  COALESCE(NULLIF(api_keys.name, ''), 'Key #' || matched.api_key_id::text)
+FROM matched
+LEFT JOIN api_keys ON api_keys.id = matched.api_key_id
+WHERE matched.client_request_id IS NOT NULL
+  AND matched.client_request_id <> ''
+  AND matched.api_key_id IS NOT NULL
+ORDER BY matched.client_request_id`, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	ids := make(map[string]struct{})
+	keys := make(map[string]service.OpsNginxTimingRequestKey)
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var (
+			clientRequestID string
+			apiKeyID        int64
+			keyName         string
+		)
+		if err := rows.Scan(&clientRequestID, &apiKeyID, &keyName); err != nil {
 			return nil, err
 		}
-		if id = strings.TrimSpace(id); id != "" {
-			ids[id] = struct{}{}
+		if clientRequestID = strings.TrimSpace(clientRequestID); clientRequestID != "" {
+			keys[clientRequestID] = service.OpsNginxTimingRequestKey{
+				APIKeyID: apiKeyID,
+				KeyName:  strings.TrimSpace(keyName),
+			}
 		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	return ids, nil
+	return keys, nil
 }
