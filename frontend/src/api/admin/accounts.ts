@@ -924,7 +924,8 @@ export async function refreshOpenAIQuota(id: number): Promise<OpenAIQuotaRefresh
   return data
 }
 
-export const getOpenAIQuota = queryOpenAIQuota
+// Keep the invite-reset modal's legacy name while using the upstream refresh route.
+export const getOpenAIQuota = refreshOpenAIQuota
 
 /**
  * Consume one rate-limit-reset credit for an OpenAI/Codex OAuth account.
