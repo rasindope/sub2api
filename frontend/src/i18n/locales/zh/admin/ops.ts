@@ -28,6 +28,16 @@ export default {
       loadingText: '加载中...',
       ready: '就绪',
       autoRefreshRemaining: '剩余 {seconds}s',
+      sourceKeyFilter: {
+        title: '筛选来源 Key',
+        all: '来源：全部 Key',
+        selected: '来源：已选 {count} 个 Key',
+        searchPlaceholder: '搜索 Key 名称',
+        selectedCount: '已选 {count} 个 Key',
+        selectVisible: '全选当前结果',
+        clearAndApply: '清空并应用',
+        apply: '应用筛选'
+      },
       systemLogs: {
         title: '系统日志',
         description: '优先显示最新日志，可按条件筛选、搜索和清理。',
