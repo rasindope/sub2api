@@ -33,6 +33,7 @@ const advancedSettings = ref<OpsAdvancedSettings | null>(null)
 const metricThresholds = ref<OpsMetricThresholds>({
   sla_percent_min: 99.5,
   ttft_p99_ms_max: 500,
+  nginx_client_overhead_ms_max: 60000,
   request_error_rate_percent_max: 5,
   upstream_error_rate_percent_max: 5
 })
@@ -59,6 +60,7 @@ async function loadAllSettings() {
         metricThresholds.value = {
           sla_percent_min: thresholds.sla_percent_min ?? 99.5,
           ttft_p99_ms_max: thresholds.ttft_p99_ms_max ?? 500,
+          nginx_client_overhead_ms_max: thresholds.nginx_client_overhead_ms_max ?? 60000,
           request_error_rate_percent_max: thresholds.request_error_rate_percent_max ?? 5,
           upstream_error_rate_percent_max: thresholds.upstream_error_rate_percent_max ?? 5
         }
@@ -184,6 +186,9 @@ const validation = computed(() => {
   }
   if (metricThresholds.value.ttft_p99_ms_max != null && metricThresholds.value.ttft_p99_ms_max < 0) {
     errors.push(t('admin.ops.settings.validation.ttftP99MaxRange'))
+  }
+  if (metricThresholds.value.nginx_client_overhead_ms_max != null && metricThresholds.value.nginx_client_overhead_ms_max < 0) {
+    errors.push(t('admin.ops.settings.validation.nginxClientOverheadMaxRange'))
   }
   if (metricThresholds.value.request_error_rate_percent_max != null && (metricThresholds.value.request_error_rate_percent_max < 0 || metricThresholds.value.request_error_rate_percent_max > 100)) {
     errors.push(t('admin.ops.settings.validation.requestErrorRateMaxRange'))
@@ -400,6 +405,18 @@ async function saveAllSettings() {
               class="input"
             />
             <p class="mt-1 text-xs text-gray-500">{{ t('admin.ops.settings.ttftP99MaxMsHint') }}</p>
+          </div>
+
+          <div>
+            <label class="input-label">{{ t('admin.ops.settings.nginxClientOverheadMaxMs') }}</label>
+            <input
+              v-model.number="metricThresholds.nginx_client_overhead_ms_max"
+              type="number"
+              min="0"
+              step="1000"
+              class="input"
+            />
+            <p class="mt-1 text-xs text-gray-500">{{ t('admin.ops.settings.nginxClientOverheadMaxMsHint') }}</p>
           </div>
 
           <div>
