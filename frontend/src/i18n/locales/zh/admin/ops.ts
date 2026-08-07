@@ -38,6 +38,29 @@ export default {
         clearAndApply: '清空并应用',
         apply: '应用筛选'
       },
+      nginxTiming: {
+        requests: 'Nginx 请求',
+        requestTime: 'Nginx 总耗时 P90',
+        gatewayConnect: '网关连接 P90',
+        gatewayHeader: '应用首包 P90：{value} ms',
+        upstreamResponse: '上游完成 P90',
+        clientOverhead: '客户端附加 P90',
+        ingressErrors: '入口异常',
+        websocketSessions: 'WS 会话 {count}',
+        p50: 'P50：{value} ms',
+        allGatewayTraffic: '全部网关流量',
+        matchedKeys: 'Key 命中 {count}',
+        ingressErrorBreakdown: '408 {timeout} · 499 {closed} · 未归属 {unattributed}',
+        logUnavailable: '等待 Nginx 日志',
+        tooltips: {
+          requests: '仅统计网关 API 路径。WebSocket 连接按会话单独计数，不与 HTTP 请求混算。',
+          requestTime: 'Nginx 从接收客户端请求到响应完成的总时长，包含客户端上传和下载阶段。',
+          gatewayConnect: 'Nginx 连接本机 Sub2API 网关的耗时；应用首包为 Nginx 收到网关第一个响应头的时间。',
+          upstreamResponse: 'Nginx 等待 Sub2API 网关完成响应的耗时，包含网关处理和上游调用。',
+          clientOverhead: '总时长减去网关响应完成时长，包含客户端上传和客户端接收响应，不等同于纯客户端网络延迟。',
+          ingressErrors: '408、499 和 5xx 的入口层错误。按 Key 筛选时，未进入网关的请求会单独保留为不可归属异常。'
+        }
+      },
       systemLogs: {
         title: '系统日志',
         description: '优先显示最新日志，可按条件筛选、搜索和清理。',
@@ -130,6 +153,7 @@ export default {
       failedToLoadLatencyHistogram: '加载请求时长分布失败',
       failedToLoadErrorTrend: '加载错误趋势失败',
       failedToLoadErrorDistribution: '加载错误分布失败',
+      failedToLoadNginxTiming: '加载 Nginx 请求链路数据失败',
       failedToLoadErrorDetail: '加载错误详情失败',
       retryFailed: '重试失败',
       tpsK: 'TPS（千）',
