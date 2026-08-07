@@ -153,15 +153,18 @@ export async function searchUsers(keyword: string): Promise<SimpleUser[]> {
  * Search API keys by user ID and/or keyword (admin only)
  * @param userId - Optional user ID to filter by
  * @param keyword - Optional keyword to search in key name
- * @returns List of matching API keys (max 30)
+ * @returns List of matching API keys
  */
-export async function searchApiKeys(userId?: number, keyword?: string): Promise<SimpleApiKey[]> {
+export async function searchApiKeys(userId?: number, keyword?: string, limit?: number): Promise<SimpleApiKey[]> {
   const params: Record<string, unknown> = {}
   if (userId !== undefined) {
     params.user_id = userId
   }
   if (keyword) {
     params.q = keyword
+  }
+  if (typeof limit === 'number') {
+    params.limit = limit
   }
   const { data } = await apiClient.get<SimpleApiKey[]>('/admin/usage/search-api-keys', {
     params
