@@ -13,10 +13,6 @@ type SortKey =
   | 'http_request_count'
   | 'success_count'
   | 'websocket_session_count'
-  | 'client_timeout_408_count'
-  | 'client_closed_499_count'
-  | 'server_error_5xx_count'
-  | 'error_count'
   | PercentileField
 
 interface Props {
@@ -47,10 +43,9 @@ const percentileFields: Array<{ key: PercentileField, label: string }> = [
 ]
 
 const modalTitle = computed(() => t(`admin.ops.nginxTiming.metricTitles.${props.metric}`))
-const hasDurationMetric = computed(() => props.metric !== 'requests' && props.metric !== 'ingress_errors')
+const hasDurationMetric = computed(() => props.metric !== 'requests')
 const metricDescriptionKeys: Partial<Record<OpsNginxTimingMetric, string>> = {
   request_time: 'requestTime',
-  upstream_response: 'upstreamResponse',
   client_overhead: 'clientOverhead'
 }
 const metricDescription = computed(() => {
@@ -76,22 +71,13 @@ function defaultSortKey(metric: OpsNginxTimingMetric): SortKey {
   switch (metric) {
     case 'requests':
       return 'http_request_count'
-    case 'ingress_errors':
-      return 'error_count'
     default:
       return 'p99_ms'
   }
 }
 
 function metricPercentiles(row: OpsNginxTimingKeyMetric): OpsPercentiles {
-  switch (props.metric) {
-    case 'upstream_response':
-      return row.upstream_response_time
-    case 'client_overhead':
-      return row.client_overhead_time
-    default:
-      return row.request_time
-  }
+  return props.metric === 'client_overhead' ? row.client_overhead_time : row.request_time
 }
 
 function sortValue(row: OpsNginxTimingKeyMetric, key: SortKey): string | number | null {
@@ -104,14 +90,6 @@ function sortValue(row: OpsNginxTimingKeyMetric, key: SortKey): string | number 
       return row.success_count
     case 'websocket_session_count':
       return row.websocket_session_count
-    case 'client_timeout_408_count':
-      return row.client_timeout_408_count
-    case 'client_closed_499_count':
-      return row.client_closed_499_count
-    case 'server_error_5xx_count':
-      return row.server_error_5xx_count
-    case 'error_count':
-      return row.client_timeout_408_count + row.client_closed_499_count + row.server_error_5xx_count
     default:
       return metricPercentiles(row)[key] ?? null
   }
@@ -241,9 +219,6 @@ watch(
         <div class="space-y-1">
           <div>{{ t('admin.ops.nginxTiming.details.description') }}</div>
           <div v-if="details?.available">{{ t('admin.ops.nginxTiming.details.matchedRequests', { count: formatCount(details.matched_request_count) }) }}</div>
-          <div v-if="details?.unattributed_error_count" class="text-amber-600 dark:text-amber-400">
-            {{ t('admin.ops.nginxTiming.details.unattributedErrors', { count: formatCount(details.unattributed_error_count) }) }}
-          </div>
           <div v-if="hasDurationMetric" class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-dark-900 dark:text-gray-300">
             <span>{{ t('admin.ops.nginxTiming.details.meaning', { value: metricDescription }) }}</span>
             <span>
@@ -294,20 +269,6 @@ watch(
                   <button type="button" :class="sortHeaderClass('websocket_session_count', 'right')" @click="toggleSort('websocket_session_count')">WS<Icon :name="sortIconName('websocket_session_count')" size="xs" aria-hidden="true" /></button>
                 </th>
               </template>
-              <template v-else-if="props.metric === 'ingress_errors'">
-                <th :aria-sort="ariaSort('http_request_count')" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
-                  <button type="button" :class="sortHeaderClass('http_request_count', 'right')" @click="toggleSort('http_request_count')">HTTP<Icon :name="sortIconName('http_request_count')" size="xs" aria-hidden="true" /></button>
-                </th>
-                <th :aria-sort="ariaSort('client_timeout_408_count')" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
-                  <button type="button" :class="sortHeaderClass('client_timeout_408_count', 'right')" @click="toggleSort('client_timeout_408_count')">408<Icon :name="sortIconName('client_timeout_408_count')" size="xs" aria-hidden="true" /></button>
-                </th>
-                <th :aria-sort="ariaSort('client_closed_499_count')" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
-                  <button type="button" :class="sortHeaderClass('client_closed_499_count', 'right')" @click="toggleSort('client_closed_499_count')">499<Icon :name="sortIconName('client_closed_499_count')" size="xs" aria-hidden="true" /></button>
-                </th>
-                <th :aria-sort="ariaSort('server_error_5xx_count')" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
-                  <button type="button" :class="sortHeaderClass('server_error_5xx_count', 'right')" @click="toggleSort('server_error_5xx_count')">5xx<Icon :name="sortIconName('server_error_5xx_count')" size="xs" aria-hidden="true" /></button>
-                </th>
-              </template>
               <template v-else>
                 <th :aria-sort="ariaSort('http_request_count')" class="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider dark:text-gray-400">
                   <button type="button" :class="sortHeaderClass('http_request_count', 'right')" @click="toggleSort('http_request_count')">HTTP<Icon :name="sortIconName('http_request_count')" size="xs" aria-hidden="true" /></button>
@@ -330,12 +291,6 @@ watch(
                 <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatCount(row.http_request_count) }}</td>
                 <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatCount(row.success_count) }}</td>
                 <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatCount(row.websocket_session_count) }}</td>
-              </template>
-              <template v-else-if="props.metric === 'ingress_errors'">
-                <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatCount(row.http_request_count) }}</td>
-                <td class="px-4 py-3 text-right text-sm text-rose-600 dark:text-rose-400">{{ formatCount(row.client_timeout_408_count) }}</td>
-                <td class="px-4 py-3 text-right text-sm text-rose-600 dark:text-rose-400">{{ formatCount(row.client_closed_499_count) }}</td>
-                <td class="px-4 py-3 text-right text-sm text-rose-600 dark:text-rose-400">{{ formatCount(row.server_error_5xx_count) }}</td>
               </template>
               <template v-else>
                 <td class="px-4 py-3 text-right text-sm text-gray-700 dark:text-gray-200">{{ formatCount(row.http_request_count) }}</td>
