@@ -668,17 +668,6 @@ function formatNginxCount(value?: number | null): string {
   return typeof value === 'number' && Number.isFinite(value) ? formatNumberLocaleString(value) : '-'
 }
 
-const nginxIngressErrorCount = computed(() => {
-  const metrics = nginxTiming.value
-  if (!metrics) return null
-  return metrics.client_timeout_408_count + metrics.client_closed_499_count + metrics.server_error_5xx_count
-})
-
-const nginxIngressErrorClass = computed(() => {
-  if (nginxIngressErrorCount.value == null) return 'text-gray-900 dark:text-white'
-  return nginxIngressErrorCount.value > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-})
-
 const showNginxTimingDetails = ref(false)
 const nginxTimingDetailMetric = ref<OpsNginxTimingMetric>('requests')
 const nginxClientOverheadThreshold = computed(() => props.thresholds?.nginx_client_overhead_ms_max ?? null)
@@ -691,12 +680,6 @@ const nginxDurationCards = computed(() => {
       title: t('admin.ops.nginxTiming.requestTime'),
       tooltip: t('admin.ops.nginxTiming.tooltips.requestTime'),
       values: metrics?.request_time
-    },
-    {
-      metric: 'upstream_response' as const,
-      title: t('admin.ops.nginxTiming.upstreamResponse'),
-      tooltip: t('admin.ops.nginxTiming.tooltips.upstreamResponse'),
-      values: metrics?.upstream_response_time
     },
     {
       metric: 'client_overhead' as const,
@@ -1568,27 +1551,6 @@ function handleToolbarRefresh() {
           </div>
         </div>
 
-        <div class="rounded-2xl bg-gray-50 p-4 dark:bg-dark-900">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1">
-              <span class="text-[10px] font-bold uppercase text-gray-400">{{ t('admin.ops.nginxTiming.ingressErrors') }}</span>
-              <HelpTooltip v-if="!props.fullscreen" :content="t('admin.ops.nginxTiming.tooltips.ingressErrors')" />
-            </div>
-            <button v-if="!props.fullscreen" class="text-[10px] font-bold text-blue-500 hover:underline" type="button" @click="openNginxTimingDetails('ingress_errors')">
-              {{ t('admin.ops.requestDetails.details') }}
-            </button>
-          </div>
-          <div class="mt-2 flex items-baseline gap-2">
-            <div class="text-3xl font-black" :class="nginxIngressErrorClass">{{ nginxIngressErrorCount == null ? '-' : formatNginxCount(nginxIngressErrorCount) }}</div>
-            <span class="text-xs font-bold text-gray-400">{{ t('admin.ops.nginxTiming.requestsUnit') }}</span>
-          </div>
-          <div class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">408:</span><span class="font-bold text-rose-600 dark:text-rose-400">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.client_timeout_408_count) : '-' }}</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">499:</span><span class="font-bold text-rose-600 dark:text-rose-400">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.client_closed_499_count) : '-' }}</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">5xx:</span><span class="font-bold text-rose-600 dark:text-rose-400">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.server_error_5xx_count) : '-' }}</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">{{ t('admin.ops.nginxTiming.unattributed') }}:</span><span class="font-bold text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.unattributed_error_count) : '-' }}</span></div>
-          </div>
-        </div>
       </div>
 
       <OpsNginxTimingDetailsModal
