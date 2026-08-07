@@ -513,11 +513,13 @@ const SettingKeyOpsMetricThresholds = "ops_metric_thresholds"
 func defaultOpsMetricThresholds() *OpsMetricThresholds {
 	slaMin := 99.5
 	ttftMax := 500.0
+	nginxClientOverheadMax := 60000.0
 	reqErrMax := 5.0
 	upstreamErrMax := 5.0
 	return &OpsMetricThresholds{
 		SLAPercentMin:               &slaMin,
 		TTFTp99MsMax:                &ttftMax,
+		NginxClientOverheadMsMax:    &nginxClientOverheadMax,
 		RequestErrorRatePercentMax:  &reqErrMax,
 		UpstreamErrorRatePercentMax: &upstreamErrMax,
 	}
@@ -547,6 +549,9 @@ func (s *OpsService) GetMetricThresholds(ctx context.Context) (*OpsMetricThresho
 	if err := json.Unmarshal([]byte(raw), cfg); err != nil {
 		return defaultCfg, nil
 	}
+	if cfg.NginxClientOverheadMsMax == nil {
+		cfg.NginxClientOverheadMsMax = defaultCfg.NginxClientOverheadMsMax
+	}
 
 	return cfg, nil
 }
@@ -568,6 +573,9 @@ func (s *OpsService) UpdateMetricThresholds(ctx context.Context, cfg *OpsMetricT
 	}
 	if cfg.TTFTp99MsMax != nil && *cfg.TTFTp99MsMax < 0 {
 		return nil, errors.New("ttft_p99_ms_max must be >= 0")
+	}
+	if cfg.NginxClientOverheadMsMax != nil && *cfg.NginxClientOverheadMsMax < 0 {
+		return nil, errors.New("nginx_client_overhead_ms_max must be >= 0")
 	}
 	if cfg.RequestErrorRatePercentMax != nil && (*cfg.RequestErrorRatePercentMax < 0 || *cfg.RequestErrorRatePercentMax > 100) {
 		return nil, errors.New("request_error_rate_percent_max must be between 0 and 100")
