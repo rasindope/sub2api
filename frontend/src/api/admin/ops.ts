@@ -108,9 +108,7 @@ export interface OpsNginxTimingOverview {
 export type OpsNginxTimingMetric =
   | 'requests'
   | 'request_time'
-  | 'upstream_response'
   | 'client_overhead'
-  | 'ingress_errors'
 
 export interface OpsNginxTimingKeyMetric {
   api_key_id: number

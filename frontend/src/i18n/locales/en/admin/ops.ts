@@ -44,22 +44,16 @@ export default {
         success: 'Success',
         requestTime: 'Per-request completion time',
         gatewayHeader: 'Gateway header P90: {value} ms',
-        upstreamResponse: 'Per-request server time',
         clientOverhead: 'Per-request client overhead',
-        ingressErrors: 'Ingress interrupted/errors',
-        unattributed: 'Unattributed',
         websocketSessions: 'WS sessions {count}',
         p50: 'P50: {value} ms',
         allGatewayTraffic: 'All gateway traffic',
         matchedKeys: 'Matched Keys {count}',
-        ingressErrorBreakdown: '408 {timeout} · 499 {closed} · unattributed {unattributed}',
         logUnavailable: 'Waiting for Nginx log',
         metricTitles: {
           requests: 'HTTP Requests',
           request_time: 'Per-request completion time',
-          upstream_response: 'Per-request server time',
-          client_overhead: 'Per-request client overhead',
-          ingress_errors: 'Ingress interrupted/errors'
+          client_overhead: 'Per-request client overhead'
         },
         details: {
           title: '{metric}: per-Key details',
@@ -68,16 +62,13 @@ export default {
           currentP99: 'Current P99',
           redThreshold: 'Red threshold',
           matchedRequests: '{count} correlated gateway records',
-          unattributedErrors: '{count} ingress errors did not reach Sub2API and cannot be attributed to a Key.',
           success: 'Success',
           empty: 'No Nginx requests in this range could be correlated to a Key.'
         },
         tooltips: {
           requests: 'Counts HTTP gateway requests only. WebSocket connections are counted separately as sessions, not as HTTP requests.',
           requestTime: 'For each HTTP request, time from Nginx receiving it until the response completes, including client upload, server work, and client download.',
-          upstreamResponse: 'For each HTTP request, time Nginx waits for Sub2API to complete the response, including gateway work and upstream calls.',
-          clientOverhead: 'Completion time minus server time. It includes client upload and response drain, not pure network latency.',
-          ingressErrors: 'Ingress-layer 408, 499, and 5xx errors. With a Key filter, requests that never reach the gateway remain unattributed.'
+          clientOverhead: 'Completion time minus server time. It includes client upload and response drain, not pure network latency.'
         }
       },
       systemLogs: {
