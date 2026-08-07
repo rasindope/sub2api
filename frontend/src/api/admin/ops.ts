@@ -108,7 +108,6 @@ export interface OpsNginxTimingOverview {
 export type OpsNginxTimingMetric =
   | 'requests'
   | 'request_time'
-  | 'gateway_connect'
   | 'upstream_response'
   | 'client_overhead'
   | 'ingress_errors'
@@ -828,6 +827,7 @@ export interface EmailNotificationConfig {
 export interface OpsMetricThresholds {
   sla_percent_min?: number | null                 // SLA低于此值变红
   ttft_p99_ms_max?: number | null                 // TTFT P99高于此值变红
+  nginx_client_overhead_ms_max?: number | null    // 客户端附加耗时高于此值变红
   request_error_rate_percent_max?: number | null  // 请求错误率高于此值变红
   upstream_error_rate_percent_max?: number | null // 上游错误率高于此值变红
 }
