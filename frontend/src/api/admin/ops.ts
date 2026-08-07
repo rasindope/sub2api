@@ -76,6 +76,35 @@ export interface OpsPercentiles {
   max_ms?: number | null
 }
 
+export interface OpsNginxTimingOverview {
+  available: boolean
+  start_time: string
+  end_time: string
+  window_clamped: boolean
+  source_updated_at?: string | null
+
+  key_filter_applied: boolean
+  matched_request_count: number
+
+  http_request_count: number
+  websocket_session_count: number
+  success_count: number
+  client_timeout_408_count: number
+  client_closed_499_count: number
+  server_error_5xx_count: number
+  upstream_unreached_count: number
+  unattributed_error_count: number
+
+  avg_request_bytes?: number | null
+  max_request_bytes?: number | null
+
+  request_time: OpsPercentiles
+  upstream_connect_time: OpsPercentiles
+  upstream_header_time: OpsPercentiles
+  upstream_response_time: OpsPercentiles
+  client_overhead_time: OpsPercentiles
+}
+
 export interface OpsThroughputTrendPoint {
   bucket_start: string
   request_count: number
@@ -985,6 +1014,22 @@ export async function getDashboardOverview(
   return data
 }
 
+export async function getNginxTimingOverview(
+  params: {
+    time_range?: '5m' | '30m' | '1h' | '6h' | '24h'
+    start_time?: string
+    end_time?: string
+    api_key_ids?: string
+  },
+  options: OpsRequestOptions = {}
+): Promise<OpsNginxTimingOverview> {
+  const { data } = await apiClient.get<OpsNginxTimingOverview>('/admin/ops/dashboard/nginx-timing', {
+    params,
+    signal: options.signal
+  })
+  return data
+}
+
 export async function getDashboardSnapshotV2(
   params: {
   time_range?: '5m' | '30m' | '1h' | '6h' | '24h'
@@ -1321,6 +1366,7 @@ async function updateMetricThresholds(thresholds: OpsMetricThresholds): Promise<
 export const opsAPI = {
   getDashboardSnapshotV2,
   getDashboardOverview,
+  getNginxTimingOverview,
   getThroughputTrend,
   getLatencyHistogram,
   getErrorTrend,
