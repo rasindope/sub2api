@@ -44,22 +44,16 @@ export default {
         success: '成功',
         requestTime: '每次请求完整耗时',
         gatewayHeader: '应用首包 P90：{value} ms',
-        upstreamResponse: '每次请求服务端耗时',
         clientOverhead: '每次请求客户端附加耗时',
-        ingressErrors: '入口中断/错误',
-        unattributed: '未归属',
         websocketSessions: 'WS 会话 {count}',
         p50: 'P50：{value} ms',
         allGatewayTraffic: '全部网关流量',
         matchedKeys: 'Key 命中 {count}',
-        ingressErrorBreakdown: '408 {timeout} · 499 {closed} · 未归属 {unattributed}',
         logUnavailable: '等待 Nginx 日志',
         metricTitles: {
           requests: 'HTTP 请求数',
           request_time: '每次请求完整耗时',
-          upstream_response: '每次请求服务端耗时',
-          client_overhead: '每次请求客户端附加耗时',
-          ingress_errors: '入口中断/错误'
+          client_overhead: '每次请求客户端附加耗时'
         },
         details: {
           title: '{metric}：每个 Key 明细',
@@ -68,16 +62,13 @@ export default {
           currentP99: '当前 P99',
           redThreshold: '标红阈值',
           matchedRequests: '已关联 {count} 条网关记录',
-          unattributedErrors: '另有 {count} 条入口错误未进入 Sub2API，无法归属到 Key。',
           success: '成功',
           empty: '当前时间范围内没有可关联到 Key 的 Nginx 请求。'
         },
         tooltips: {
           requests: '仅统计 HTTP 网关请求。WebSocket 连接按会话单独计数，不与每次 HTTP 请求混算。',
           requestTime: '每一条 HTTP 请求从 Nginx 接收请求到响应完成的时长，包含客户端上传、服务端处理和客户端下载。',
-          upstreamResponse: '每一条 HTTP 请求中，Nginx 等待 Sub2API 完成响应的耗时，包含网关处理和上游调用。',
-          clientOverhead: '完整耗时 - 服务端耗时，包含客户端上传请求体和接收响应的附加时间，不等同于纯网络延迟。',
-          ingressErrors: '408、499 和 5xx 的入口层错误。按 Key 筛选时，未进入网关的请求会单独保留为不可归属异常。'
+          clientOverhead: '完整耗时 - 服务端耗时，包含客户端上传请求体和接收响应的附加时间，不等同于纯网络延迟。'
         }
       },
       systemLogs: {
