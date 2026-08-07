@@ -32,6 +32,50 @@ type OpsPercentiles struct {
 	Max *int `json:"max_ms"`
 }
 
+// OpsNginxTimingFilter scopes a read-only view over the Nginx timing log.
+// Nginx records the client request correlation ID, never the API key itself.
+type OpsNginxTimingFilter struct {
+	StartTime time.Time
+	EndTime   time.Time
+
+	APIKeyIDs []int64
+}
+
+// OpsNginxTimingOverview separates the client-facing proxy path from gateway
+// and upstream processing. WebSocket sessions are counted separately because
+// their Nginx access-log duration is connection lifetime, not one response.
+type OpsNginxTimingOverview struct {
+	Available       bool       `json:"available"`
+	StartTime       time.Time  `json:"start_time"`
+	EndTime         time.Time  `json:"end_time"`
+	WindowClamped   bool       `json:"window_clamped"`
+	SourceUpdatedAt *time.Time `json:"source_updated_at"`
+
+	KeyFilterApplied    bool  `json:"key_filter_applied"`
+	MatchedRequestCount int64 `json:"matched_request_count"`
+
+	HTTPRequestCount       int64 `json:"http_request_count"`
+	WebSocketSessionCount  int64 `json:"websocket_session_count"`
+	SuccessCount           int64 `json:"success_count"`
+	ClientTimeout408Count  int64 `json:"client_timeout_408_count"`
+	ClientClosed499Count   int64 `json:"client_closed_499_count"`
+	ServerError5xxCount    int64 `json:"server_error_5xx_count"`
+	UpstreamUnreachedCount int64 `json:"upstream_unreached_count"`
+
+	// When filtering by Key, Nginx-only failures such as 408/499 cannot be
+	// attributed safely because they may never reach the gateway.
+	UnattributedErrorCount int64 `json:"unattributed_error_count"`
+
+	AvgRequestBytes *int64 `json:"avg_request_bytes"`
+	MaxRequestBytes *int64 `json:"max_request_bytes"`
+
+	RequestTime      OpsPercentiles `json:"request_time"`
+	UpstreamConnect  OpsPercentiles `json:"upstream_connect_time"`
+	UpstreamHeader   OpsPercentiles `json:"upstream_header_time"`
+	UpstreamResponse OpsPercentiles `json:"upstream_response_time"`
+	ClientOverhead   OpsPercentiles `json:"client_overhead_time"`
+}
+
 type OpsDashboardOverview struct {
 	StartTime time.Time `json:"start_time"`
 	EndTime   time.Time `json:"end_time"`

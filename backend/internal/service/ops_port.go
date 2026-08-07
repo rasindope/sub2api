@@ -61,6 +61,13 @@ type OpsRepository interface {
 	GetLatestDailyBucketDate(ctx context.Context) (time.Time, bool, error)
 }
 
+// OpsNginxTimingKeyResolver is deliberately optional: the timing log itself
+// remains useful without a database lookup, while production's Ops repository
+// can correlate completed requests back to selected API Keys.
+type OpsNginxTimingKeyResolver interface {
+	ListNginxTimingClientRequestIDs(ctx context.Context, filter *OpsNginxTimingFilter) (map[string]struct{}, error)
+}
+
 type OpsInsertErrorLogInput struct {
 	RequestID       string
 	ClientRequestID string
