@@ -105,6 +105,46 @@ export interface OpsNginxTimingOverview {
   client_overhead_time: OpsPercentiles
 }
 
+export type OpsNginxTimingMetric =
+  | 'requests'
+  | 'request_time'
+  | 'gateway_connect'
+  | 'upstream_response'
+  | 'client_overhead'
+  | 'ingress_errors'
+
+export interface OpsNginxTimingKeyMetric {
+  api_key_id: number
+  key_name: string
+
+  http_request_count: number
+  websocket_session_count: number
+  success_count: number
+  client_timeout_408_count: number
+  client_closed_499_count: number
+  server_error_5xx_count: number
+  upstream_unreached_count: number
+
+  request_time: OpsPercentiles
+  upstream_connect_time: OpsPercentiles
+  upstream_header_time: OpsPercentiles
+  upstream_response_time: OpsPercentiles
+  client_overhead_time: OpsPercentiles
+}
+
+export interface OpsNginxTimingKeyDetails {
+  available: boolean
+  start_time: string
+  end_time: string
+  window_clamped: boolean
+  source_updated_at?: string | null
+
+  key_filter_applied: boolean
+  matched_request_count: number
+  unattributed_error_count: number
+  items: OpsNginxTimingKeyMetric[]
+}
+
 export interface OpsThroughputTrendPoint {
   bucket_start: string
   request_count: number
@@ -1030,6 +1070,22 @@ export async function getNginxTimingOverview(
   return data
 }
 
+export async function getNginxTimingKeyDetails(
+  params: {
+    time_range?: '5m' | '30m' | '1h' | '6h' | '24h'
+    start_time?: string
+    end_time?: string
+    api_key_ids?: string
+  },
+  options: OpsRequestOptions = {}
+): Promise<OpsNginxTimingKeyDetails> {
+  const { data } = await apiClient.get<OpsNginxTimingKeyDetails>('/admin/ops/dashboard/nginx-timing/keys', {
+    params,
+    signal: options.signal
+  })
+  return data
+}
+
 export async function getDashboardSnapshotV2(
   params: {
   time_range?: '5m' | '30m' | '1h' | '6h' | '24h'
@@ -1367,6 +1423,7 @@ export const opsAPI = {
   getDashboardSnapshotV2,
   getDashboardOverview,
   getNginxTimingOverview,
+  getNginxTimingKeyDetails,
   getThroughputTrend,
   getLatencyHistogram,
   getErrorTrend,
