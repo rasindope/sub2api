@@ -167,6 +167,20 @@ func (_c *AccountCreate) SetNillableLoadFactor(v *int) *AccountCreate {
 	return _c
 }
 
+// SetSystemConcurrencyActivationThreshold sets the "system_concurrency_activation_threshold" field.
+func (_c *AccountCreate) SetSystemConcurrencyActivationThreshold(v int) *AccountCreate {
+	_c.mutation.SetSystemConcurrencyActivationThreshold(v)
+	return _c
+}
+
+// SetNillableSystemConcurrencyActivationThreshold sets the "system_concurrency_activation_threshold" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableSystemConcurrencyActivationThreshold(v *int) *AccountCreate {
+	if v != nil {
+		_c.SetSystemConcurrencyActivationThreshold(*v)
+	}
+	return _c
+}
+
 // SetPriority sets the "priority" field.
 func (_c *AccountCreate) SetPriority(v int) *AccountCreate {
 	_c.mutation.SetPriority(v)
@@ -733,6 +747,10 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 		_spec.SetField(account.FieldLoadFactor, field.TypeInt, value)
 		_node.LoadFactor = &value
 	}
+	if value, ok := _c.mutation.SystemConcurrencyActivationThreshold(); ok {
+		_spec.SetField(account.FieldSystemConcurrencyActivationThreshold, field.TypeInt, value)
+		_node.SystemConcurrencyActivationThreshold = &value
+	}
 	if value, ok := _c.mutation.Priority(); ok {
 		_spec.SetField(account.FieldPriority, field.TypeInt, value)
 		_node.Priority = value
@@ -1128,6 +1146,30 @@ func (u *AccountUpsert) AddLoadFactor(v int) *AccountUpsert {
 // ClearLoadFactor clears the value of the "load_factor" field.
 func (u *AccountUpsert) ClearLoadFactor() *AccountUpsert {
 	u.SetNull(account.FieldLoadFactor)
+	return u
+}
+
+// SetSystemConcurrencyActivationThreshold sets the "system_concurrency_activation_threshold" field.
+func (u *AccountUpsert) SetSystemConcurrencyActivationThreshold(v int) *AccountUpsert {
+	u.Set(account.FieldSystemConcurrencyActivationThreshold, v)
+	return u
+}
+
+// UpdateSystemConcurrencyActivationThreshold sets the "system_concurrency_activation_threshold" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateSystemConcurrencyActivationThreshold() *AccountUpsert {
+	u.SetExcluded(account.FieldSystemConcurrencyActivationThreshold)
+	return u
+}
+
+// AddSystemConcurrencyActivationThreshold adds v to the "system_concurrency_activation_threshold" field.
+func (u *AccountUpsert) AddSystemConcurrencyActivationThreshold(v int) *AccountUpsert {
+	u.Add(account.FieldSystemConcurrencyActivationThreshold, v)
+	return u
+}
+
+// ClearSystemConcurrencyActivationThreshold clears the value of the "system_concurrency_activation_threshold" field.
+func (u *AccountUpsert) ClearSystemConcurrencyActivationThreshold() *AccountUpsert {
+	u.SetNull(account.FieldSystemConcurrencyActivationThreshold)
 	return u
 }
 
@@ -1697,6 +1739,34 @@ func (u *AccountUpsertOne) UpdateLoadFactor() *AccountUpsertOne {
 func (u *AccountUpsertOne) ClearLoadFactor() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearLoadFactor()
+	})
+}
+
+// SetSystemConcurrencyActivationThreshold sets the "system_concurrency_activation_threshold" field.
+func (u *AccountUpsertOne) SetSystemConcurrencyActivationThreshold(v int) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetSystemConcurrencyActivationThreshold(v)
+	})
+}
+
+// AddSystemConcurrencyActivationThreshold adds v to the "system_concurrency_activation_threshold" field.
+func (u *AccountUpsertOne) AddSystemConcurrencyActivationThreshold(v int) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.AddSystemConcurrencyActivationThreshold(v)
+	})
+}
+
+// UpdateSystemConcurrencyActivationThreshold sets the "system_concurrency_activation_threshold" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateSystemConcurrencyActivationThreshold() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateSystemConcurrencyActivationThreshold()
+	})
+}
+
+// ClearSystemConcurrencyActivationThreshold clears the value of the "system_concurrency_activation_threshold" field.
+func (u *AccountUpsertOne) ClearSystemConcurrencyActivationThreshold() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearSystemConcurrencyActivationThreshold()
 	})
 }
 
@@ -2482,6 +2552,34 @@ func (u *AccountUpsertBulk) UpdateLoadFactor() *AccountUpsertBulk {
 func (u *AccountUpsertBulk) ClearLoadFactor() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.ClearLoadFactor()
+	})
+}
+
+// SetSystemConcurrencyActivationThreshold sets the "system_concurrency_activation_threshold" field.
+func (u *AccountUpsertBulk) SetSystemConcurrencyActivationThreshold(v int) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetSystemConcurrencyActivationThreshold(v)
+	})
+}
+
+// AddSystemConcurrencyActivationThreshold adds v to the "system_concurrency_activation_threshold" field.
+func (u *AccountUpsertBulk) AddSystemConcurrencyActivationThreshold(v int) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.AddSystemConcurrencyActivationThreshold(v)
+	})
+}
+
+// UpdateSystemConcurrencyActivationThreshold sets the "system_concurrency_activation_threshold" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateSystemConcurrencyActivationThreshold() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateSystemConcurrencyActivationThreshold()
+	})
+}
+
+// ClearSystemConcurrencyActivationThreshold clears the value of the "system_concurrency_activation_threshold" field.
+func (u *AccountUpsertBulk) ClearSystemConcurrencyActivationThreshold() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearSystemConcurrencyActivationThreshold()
 	})
 }
 

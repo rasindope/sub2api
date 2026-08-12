@@ -42,6 +42,8 @@ const (
 	FieldConcurrency = "concurrency"
 	// FieldLoadFactor holds the string denoting the load_factor field in the database.
 	FieldLoadFactor = "load_factor"
+	// FieldSystemConcurrencyActivationThreshold holds the string denoting the system_concurrency_activation_threshold field in the database.
+	FieldSystemConcurrencyActivationThreshold = "system_concurrency_activation_threshold"
 	// FieldPriority holds the string denoting the priority field in the database.
 	FieldPriority = "priority"
 	// FieldRateMultiplier holds the string denoting the rate_multiplier field in the database.
@@ -144,6 +146,7 @@ var Columns = []string{
 	FieldProxyFallbackOriginID,
 	FieldConcurrency,
 	FieldLoadFactor,
+	FieldSystemConcurrencyActivationThreshold,
 	FieldPriority,
 	FieldRateMultiplier,
 	FieldStatus,
@@ -309,6 +312,11 @@ func ByConcurrency(opts ...sql.OrderTermOption) OrderOption {
 // ByLoadFactor orders the results by the load_factor field.
 func ByLoadFactor(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLoadFactor, opts...).ToFunc()
+}
+
+// BySystemConcurrencyActivationThreshold orders the results by the system_concurrency_activation_threshold field.
+func BySystemConcurrencyActivationThreshold(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSystemConcurrencyActivationThreshold, opts...).ToFunc()
 }
 
 // ByPriority orders the results by the priority field.
