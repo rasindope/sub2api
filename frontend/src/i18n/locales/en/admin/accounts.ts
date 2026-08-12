@@ -942,6 +942,8 @@ export default {
       concurrency: 'Concurrency',
       loadFactor: 'Load Factor',
       loadFactorHint: 'Higher load factor increases scheduling frequency',
+      systemConcurrencyActivationThreshold: 'System Concurrency Activation Threshold',
+      systemConcurrencyActivationThresholdHint: 'Only schedule this account when total account concurrency exceeds this value; leave empty to always schedule',
       priority: 'Priority',
       priorityHint: 'Lower value accounts are used first',
       billingRateMultiplier: 'Billing Rate Multiplier',

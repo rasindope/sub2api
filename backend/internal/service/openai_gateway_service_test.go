@@ -255,6 +255,16 @@ type stubConcurrencyCache struct {
 	skipDefaultLoad bool
 }
 
+type systemConcurrencyStub struct {
+	stubConcurrencyCache
+	total int
+	err   error
+}
+
+func (c systemConcurrencyStub) GetSystemAccountConcurrency(_ context.Context) (int, error) {
+	return c.total, c.err
+}
+
 type cancelReadCloser struct{}
 
 func (c cancelReadCloser) Read(p []byte) (int, error) { return 0, context.Canceled }
@@ -753,6 +763,50 @@ func TestOpenAISelectAccountWithLoadAwareness_FiltersUnschedulable(t *testing.T)
 	if selection.ReleaseFunc != nil {
 		selection.ReleaseFunc()
 	}
+}
+
+func TestOpenAISelectAccountWithLoadAwareness_SystemConcurrencyActivationThreshold(t *testing.T) {
+	threshold := 10
+	backup := Account{
+		ID:                                   1,
+		Platform:                             PlatformOpenAI,
+		Type:                                 AccountTypeAPIKey,
+		Status:                               StatusActive,
+		Schedulable:                          true,
+		Concurrency:                          1,
+		Priority:                             1,
+		SystemConcurrencyActivationThreshold: &threshold,
+	}
+	primary := Account{
+		ID:          2,
+		Platform:    PlatformOpenAI,
+		Type:        AccountTypeAPIKey,
+		Status:      StatusActive,
+		Schedulable: true,
+		Concurrency: 1,
+		Priority:    10,
+	}
+
+	selectAccount := func(total int) int64 {
+		svc := &OpenAIGatewayService{
+			accountRepo: stubOpenAIAccountRepo{accounts: []Account{backup, primary}},
+			concurrencyService: NewConcurrencyService(systemConcurrencyStub{
+				stubConcurrencyCache: stubConcurrencyCache{},
+				total:                total,
+			}),
+		}
+		selection, err := svc.SelectAccountWithLoadAwareness(context.Background(), nil, "", "gpt-5.2", nil)
+		require.NoError(t, err)
+		require.NotNil(t, selection)
+		require.NotNil(t, selection.Account)
+		if selection.ReleaseFunc != nil {
+			selection.ReleaseFunc()
+		}
+		return selection.Account.ID
+	}
+
+	require.Equal(t, primary.ID, selectAccount(10))
+	require.Equal(t, backup.ID, selectAccount(11))
 }
 
 func TestOpenAISelectAccountWithLoadAwareness_ImageRateLimitSkipsOnlyImageRequests(t *testing.T) {
