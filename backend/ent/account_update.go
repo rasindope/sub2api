@@ -226,6 +226,33 @@ func (_u *AccountUpdate) ClearLoadFactor() *AccountUpdate {
 	return _u
 }
 
+// SetSystemConcurrencyActivationThreshold sets the "system_concurrency_activation_threshold" field.
+func (_u *AccountUpdate) SetSystemConcurrencyActivationThreshold(v int) *AccountUpdate {
+	_u.mutation.ResetSystemConcurrencyActivationThreshold()
+	_u.mutation.SetSystemConcurrencyActivationThreshold(v)
+	return _u
+}
+
+// SetNillableSystemConcurrencyActivationThreshold sets the "system_concurrency_activation_threshold" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableSystemConcurrencyActivationThreshold(v *int) *AccountUpdate {
+	if v != nil {
+		_u.SetSystemConcurrencyActivationThreshold(*v)
+	}
+	return _u
+}
+
+// AddSystemConcurrencyActivationThreshold adds value to the "system_concurrency_activation_threshold" field.
+func (_u *AccountUpdate) AddSystemConcurrencyActivationThreshold(v int) *AccountUpdate {
+	_u.mutation.AddSystemConcurrencyActivationThreshold(v)
+	return _u
+}
+
+// ClearSystemConcurrencyActivationThreshold clears the value of the "system_concurrency_activation_threshold" field.
+func (_u *AccountUpdate) ClearSystemConcurrencyActivationThreshold() *AccountUpdate {
+	_u.mutation.ClearSystemConcurrencyActivationThreshold()
+	return _u
+}
+
 // SetPriority sets the "priority" field.
 func (_u *AccountUpdate) SetPriority(v int) *AccountUpdate {
 	_u.mutation.ResetPriority()
@@ -856,6 +883,15 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.LoadFactorCleared() {
 		_spec.ClearField(account.FieldLoadFactor, field.TypeInt)
 	}
+	if value, ok := _u.mutation.SystemConcurrencyActivationThreshold(); ok {
+		_spec.SetField(account.FieldSystemConcurrencyActivationThreshold, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSystemConcurrencyActivationThreshold(); ok {
+		_spec.AddField(account.FieldSystemConcurrencyActivationThreshold, field.TypeInt, value)
+	}
+	if _u.mutation.SystemConcurrencyActivationThresholdCleared() {
+		_spec.ClearField(account.FieldSystemConcurrencyActivationThreshold, field.TypeInt)
+	}
 	if value, ok := _u.mutation.Priority(); ok {
 		_spec.SetField(account.FieldPriority, field.TypeInt, value)
 	}
@@ -1363,6 +1399,33 @@ func (_u *AccountUpdateOne) AddLoadFactor(v int) *AccountUpdateOne {
 // ClearLoadFactor clears the value of the "load_factor" field.
 func (_u *AccountUpdateOne) ClearLoadFactor() *AccountUpdateOne {
 	_u.mutation.ClearLoadFactor()
+	return _u
+}
+
+// SetSystemConcurrencyActivationThreshold sets the "system_concurrency_activation_threshold" field.
+func (_u *AccountUpdateOne) SetSystemConcurrencyActivationThreshold(v int) *AccountUpdateOne {
+	_u.mutation.ResetSystemConcurrencyActivationThreshold()
+	_u.mutation.SetSystemConcurrencyActivationThreshold(v)
+	return _u
+}
+
+// SetNillableSystemConcurrencyActivationThreshold sets the "system_concurrency_activation_threshold" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableSystemConcurrencyActivationThreshold(v *int) *AccountUpdateOne {
+	if v != nil {
+		_u.SetSystemConcurrencyActivationThreshold(*v)
+	}
+	return _u
+}
+
+// AddSystemConcurrencyActivationThreshold adds value to the "system_concurrency_activation_threshold" field.
+func (_u *AccountUpdateOne) AddSystemConcurrencyActivationThreshold(v int) *AccountUpdateOne {
+	_u.mutation.AddSystemConcurrencyActivationThreshold(v)
+	return _u
+}
+
+// ClearSystemConcurrencyActivationThreshold clears the value of the "system_concurrency_activation_threshold" field.
+func (_u *AccountUpdateOne) ClearSystemConcurrencyActivationThreshold() *AccountUpdateOne {
+	_u.mutation.ClearSystemConcurrencyActivationThreshold()
 	return _u
 }
 
@@ -2025,6 +2088,15 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if _u.mutation.LoadFactorCleared() {
 		_spec.ClearField(account.FieldLoadFactor, field.TypeInt)
+	}
+	if value, ok := _u.mutation.SystemConcurrencyActivationThreshold(); ok {
+		_spec.SetField(account.FieldSystemConcurrencyActivationThreshold, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSystemConcurrencyActivationThreshold(); ok {
+		_spec.AddField(account.FieldSystemConcurrencyActivationThreshold, field.TypeInt, value)
+	}
+	if _u.mutation.SystemConcurrencyActivationThresholdCleared() {
+		_spec.ClearField(account.FieldSystemConcurrencyActivationThreshold, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Priority(); ok {
 		_spec.SetField(account.FieldPriority, field.TypeInt, value)

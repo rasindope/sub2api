@@ -290,22 +290,23 @@ func (s *adminServiceImpl) DuplicateAccount(ctx context.Context, id int64, actor
 		proxyID = source.ProxyFallbackOriginID
 	}
 	input := &CreateAccountInput{
-		Name:                  duplicateAccountName(source.Name),
-		Notes:                 cloneAccountValuePointer(source.Notes),
-		Platform:              source.Platform,
-		Type:                  source.Type,
-		Credentials:           credentials,
-		Extra:                 extra,
-		ProxyID:               cloneAccountValuePointer(proxyID),
-		Concurrency:           source.Concurrency,
-		Priority:              source.Priority,
-		RateMultiplier:        cloneAccountValuePointer(source.RateMultiplier),
-		LoadFactor:            cloneAccountValuePointer(source.LoadFactor),
-		GroupIDs:              groupIDs,
-		ExpiresAt:             expiresAt,
-		AutoPauseOnExpired:    &autoPauseOnExpired,
-		SkipDefaultGroupBind:  true,
-		SkipMixedChannelCheck: true,
+		Name:                                 duplicateAccountName(source.Name),
+		Notes:                                cloneAccountValuePointer(source.Notes),
+		Platform:                             source.Platform,
+		Type:                                 source.Type,
+		Credentials:                          credentials,
+		Extra:                                extra,
+		ProxyID:                              cloneAccountValuePointer(proxyID),
+		Concurrency:                          source.Concurrency,
+		Priority:                             source.Priority,
+		RateMultiplier:                       cloneAccountValuePointer(source.RateMultiplier),
+		LoadFactor:                           cloneAccountValuePointer(source.LoadFactor),
+		SystemConcurrencyActivationThreshold: cloneAccountValuePointer(source.SystemConcurrencyActivationThreshold),
+		GroupIDs:                             groupIDs,
+		ExpiresAt:                            expiresAt,
+		AutoPauseOnExpired:                   &autoPauseOnExpired,
+		SkipDefaultGroupBind:                 true,
+		SkipMixedChannelCheck:                true,
 	}
 	accountExtra, err := normalizeOpenAILongContextBillingExtra(input.Platform, input.Extra)
 	if err != nil {
@@ -457,6 +458,12 @@ func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]an
 			return nil, errors.New("load_factor must be <= 10000")
 		}
 		account.LoadFactor = input.LoadFactor
+	}
+	if input.SystemConcurrencyActivationThreshold != nil && *input.SystemConcurrencyActivationThreshold > 0 {
+		if *input.SystemConcurrencyActivationThreshold > 10000 {
+			return nil, errors.New("system_concurrency_activation_threshold must be <= 10000")
+		}
+		account.SystemConcurrencyActivationThreshold = input.SystemConcurrencyActivationThreshold
 	}
 	return account, nil
 }
@@ -763,6 +770,15 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 			return nil, errors.New("load_factor must be <= 10000")
 		} else {
 			account.LoadFactor = input.LoadFactor
+		}
+	}
+	if input.SystemConcurrencyActivationThreshold != nil {
+		if *input.SystemConcurrencyActivationThreshold <= 0 {
+			account.SystemConcurrencyActivationThreshold = nil
+		} else if *input.SystemConcurrencyActivationThreshold > 10000 {
+			return nil, errors.New("system_concurrency_activation_threshold must be <= 10000")
+		} else {
+			account.SystemConcurrencyActivationThreshold = input.SystemConcurrencyActivationThreshold
 		}
 	}
 	if input.Status != "" {
