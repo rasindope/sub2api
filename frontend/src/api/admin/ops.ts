@@ -127,6 +127,11 @@ export interface OpsNginxTimingKeyMetric {
   upstream_header_time: OpsPercentiles
   upstream_response_time: OpsPercentiles
   client_overhead_time: OpsPercentiles
+  client_overhead_sample_count: number
+  client_upload_sample_count: number
+  client_upload_time: OpsPercentiles
+  client_response_receive_sample_count: number
+  client_response_receive_time: OpsPercentiles
 }
 
 export interface OpsNginxTimingKeyDetails {

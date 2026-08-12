@@ -643,9 +643,11 @@
           ref="createReasoningEffortPolicyRef"
           id-prefix="create-group-reasoning"
           :platform="createForm.platform"
+          :models="createModelsListState.items.map((item) => item.id)"
           v-model:max-effort="createForm.max_reasoning_effort"
           v-model:over-limit="createForm.max_reasoning_effort_over_limit"
           v-model:mappings="createForm.reasoning_effort_mappings"
+		  v-model:model-policies="createForm.reasoning_effort_model_policies"
         />
         <div
           v-if="createForm.subscription_type !== 'subscription'"
@@ -2281,9 +2283,11 @@
           ref="editReasoningEffortPolicyRef"
           id-prefix="edit-group-reasoning"
           :platform="editForm.platform"
+          :models="editModelsListState.items.map((item) => item.id)"
           v-model:max-effort="editForm.max_reasoning_effort"
           v-model:over-limit="editForm.max_reasoning_effort_over_limit"
           v-model:mappings="editForm.reasoning_effort_mappings"
+		  v-model:model-policies="editForm.reasoning_effort_model_policies"
         />
         <div v-if="editForm.subscription_type !== 'subscription'">
           <div class="mb-1.5 flex items-center gap-1">
@@ -4355,8 +4359,11 @@ import {
   reasoningEffortMappingsToAPI,
   reasoningEffortMappingsToRows,
   reasoningEffortOverLimitDowngrade,
+  reasoningEffortModelPoliciesToAPI,
+  reasoningEffortModelPoliciesToRows,
   supportsReasoningEffortPolicyPlatform,
   type ReasoningEffortMappingRow,
+  type ReasoningEffortModelPolicyRow,
 } from "./groupsReasoningEffort";
 import {
   getDefaultImagePreviewPrice,
@@ -5001,6 +5008,7 @@ const createForm = reactive({
   max_reasoning_effort: "",
   max_reasoning_effort_over_limit: reasoningEffortOverLimitDowngrade,
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
+	 reasoning_effort_model_policies: [] as ReasoningEffortModelPolicyRow[],
 });
 
 // 简单账号类型（用于模型路由选择）
@@ -5367,6 +5375,7 @@ const editForm = reactive({
   max_reasoning_effort: "",
   max_reasoning_effort_over_limit: reasoningEffortOverLimitDowngrade,
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
+	 reasoning_effort_model_policies: [] as ReasoningEffortModelPolicyRow[],
 });
 
 type ImagePricingFormState = {
@@ -5810,6 +5819,7 @@ const closeCreateModal = () => {
   createForm.max_reasoning_effort = "";
   createForm.max_reasoning_effort_over_limit = reasoningEffortOverLimitDowngrade;
   createForm.reasoning_effort_mappings = [];
+	 createForm.reasoning_effort_model_policies = [];
   createReasoningEffortPolicyRef.value?.resetValidation();
   resetModelAllowlistState(createModelAllowlistState);
   createModelRoutingRules.value = [];
@@ -5939,6 +5949,9 @@ const handleCreateGroup = async () => {
       reasoning_effort_mappings: reasoningEffortMappingsToAPI(
         createForm.reasoning_effort_mappings,
       ),
+	  reasoning_effort_model_policies: reasoningEffortModelPoliciesToAPI(
+		createForm.reasoning_effort_model_policies,
+	  ),
       // 利润控制：界面百分比转小数提交；仅五个 token 平台可启用
       profit_control_enabled:
         isProfitControlPlatform(createForm.platform) &&
@@ -6113,6 +6126,10 @@ const handleEdit = async (group: AdminGroup) => {
     group.reasoning_effort_mappings,
     group.platform,
   );
+  editForm.reasoning_effort_model_policies = reasoningEffortModelPoliciesToRows(
+    group.reasoning_effort_model_policies,
+    group.platform,
+  );
   resetModelAllowlistState(editModelAllowlistState, group.model_allowlist);
   // 固定账号 manifest 配置：回显配置并异步解析已存账号名称（失败显示 #<id>）
   const savedCodexManifestConfig =
@@ -6154,6 +6171,7 @@ const closeEditModal = () => {
   editForm.max_reasoning_effort = "";
   editForm.max_reasoning_effort_over_limit = reasoningEffortOverLimitDowngrade;
   editForm.reasoning_effort_mappings = [];
+	 editForm.reasoning_effort_model_policies = [];
   editReasoningEffortPolicyRef.value?.resetValidation();
   editModelRoutingRules.value = [];
   editForm.copy_accounts_from_group_ids = [];
@@ -6287,6 +6305,9 @@ const handleUpdateGroup = async () => {
       reasoning_effort_mappings: reasoningEffortMappingsToAPI(
         editForm.reasoning_effort_mappings,
       ),
+	  reasoning_effort_model_policies: reasoningEffortModelPoliciesToAPI(
+		editForm.reasoning_effort_model_policies,
+	  ),
       // 利润控制：界面百分比转小数提交；仅五个 token 平台可启用
       profit_control_enabled:
         isProfitControlPlatform(editForm.platform) &&
@@ -6685,6 +6706,9 @@ watch(
       reasoningEffortMappingsToAPI(createForm.reasoning_effort_mappings),
       newVal,
     );
+	 createForm.reasoning_effort_model_policies = supportsReasoningEffortPolicyPlatform(newVal)
+		? createForm.reasoning_effort_model_policies
+		: [];
     createReasoningEffortPolicyRef.value?.resetValidation();
     if (!["openai", "antigravity", "anthropic", "gemini"].includes(newVal)) {
       createForm.require_oauth_only = false;
@@ -6742,6 +6766,9 @@ watch(
       reasoningEffortMappingsToAPI(editForm.reasoning_effort_mappings),
       newVal,
     );
+	 editForm.reasoning_effort_model_policies = supportsReasoningEffortPolicyPlatform(newVal)
+		? editForm.reasoning_effort_model_policies
+		: [];
     editReasoningEffortPolicyRef.value?.resetValidation();
     if (!["openai", "antigravity", "anthropic", "gemini"].includes(newVal)) {
       editForm.require_oauth_only = false;

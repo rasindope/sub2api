@@ -1211,6 +1211,10 @@ func init() {
 	groupDescReasoningEffortMappings := groupFields[59].Descriptor()
 	// group.DefaultReasoningEffortMappings holds the default value on creation for the reasoning_effort_mappings field.
 	group.DefaultReasoningEffortMappings = groupDescReasoningEffortMappings.Default.([]domain.ReasoningEffortMapping)
+	// groupDescReasoningEffortModelPolicies is the schema descriptor for reasoning_effort_model_policies field.
+	groupDescReasoningEffortModelPolicies := groupFields[59].Descriptor()
+	// group.DefaultReasoningEffortModelPolicies holds the default value on creation for the reasoning_effort_model_policies field.
+	group.DefaultReasoningEffortModelPolicies = groupDescReasoningEffortModelPolicies.Default.([]domain.ReasoningEffortModelPolicy)
 	// groupDescProfitControlEnabled is the schema descriptor for profit_control_enabled field.
 	groupDescProfitControlEnabled := groupFields[60].Descriptor()
 	// group.DefaultProfitControlEnabled holds the default value on creation for the profit_control_enabled field.

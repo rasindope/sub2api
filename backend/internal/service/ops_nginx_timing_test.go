@@ -1,8 +1,10 @@
 package service
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -12,8 +14,9 @@ func TestReadOpsNginxTimingLogSeparatesGatewayAndKeyScope(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sub2api_timing.json.log")
 	base := time.Date(2026, 8, 7, 5, 0, 0, 0, time.UTC)
+	completedAt := base.Add(time.Minute + 750*time.Millisecond)
 	lines := []string{
-		`{"timestamp":"2026-08-07T05:01:00Z","path":"/responses","gateway":"1","status":200,"request_time":"2.000","upstream_connect_time":"0.001","upstream_header_time":"1.500","upstream_response_time":"1.800","request_length":2048,"client_request_id":"key-a"}`,
+		fmt.Sprintf(`{"timestamp":"2026-08-07T05:01:00Z","completed_at_ms":"%.3f","path":"/responses","gateway":"1","status":200,"request_time":"2.000","upstream_connect_time":"0.001","upstream_header_time":"1.500","upstream_response_time":"1.800","request_length":2048,"client_request_id":"key-a","gateway_received_at_ms":"%d"}`, float64(completedAt.UnixMilli())/1000, completedAt.Add(-1900*time.Millisecond).UnixMilli()),
 		`{"timestamp":"2026-08-07T05:02:00Z","path":"/responses","gateway":"1","status":408,"request_time":"1800.000","upstream_connect_time":"-","upstream_header_time":"-","upstream_response_time":"-","request_length":4096,"client_request_id":""}`,
 		`{"timestamp":"2026-08-07T05:03:00Z","path":"/responses","gateway":"1","status":499,"request_time":"40.000","upstream_connect_time":"-","upstream_header_time":"-","upstream_response_time":"-","request_length":1024,"client_request_id":""}`,
 		`{"timestamp":"2026-08-07T05:04:00Z","path":"/responses","gateway":"1","upgrade":"websocket","status":101,"request_time":"60.000","upstream_connect_time":"0.001","upstream_header_time":"0.003","upstream_response_time":"60.000","request_length":512,"client_request_id":"key-a"}`,
@@ -41,7 +44,6 @@ func TestReadOpsNginxTimingLogSeparatesGatewayAndKeyScope(t *testing.T) {
 	if all.UpstreamHeader.P50 == nil || *all.UpstreamHeader.P50 != 1500 {
 		t.Fatalf("missing upstream headers must not be counted as zero: %+v", all.UpstreamHeader)
 	}
-
 	filter.APIKeyIDs = []int64{7}
 	selected, err := readOpsNginxTimingLog(path, filter, map[string]OpsNginxTimingRequestKey{
 		"key-a": {APIKeyID: 7, KeyName: "Key A"},
@@ -69,8 +71,33 @@ func TestReadOpsNginxTimingLogSeparatesGatewayAndKeyScope(t *testing.T) {
 	if details.Items[0].APIKeyID != 7 || details.Items[0].HTTPRequestCount != 1 || details.Items[0].WebSocketSessionCount != 1 {
 		t.Fatalf("unexpected Key A details: %+v", details.Items[0])
 	}
+	if details.Items[0].ClientUploadSampleCount != 1 || details.Items[0].ClientUpload.P99 == nil || *details.Items[0].ClientUpload.P99 != 100 {
+		t.Fatalf("unexpected Key A upload details: %+v", details.Items[0])
+	}
+	if details.Items[0].ClientResponseReceiveSampleCount != 1 || details.Items[0].ClientResponseReceive.P99 == nil || *details.Items[0].ClientResponseReceive.P99 != 100 {
+		t.Fatalf("unexpected Key A response receive details: %+v", details.Items[0])
+	}
 	if details.Items[1].APIKeyID != 8 || details.Items[1].RequestTime.P99 == nil || *details.Items[1].RequestTime.P99 != 3000 {
 		t.Fatalf("unexpected Key B details: %+v", details.Items[1])
+	}
+}
+
+func TestCollectNginxTimingEntryKeepsZeroResponseReceiveSamples(t *testing.T) {
+	completedAt := time.Date(2026, 8, 7, 5, 1, 0, 0, time.UTC)
+	overview := &OpsNginxTimingOverview{}
+	acc := nginxTimingAccumulator{}
+	entry := nginxTimingLogEntry{
+		Status:               200,
+		RequestTime:          "2.000",
+		UpstreamResponseTime: "1.800",
+		CompletedAtMS:        fmt.Sprintf("%.3f", float64(completedAt.UnixMilli())/1000),
+		GatewayReceivedAtMS:  strconv.FormatInt(completedAt.Add(-1500*time.Millisecond).UnixMilli(), 10),
+	}
+
+	collectNginxTimingEntry(overview, &acc, entry, completedAt, true)
+
+	if len(acc.clientResponseReceive) != 1 || acc.clientResponseReceive[0] != 0 {
+		t.Fatalf("response receive samples = %v, want [0]", acc.clientResponseReceive)
 	}
 }
 
