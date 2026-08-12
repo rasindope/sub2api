@@ -124,6 +124,9 @@ func createAccountRecord(ctx context.Context, client *dbent.Client, account *ser
 	if account.LoadFactor != nil {
 		builder.SetLoadFactor(*account.LoadFactor)
 	}
+	if account.SystemConcurrencyActivationThreshold != nil {
+		builder.SetSystemConcurrencyActivationThreshold(*account.SystemConcurrencyActivationThreshold)
+	}
 
 	if account.ProxyID != nil {
 		builder.SetProxyID(*account.ProxyID)
@@ -514,6 +517,11 @@ func (r *accountRepository) updateLockedAccount(
 		builder.SetLoadFactor(*account.LoadFactor)
 	} else {
 		builder.ClearLoadFactor()
+	}
+	if account.SystemConcurrencyActivationThreshold != nil {
+		builder.SetSystemConcurrencyActivationThreshold(*account.SystemConcurrencyActivationThreshold)
+	} else {
+		builder.ClearSystemConcurrencyActivationThreshold()
 	}
 
 	if account.ProxyID != nil {
@@ -3328,37 +3336,38 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 	rateMultiplier := m.RateMultiplier
 
 	return &service.Account{
-		ID:                      m.ID,
-		Name:                    m.Name,
-		Notes:                   m.Notes,
-		Platform:                m.Platform,
-		Type:                    m.Type,
-		Credentials:             copyJSONMap(m.Credentials),
-		Extra:                   copyJSONMap(m.Extra),
-		ProxyID:                 m.ProxyID,
-		ProxyFallbackOriginID:   m.ProxyFallbackOriginID,
-		Concurrency:             m.Concurrency,
-		Priority:                m.Priority,
-		RateMultiplier:          &rateMultiplier,
-		LoadFactor:              m.LoadFactor,
-		Status:                  m.Status,
-		ErrorMessage:            derefString(m.ErrorMessage),
-		LastUsedAt:              m.LastUsedAt,
-		ExpiresAt:               m.ExpiresAt,
-		AutoPauseOnExpired:      m.AutoPauseOnExpired,
-		CreatedAt:               m.CreatedAt,
-		UpdatedAt:               m.UpdatedAt,
-		Schedulable:             m.Schedulable,
-		RateLimitedAt:           m.RateLimitedAt,
-		RateLimitResetAt:        m.RateLimitResetAt,
-		OverloadUntil:           m.OverloadUntil,
-		TempUnschedulableUntil:  m.TempUnschedulableUntil,
-		TempUnschedulableReason: derefString(m.TempUnschedulableReason),
-		SessionWindowStart:      m.SessionWindowStart,
-		SessionWindowEnd:        m.SessionWindowEnd,
-		SessionWindowStatus:     derefString(m.SessionWindowStatus),
-		ParentAccountID:         m.ParentAccountID,
-		QuotaDimension:          string(m.QuotaDimension),
+		ID:                                   m.ID,
+		Name:                                 m.Name,
+		Notes:                                m.Notes,
+		Platform:                             m.Platform,
+		Type:                                 m.Type,
+		Credentials:                          copyJSONMap(m.Credentials),
+		Extra:                                copyJSONMap(m.Extra),
+		ProxyID:                              m.ProxyID,
+		ProxyFallbackOriginID:                m.ProxyFallbackOriginID,
+		Concurrency:                          m.Concurrency,
+		Priority:                             m.Priority,
+		RateMultiplier:                       &rateMultiplier,
+		LoadFactor:                           m.LoadFactor,
+		SystemConcurrencyActivationThreshold: m.SystemConcurrencyActivationThreshold,
+		Status:                               m.Status,
+		ErrorMessage:                         derefString(m.ErrorMessage),
+		LastUsedAt:                           m.LastUsedAt,
+		ExpiresAt:                            m.ExpiresAt,
+		AutoPauseOnExpired:                   m.AutoPauseOnExpired,
+		CreatedAt:                            m.CreatedAt,
+		UpdatedAt:                            m.UpdatedAt,
+		Schedulable:                          m.Schedulable,
+		RateLimitedAt:                        m.RateLimitedAt,
+		RateLimitResetAt:                     m.RateLimitResetAt,
+		OverloadUntil:                        m.OverloadUntil,
+		TempUnschedulableUntil:               m.TempUnschedulableUntil,
+		TempUnschedulableReason:              derefString(m.TempUnschedulableReason),
+		SessionWindowStart:                   m.SessionWindowStart,
+		SessionWindowEnd:                     m.SessionWindowEnd,
+		SessionWindowStatus:                  derefString(m.SessionWindowStatus),
+		ParentAccountID:                      m.ParentAccountID,
+		QuotaDimension:                       string(m.QuotaDimension),
 	}
 }
 
