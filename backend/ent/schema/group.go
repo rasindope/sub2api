@@ -266,6 +266,10 @@ func (Group) Fields() []ent.Field {
 			Default([]domain.ReasoningEffortMapping{}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
 			Comment("OpenAI reasoning effort 自定义精确映射；先映射再应用上限"),
+		field.JSON("reasoning_effort_model_policies", []domain.ReasoningEffortModelPolicy{}).
+			Default([]domain.ReasoningEffortModelPolicy{}).
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("按客户端请求模型覆盖 OpenAI reasoning effort 默认规则"),
 
 		// 分组利润控制（migration 192/193）：openai/anthropic/gemini/grok/antigravity
 		// 的 token 分组可启用，composite 分组不能直接启用。

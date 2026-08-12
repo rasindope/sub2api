@@ -151,6 +151,8 @@ type Group struct {
 	MaxReasoningEffort string `json:"max_reasoning_effort"`
 	// ReasoningEffortMappings OpenAI/Codex 推理强度精确映射。
 	ReasoningEffortMappings []domain.ReasoningEffortMapping `json:"reasoning_effort_mappings"`
+	// ReasoningEffortModelPolicies OpenAI/Codex 按模型覆盖默认推理强度规则。
+	ReasoningEffortModelPolicies []domain.ReasoningEffortModelPolicy `json:"reasoning_effort_model_policies"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

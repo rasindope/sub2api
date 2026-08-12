@@ -14,6 +14,7 @@ import (
 type OpenAIMessagesDispatchModelConfig = domain.OpenAIMessagesDispatchModelConfig
 type GroupModelsListConfig = domain.GroupModelsListConfig
 type ReasoningEffortMapping = domain.ReasoningEffortMapping
+type ReasoningEffortModelPolicy = domain.ReasoningEffortModelPolicy
 
 type Group struct {
 	ID             int64
@@ -110,6 +111,8 @@ type Group struct {
 	MaxReasoningEffort string
 	// ReasoningEffortMappings rewrites explicit request values before applying the ceiling.
 	ReasoningEffortMappings []ReasoningEffortMapping
+	// ReasoningEffortModelPolicies override the default policy for exact requested models.
+	ReasoningEffortModelPolicies []ReasoningEffortModelPolicy
 
 	// 分组利润控制（五个 token 计费平台可启用）。
 	// 调度准入条件：账号倍率 U 满足 U <= D*(1-margin-buffer)，

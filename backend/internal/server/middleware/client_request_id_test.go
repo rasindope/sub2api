@@ -4,8 +4,10 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/gin-gonic/gin"
@@ -29,6 +31,9 @@ func TestClientRequestIDGeneratesAndExposesID(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	require.NotEmpty(t, w.Body.String())
 	require.Equal(t, w.Body.String(), w.Header().Get(clientRequestIDHeader))
+	receivedAtMS, err := strconv.ParseInt(w.Header().Get(gatewayReceivedAtMSHeader), 10, 64)
+	require.NoError(t, err)
+	require.WithinDuration(t, time.Now(), time.UnixMilli(receivedAtMS), time.Second)
 }
 
 func TestClientRequestIDBoundsExistingContextID(t *testing.T) {
