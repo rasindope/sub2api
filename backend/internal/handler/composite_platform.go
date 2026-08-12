@@ -77,6 +77,12 @@ func applyOpenAIReasoningEffortPolicyForRequest(c *gin.Context, apiKey *service.
 	if !ok {
 		return body, false
 	}
+	maxEffort, mappings = service.OpenAIReasoningEffortPolicyForModel(
+		gjson.GetBytes(body, "model").String(),
+		maxEffort,
+		mappings,
+		apiKey.Group.ReasoningEffortModelPolicies,
+	)
 	return service.ApplyOpenAIReasoningEffortPolicy(body, maxEffort, mappings)
 }
 
@@ -95,5 +101,11 @@ func bindOpenAIReasoningEffortPolicyForMessagesRequest(c *gin.Context, apiKey *s
 	if !ok {
 		return
 	}
+	maxEffort, mappings = service.OpenAIReasoningEffortPolicyForModel(
+		gjson.GetBytes(body, "model").String(),
+		maxEffort,
+		mappings,
+		apiKey.Group.ReasoningEffortModelPolicies,
+	)
 	c.Request = c.Request.WithContext(service.WithOpenAIReasoningEffortPolicy(c.Request.Context(), maxEffort, mappings))
 }
