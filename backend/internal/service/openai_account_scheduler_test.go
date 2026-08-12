@@ -93,6 +93,31 @@ type schedulerTestConcurrencyCache struct {
 	releasedIDs     *[]int64
 }
 
+func TestOpenAIAdvancedScheduler_SystemConcurrencyActivationThreshold(t *testing.T) {
+	threshold := 10
+	account := &Account{
+		ID:                                   1,
+		Platform:                             PlatformOpenAI,
+		SystemConcurrencyActivationThreshold: &threshold,
+	}
+	compatibleAt := func(total int) (bool, string) {
+		svc := &OpenAIGatewayService{concurrencyService: NewConcurrencyService(systemConcurrencyStub{
+			stubConcurrencyCache: stubConcurrencyCache{},
+			total:                total,
+		})}
+		return (&defaultOpenAIAccountScheduler{service: svc}).isAccountRequestCompatibleReason(
+			context.Background(), account, OpenAIAccountScheduleRequest{},
+		)
+	}
+
+	compatible, reason := compatibleAt(10)
+	require.False(t, compatible)
+	require.Equal(t, "system_concurrency_below_threshold", reason)
+	compatible, reason = compatibleAt(11)
+	require.True(t, compatible)
+	require.Empty(t, reason)
+}
+
 func (c schedulerTestConcurrencyCache) AcquireAccountSlot(ctx context.Context, accountID int64, maxConcurrency int, requestID string) (bool, error) {
 	if c.acquiredIDs != nil {
 		*c.acquiredIDs = append(*c.acquiredIDs, accountID)

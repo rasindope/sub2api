@@ -1513,6 +1513,12 @@
             />
           </div>
         </div>
+        <div v-if="props.account?.platform === 'openai'">
+          <label class="input-label">{{ t('admin.accounts.systemConcurrencyActivationThreshold') }}</label>
+          <input v-model.number="form.system_concurrency_activation_threshold" type="number" min="0" class="input"
+            @input="form.system_concurrency_activation_threshold = (form.system_concurrency_activation_threshold &amp;&amp; form.system_concurrency_activation_threshold > 0) ? form.system_concurrency_activation_threshold : null" />
+          <p class="input-hint">{{ t('admin.accounts.systemConcurrencyActivationThresholdHint') }}</p>
+        </div>
       </div>
       <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
         <label class="input-label">{{ t('admin.accounts.expiresAt') }}</label>
@@ -3288,6 +3294,7 @@ const form = reactive({
   proxy_id: null as number | null,
   concurrency: 1,
   load_factor: null as number | null,
+  system_concurrency_activation_threshold: null as number | null,
   priority: 1,
   rate_multiplier: 1,
   status: 'active' as 'active' | 'inactive' | 'error',
@@ -3391,6 +3398,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   form.proxy_id = newAccount.proxy_id
   form.concurrency = newAccount.concurrency
   form.load_factor = newAccount.load_factor ?? null
+  form.system_concurrency_activation_threshold = newAccount.system_concurrency_activation_threshold ?? null
   form.priority = newAccount.priority
   form.rate_multiplier = newAccount.rate_multiplier ?? 1
   form.status = (newAccount.status === 'active' || newAccount.status === 'inactive' || newAccount.status === 'error')
@@ -4275,6 +4283,14 @@ const handleSubmit = async () => {
     const lf = form.load_factor
     if (lf == null || Number.isNaN(lf) || lf <= 0) {
       updatePayload.load_factor = 0
+    }
+    if (props.account.platform === 'openai') {
+      const systemConcurrencyThreshold = form.system_concurrency_activation_threshold
+      if (systemConcurrencyThreshold == null || Number.isNaN(systemConcurrencyThreshold) || systemConcurrencyThreshold <= 0) {
+        updatePayload.system_concurrency_activation_threshold = 0
+      }
+    } else {
+      delete updatePayload.system_concurrency_activation_threshold
     }
     updatePayload.auto_pause_on_expired = autoPauseOnExpired.value
     if (props.account.type === 'apikey') {

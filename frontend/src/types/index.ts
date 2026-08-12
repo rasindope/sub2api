@@ -1149,6 +1149,7 @@ export interface Account {
   proxy_fallback_origin_name?: string | null
   concurrency: number
   load_factor?: number | null
+  system_concurrency_activation_threshold?: number | null
   current_concurrency?: number // Real-time concurrency count from Redis
   scheduler_score?: {
     base_score: number
@@ -1429,6 +1430,7 @@ export interface CreateAccountRequest {
   proxy_id?: number | null
   concurrency?: number
   load_factor?: number | null
+  system_concurrency_activation_threshold?: number | null
   priority?: number
   rate_multiplier?: number // Account billing multiplier (>=0, 0 means free)
   group_ids?: number[]
@@ -1447,6 +1449,7 @@ export interface UpdateAccountRequest {
   proxy_id?: number | null
   concurrency?: number
   load_factor?: number | null
+  system_concurrency_activation_threshold?: number | null
   priority?: number
   rate_multiplier?: number // Account billing multiplier (>=0, 0 means free)
   schedulable?: boolean
