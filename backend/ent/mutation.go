@@ -2282,60 +2282,62 @@ func (m *APIKeyMutation) ResetEdge(name string) error {
 // AccountMutation represents an operation that mutates the Account nodes in the graph.
 type AccountMutation struct {
 	config
-	op                          Op
-	typ                         string
-	id                          *int64
-	created_at                  *time.Time
-	updated_at                  *time.Time
-	deleted_at                  *time.Time
-	name                        *string
-	notes                       *string
-	platform                    *string
-	_type                       *string
-	credentials                 *map[string]interface{}
-	extra                       *map[string]interface{}
-	proxy_fallback_origin_id    *int64
-	addproxy_fallback_origin_id *int64
-	concurrency                 *int
-	addconcurrency              *int
-	load_factor                 *int
-	addload_factor              *int
-	priority                    *int
-	addpriority                 *int
-	rate_multiplier             *float64
-	addrate_multiplier          *float64
-	status                      *string
-	error_message               *string
-	last_used_at                *time.Time
-	expires_at                  *time.Time
-	auto_pause_on_expired       *bool
-	schedulable                 *bool
-	rate_limited_at             *time.Time
-	rate_limit_reset_at         *time.Time
-	overload_until              *time.Time
-	temp_unschedulable_until    *time.Time
-	temp_unschedulable_reason   *string
-	session_window_start        *time.Time
-	session_window_end          *time.Time
-	session_window_status       *string
-	quota_dimension             *account.QuotaDimension
-	clearedFields               map[string]struct{}
-	groups                      map[int64]struct{}
-	removedgroups               map[int64]struct{}
-	clearedgroups               bool
-	proxy                       *int64
-	clearedproxy                bool
-	parent                      *int64
-	clearedparent               bool
-	children                    map[int64]struct{}
-	removedchildren             map[int64]struct{}
-	clearedchildren             bool
-	usage_logs                  map[int64]struct{}
-	removedusage_logs           map[int64]struct{}
-	clearedusage_logs           bool
-	done                        bool
-	oldValue                    func(context.Context) (*Account, error)
-	predicates                  []predicate.Account
+	op                                         Op
+	typ                                        string
+	id                                         *int64
+	created_at                                 *time.Time
+	updated_at                                 *time.Time
+	deleted_at                                 *time.Time
+	name                                       *string
+	notes                                      *string
+	platform                                   *string
+	_type                                      *string
+	credentials                                *map[string]interface{}
+	extra                                      *map[string]interface{}
+	proxy_fallback_origin_id                   *int64
+	addproxy_fallback_origin_id                *int64
+	concurrency                                *int
+	addconcurrency                             *int
+	load_factor                                *int
+	addload_factor                             *int
+	system_concurrency_activation_threshold    *int
+	addsystem_concurrency_activation_threshold *int
+	priority                                   *int
+	addpriority                                *int
+	rate_multiplier                            *float64
+	addrate_multiplier                         *float64
+	status                                     *string
+	error_message                              *string
+	last_used_at                               *time.Time
+	expires_at                                 *time.Time
+	auto_pause_on_expired                      *bool
+	schedulable                                *bool
+	rate_limited_at                            *time.Time
+	rate_limit_reset_at                        *time.Time
+	overload_until                             *time.Time
+	temp_unschedulable_until                   *time.Time
+	temp_unschedulable_reason                  *string
+	session_window_start                       *time.Time
+	session_window_end                         *time.Time
+	session_window_status                      *string
+	quota_dimension                            *account.QuotaDimension
+	clearedFields                              map[string]struct{}
+	groups                                     map[int64]struct{}
+	removedgroups                              map[int64]struct{}
+	clearedgroups                              bool
+	proxy                                      *int64
+	clearedproxy                               bool
+	parent                                     *int64
+	clearedparent                              bool
+	children                                   map[int64]struct{}
+	removedchildren                            map[int64]struct{}
+	clearedchildren                            bool
+	usage_logs                                 map[int64]struct{}
+	removedusage_logs                          map[int64]struct{}
+	clearedusage_logs                          bool
+	done                                       bool
+	oldValue                                   func(context.Context) (*Account, error)
+	predicates                                 []predicate.Account
 }
 
 var _ ent.Mutation = (*AccountMutation)(nil)
@@ -3029,6 +3031,76 @@ func (m *AccountMutation) ResetLoadFactor() {
 	m.load_factor = nil
 	m.addload_factor = nil
 	delete(m.clearedFields, account.FieldLoadFactor)
+}
+
+// SetSystemConcurrencyActivationThreshold sets the "system_concurrency_activation_threshold" field.
+func (m *AccountMutation) SetSystemConcurrencyActivationThreshold(i int) {
+	m.system_concurrency_activation_threshold = &i
+	m.addsystem_concurrency_activation_threshold = nil
+}
+
+// SystemConcurrencyActivationThreshold returns the value of the "system_concurrency_activation_threshold" field in the mutation.
+func (m *AccountMutation) SystemConcurrencyActivationThreshold() (r int, exists bool) {
+	v := m.system_concurrency_activation_threshold
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSystemConcurrencyActivationThreshold returns the old "system_concurrency_activation_threshold" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldSystemConcurrencyActivationThreshold(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSystemConcurrencyActivationThreshold is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSystemConcurrencyActivationThreshold requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSystemConcurrencyActivationThreshold: %w", err)
+	}
+	return oldValue.SystemConcurrencyActivationThreshold, nil
+}
+
+// AddSystemConcurrencyActivationThreshold adds i to the "system_concurrency_activation_threshold" field.
+func (m *AccountMutation) AddSystemConcurrencyActivationThreshold(i int) {
+	if m.addsystem_concurrency_activation_threshold != nil {
+		*m.addsystem_concurrency_activation_threshold += i
+	} else {
+		m.addsystem_concurrency_activation_threshold = &i
+	}
+}
+
+// AddedSystemConcurrencyActivationThreshold returns the value that was added to the "system_concurrency_activation_threshold" field in this mutation.
+func (m *AccountMutation) AddedSystemConcurrencyActivationThreshold() (r int, exists bool) {
+	v := m.addsystem_concurrency_activation_threshold
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSystemConcurrencyActivationThreshold clears the value of the "system_concurrency_activation_threshold" field.
+func (m *AccountMutation) ClearSystemConcurrencyActivationThreshold() {
+	m.system_concurrency_activation_threshold = nil
+	m.addsystem_concurrency_activation_threshold = nil
+	m.clearedFields[account.FieldSystemConcurrencyActivationThreshold] = struct{}{}
+}
+
+// SystemConcurrencyActivationThresholdCleared returns if the "system_concurrency_activation_threshold" field was cleared in this mutation.
+func (m *AccountMutation) SystemConcurrencyActivationThresholdCleared() bool {
+	_, ok := m.clearedFields[account.FieldSystemConcurrencyActivationThreshold]
+	return ok
+}
+
+// ResetSystemConcurrencyActivationThreshold resets all changes to the "system_concurrency_activation_threshold" field.
+func (m *AccountMutation) ResetSystemConcurrencyActivationThreshold() {
+	m.system_concurrency_activation_threshold = nil
+	m.addsystem_concurrency_activation_threshold = nil
+	delete(m.clearedFields, account.FieldSystemConcurrencyActivationThreshold)
 }
 
 // SetPriority sets the "priority" field.
@@ -4138,7 +4210,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 31)
+	fields := make([]string, 0, 32)
 	if m.created_at != nil {
 		fields = append(fields, account.FieldCreatedAt)
 	}
@@ -4177,6 +4249,9 @@ func (m *AccountMutation) Fields() []string {
 	}
 	if m.load_factor != nil {
 		fields = append(fields, account.FieldLoadFactor)
+	}
+	if m.system_concurrency_activation_threshold != nil {
+		fields = append(fields, account.FieldSystemConcurrencyActivationThreshold)
 	}
 	if m.priority != nil {
 		fields = append(fields, account.FieldPriority)
@@ -4266,6 +4341,8 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.Concurrency()
 	case account.FieldLoadFactor:
 		return m.LoadFactor()
+	case account.FieldSystemConcurrencyActivationThreshold:
+		return m.SystemConcurrencyActivationThreshold()
 	case account.FieldPriority:
 		return m.Priority()
 	case account.FieldRateMultiplier:
@@ -4337,6 +4414,8 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldConcurrency(ctx)
 	case account.FieldLoadFactor:
 		return m.OldLoadFactor(ctx)
+	case account.FieldSystemConcurrencyActivationThreshold:
+		return m.OldSystemConcurrencyActivationThreshold(ctx)
 	case account.FieldPriority:
 		return m.OldPriority(ctx)
 	case account.FieldRateMultiplier:
@@ -4472,6 +4551,13 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetLoadFactor(v)
+		return nil
+	case account.FieldSystemConcurrencyActivationThreshold:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSystemConcurrencyActivationThreshold(v)
 		return nil
 	case account.FieldPriority:
 		v, ok := value.(int)
@@ -4616,6 +4702,9 @@ func (m *AccountMutation) AddedFields() []string {
 	if m.addload_factor != nil {
 		fields = append(fields, account.FieldLoadFactor)
 	}
+	if m.addsystem_concurrency_activation_threshold != nil {
+		fields = append(fields, account.FieldSystemConcurrencyActivationThreshold)
+	}
 	if m.addpriority != nil {
 		fields = append(fields, account.FieldPriority)
 	}
@@ -4636,6 +4725,8 @@ func (m *AccountMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedConcurrency()
 	case account.FieldLoadFactor:
 		return m.AddedLoadFactor()
+	case account.FieldSystemConcurrencyActivationThreshold:
+		return m.AddedSystemConcurrencyActivationThreshold()
 	case account.FieldPriority:
 		return m.AddedPriority()
 	case account.FieldRateMultiplier:
@@ -4669,6 +4760,13 @@ func (m *AccountMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddLoadFactor(v)
+		return nil
+	case account.FieldSystemConcurrencyActivationThreshold:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSystemConcurrencyActivationThreshold(v)
 		return nil
 	case account.FieldPriority:
 		v, ok := value.(int)
@@ -4706,6 +4804,9 @@ func (m *AccountMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(account.FieldLoadFactor) {
 		fields = append(fields, account.FieldLoadFactor)
+	}
+	if m.FieldCleared(account.FieldSystemConcurrencyActivationThreshold) {
+		fields = append(fields, account.FieldSystemConcurrencyActivationThreshold)
 	}
 	if m.FieldCleared(account.FieldErrorMessage) {
 		fields = append(fields, account.FieldErrorMessage)
@@ -4771,6 +4872,9 @@ func (m *AccountMutation) ClearField(name string) error {
 		return nil
 	case account.FieldLoadFactor:
 		m.ClearLoadFactor()
+		return nil
+	case account.FieldSystemConcurrencyActivationThreshold:
+		m.ClearSystemConcurrencyActivationThreshold()
 		return nil
 	case account.FieldErrorMessage:
 		m.ClearErrorMessage()
@@ -4854,6 +4958,9 @@ func (m *AccountMutation) ResetField(name string) error {
 		return nil
 	case account.FieldLoadFactor:
 		m.ResetLoadFactor()
+		return nil
+	case account.FieldSystemConcurrencyActivationThreshold:
+		m.ResetSystemConcurrencyActivationThreshold()
 		return nil
 	case account.FieldPriority:
 		m.ResetPriority()

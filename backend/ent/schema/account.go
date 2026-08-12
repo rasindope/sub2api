@@ -102,6 +102,10 @@ func (Account) Fields() []ent.Field {
 
 		field.Int("load_factor").Optional().Nillable(),
 
+		// system_concurrency_activation_threshold: only schedule this account
+		// when the current whole-system account concurrency is greater than it.
+		field.Int("system_concurrency_activation_threshold").Optional().Nillable(),
+
 		// priority: 账户优先级，数值越小优先级越高
 		// 调度器会优先使用高优先级的账户
 		field.Int("priority").

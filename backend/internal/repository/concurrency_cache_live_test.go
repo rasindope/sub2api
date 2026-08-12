@@ -71,3 +71,35 @@ func TestLiveLeaseExpiresWithoutRefresh(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, refreshed)
 }
+
+func TestSystemAccountConcurrencyIncludesLiveLeases(t *testing.T) {
+	redisServer := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
+	cache := NewConcurrencyCache(client, 15, 900)
+	reader, ok := cache.(service.SystemAccountConcurrencyCache)
+	require.True(t, ok)
+	live, ok := cache.(service.LiveConcurrencyCache)
+	require.True(t, ok)
+	ctx := context.Background()
+
+	acquired, err := cache.AcquireAccountSlot(ctx, 10, 1, "ordinary")
+	require.NoError(t, err)
+	require.True(t, acquired)
+	acquired, err = live.AcquireLiveLease(ctx, 20, 1, 21, 1, 22, "live", false)
+	require.NoError(t, err)
+	require.True(t, acquired)
+
+	total, err := reader.GetSystemAccountConcurrency(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 2, total)
+
+	require.NoError(t, cache.ReleaseAccountSlot(ctx, 10, "ordinary"))
+	total, err = reader.GetSystemAccountConcurrency(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, total)
+
+	require.NoError(t, live.ReleaseLiveLease(ctx, 20, 21, 22, "live"))
+	total, err = reader.GetSystemAccountConcurrency(ctx)
+	require.NoError(t, err)
+	require.Zero(t, total)
+}

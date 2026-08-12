@@ -1549,6 +1549,9 @@ func (s *OpenAIGatewayService) resolveFreshSchedulableOpenAIAccountBeforeProfit(
 	if s.isOpenAIAccountBlockedBySchedulingThreshold(ctx, fresh) {
 		return nil
 	}
+	if s.isOpenAIAccountBlockedBySystemConcurrencyActivationThreshold(ctx, fresh) {
+		return nil
+	}
 	if s.isOpenAIProxyStreamQuarantined(ctx, fresh) {
 		return nil
 	}
@@ -1595,6 +1598,9 @@ func (s *OpenAIGatewayService) recheckSelectedOpenAIAccountFromDBBeforeProfit(ct
 		if s.isOpenAIAccountBlockedBySchedulingThreshold(ctx, account) {
 			return nil
 		}
+		if s.isOpenAIAccountBlockedBySystemConcurrencyActivationThreshold(ctx, account) {
+			return nil
+		}
 		if !parentHealthyForShadow(account, s.parentAccountLookup(ctx)) {
 			return nil
 		}
@@ -1626,6 +1632,9 @@ func (s *OpenAIGatewayService) recheckSelectedOpenAIAccountFromDBBeforeProfit(ct
 	if s.isOpenAIAccountBlockedBySchedulingThreshold(ctx, latest) {
 		return nil
 	}
+	if s.isOpenAIAccountBlockedBySystemConcurrencyActivationThreshold(ctx, latest) {
+		return nil
+	}
 	if s.isOpenAIProxyStreamQuarantined(ctx, latest) {
 		return nil
 	}
@@ -1653,6 +1662,9 @@ func (s *OpenAIGatewayService) getSchedulableAccount(ctx context.Context, accoun
 		return account, err
 	}
 	if s.isOpenAIAccountBlockedBySchedulingThreshold(ctx, account) {
+		return nil, nil
+	}
+	if s.isOpenAIAccountBlockedBySystemConcurrencyActivationThreshold(ctx, account) {
 		return nil, nil
 	}
 	// Legacy sticky (advanced scheduler off) must still free-gate Grok OAuth.
@@ -1693,6 +1705,24 @@ func (s *OpenAIGatewayService) isOpenAIAccountBlockedBySchedulingThreshold(ctx c
 		return false
 	}
 	return s.rateLimitService.ApplyAccountSchedulingThreshold(ctx, account)
+}
+
+func (s *OpenAIGatewayService) isOpenAIAccountBlockedBySystemConcurrencyActivationThreshold(ctx context.Context, account *Account) bool {
+	if account == nil || !account.IsOpenAI() || account.SystemConcurrencyActivationThreshold == nil || *account.SystemConcurrencyActivationThreshold <= 0 {
+		return false
+	}
+	if s == nil || s.concurrencyService == nil {
+		return true
+	}
+	current, err := s.concurrencyService.GetSystemAccountConcurrency(ctx)
+	if err != nil {
+		slog.Debug("system_concurrency_activation_threshold_unavailable",
+			"account_id", account.ID,
+			"threshold", *account.SystemConcurrencyActivationThreshold,
+			"error", err)
+		return true
+	}
+	return current <= *account.SystemConcurrencyActivationThreshold
 }
 
 func (s *OpenAIGatewayService) hydrateSelectedAccount(ctx context.Context, account *Account) (*Account, error) {

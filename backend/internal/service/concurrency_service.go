@@ -55,6 +55,12 @@ type ConcurrencyCache interface {
 	CleanupStaleProcessSlots(ctx context.Context, activeRequestPrefix string) error
 }
 
+// SystemAccountConcurrencyCache is intentionally optional so existing cache
+// implementations and test doubles do not need a new method.
+type SystemAccountConcurrencyCache interface {
+	GetSystemAccountConcurrency(ctx context.Context) (int, error)
+}
+
 type APIKeyConcurrencyCache interface {
 	TrackAPIKeySlot(ctx context.Context, apiKeyID int64, requestID string) error
 	ReleaseAPIKeySlot(ctx context.Context, apiKeyID int64, requestID string) error
@@ -768,4 +774,18 @@ func (s *ConcurrencyService) GetAccountConcurrencyBatch(ctx context.Context, acc
 	defer cancel()
 
 	return s.cache.GetAccountConcurrencyBatch(redisCtx, accountIDs)
+}
+
+// GetSystemAccountConcurrency gets the current concurrency across all upstream accounts.
+func (s *ConcurrencyService) GetSystemAccountConcurrency(ctx context.Context) (int, error) {
+	if s == nil || s.cache == nil {
+		return 0, errors.New("system account concurrency is unavailable")
+	}
+	cache, ok := s.cache.(SystemAccountConcurrencyCache)
+	if !ok {
+		return 0, errors.New("system account concurrency is unsupported")
+	}
+	redisCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	return cache.GetSystemAccountConcurrency(redisCtx)
 }
