@@ -1,4 +1,4 @@
-import type { GroupPlatform, ReasoningEffortMapping } from "@/types";
+import type { GroupPlatform, ReasoningEffortMapping, ReasoningEffortModelPolicy } from "@/types";
 
 const openAIReasoningEffortValues = [
   "minimal",
@@ -45,6 +45,16 @@ export interface ReasoningEffortMappingRow extends ReasoningEffortMapping {
   id: string;
 }
 
+export interface ReasoningEffortModelPolicyRow {
+  id: string;
+  model: string;
+  max_effort: string;
+  mappings: ReasoningEffortMappingRow[];
+  active_days: number[];
+  start_time: string;
+  end_time: string;
+}
+
 export type ReasoningEffortMappingErrorCode =
   | "fromRequired"
   | "toRequired"
@@ -58,6 +68,19 @@ export type ReasoningEffortMappingErrors = Record<
 >;
 
 let nextMappingRowID = 0;
+let nextModelPolicyRowID = 0;
+
+function normalizeReasoningEffortPolicyActiveDays(
+  activeDays?: number[] | null,
+): number[] {
+  return Array.from(
+    new Set(
+      (activeDays ?? []).filter(
+        (day) => Number.isInteger(day) && day >= 1 && day <= 7,
+      ),
+    ),
+  ).sort((left, right) => left - right);
+}
 
 export function createReasoningEffortMappingRow(
   mapping: Partial<ReasoningEffortMapping> = {},
@@ -68,6 +91,51 @@ export function createReasoningEffortMappingRow(
     from: mapping.from ?? "",
     to: mapping.to ?? "",
   };
+}
+
+export function createReasoningEffortModelPolicyRow(
+  policy: Partial<ReasoningEffortModelPolicy> = {},
+  platform: GroupPlatform = "openai",
+): ReasoningEffortModelPolicyRow {
+  nextModelPolicyRowID += 1;
+  return {
+    id: `reasoning-effort-model-policy-${nextModelPolicyRowID}`,
+    model: policy.model?.trim() ?? "",
+    max_effort: normalizeReasoningEffortForPlatform(platform, policy.max_effort),
+    mappings: reasoningEffortMappingsToRows(policy.mappings, platform),
+    active_days: normalizeReasoningEffortPolicyActiveDays(policy.active_days),
+    start_time: policy.start_time?.trim() ?? "",
+    end_time: policy.end_time?.trim() ?? "",
+  };
+}
+
+export function reasoningEffortModelPoliciesToRows(
+  policies?: ReasoningEffortModelPolicy[] | null,
+  platform: GroupPlatform = "openai",
+): ReasoningEffortModelPolicyRow[] {
+  return (policies ?? []).flatMap((policy) =>
+    policy.model?.trim()
+      ? [createReasoningEffortModelPolicyRow(policy, platform)]
+      : [],
+  );
+}
+
+export function reasoningEffortModelPoliciesToAPI(
+  rows: ReasoningEffortModelPolicyRow[],
+): ReasoningEffortModelPolicy[] {
+  return rows.map((row) => {
+    const activeDays = normalizeReasoningEffortPolicyActiveDays(row.active_days);
+    const startTime = row.start_time.trim();
+    const endTime = row.end_time.trim();
+    return {
+      model: row.model.trim(),
+      max_effort: row.max_effort.trim(),
+      mappings: reasoningEffortMappingsToAPI(row.mappings),
+      ...(activeDays.length > 0 ? { active_days: activeDays } : {}),
+      ...(startTime ? { start_time: startTime } : {}),
+      ...(endTime ? { end_time: endTime } : {}),
+    };
+  });
 }
 
 export function reasoningEffortMappingsToRows(
