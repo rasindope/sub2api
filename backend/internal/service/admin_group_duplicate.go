@@ -152,10 +152,26 @@ func cloneGroupForDuplicate(source *Group, operationID string) *Group {
 			Enabled: source.ModelsListConfig.Enabled,
 			Models:  append([]string(nil), source.ModelsListConfig.Models...),
 		},
-		RPMLimit:                source.RPMLimit,
-		MaxReasoningEffort:      source.MaxReasoningEffort,
-		ReasoningEffortMappings: append([]ReasoningEffortMapping(nil), source.ReasoningEffortMappings...),
+		RPMLimit:                     source.RPMLimit,
+		MaxReasoningEffort:           source.MaxReasoningEffort,
+		ReasoningEffortMappings:      append([]ReasoningEffortMapping(nil), source.ReasoningEffortMappings...),
+		ReasoningEffortModelPolicies: cloneReasoningEffortModelPolicies(source.ReasoningEffortModelPolicies),
 	}
+}
+
+func cloneReasoningEffortModelPolicies(source []ReasoningEffortModelPolicy) []ReasoningEffortModelPolicy {
+	cloned := make([]ReasoningEffortModelPolicy, len(source))
+	for i, policy := range source {
+		cloned[i] = ReasoningEffortModelPolicy{
+			Model:      policy.Model,
+			MaxEffort:  policy.MaxEffort,
+			Mappings:   append([]ReasoningEffortMapping(nil), policy.Mappings...),
+			ActiveDays: append([]int(nil), policy.ActiveDays...),
+			StartTime:  policy.StartTime,
+			EndTime:    policy.EndTime,
+		}
+	}
+	return cloned
 }
 
 // RecoverDuplicateGroup performs a read-only lookup for a copy that was already
