@@ -630,8 +630,10 @@
           ref="createReasoningEffortPolicyRef"
           id-prefix="create-group-reasoning"
           :platform="createForm.platform"
+          :models="createModelsListState.items.map((item) => item.id)"
           v-model:max-effort="createForm.max_reasoning_effort"
           v-model:mappings="createForm.reasoning_effort_mappings"
+		  v-model:model-policies="createForm.reasoning_effort_model_policies"
         />
         <div
           v-if="createForm.subscription_type !== 'subscription'"
@@ -2366,8 +2368,10 @@
           ref="editReasoningEffortPolicyRef"
           id-prefix="edit-group-reasoning"
           :platform="editForm.platform"
+          :models="editModelsListState.items.map((item) => item.id)"
           v-model:max-effort="editForm.max_reasoning_effort"
           v-model:mappings="editForm.reasoning_effort_mappings"
+		  v-model:model-policies="editForm.reasoning_effort_model_policies"
         />
         <div v-if="editForm.subscription_type !== 'subscription'">
           <div class="mb-1.5 flex items-center gap-1">
@@ -4509,8 +4513,11 @@ import {
   normalizeReasoningEffortForPlatform,
   reasoningEffortMappingsToAPI,
   reasoningEffortMappingsToRows,
+	 reasoningEffortModelPoliciesToAPI,
+	 reasoningEffortModelPoliciesToRows,
   supportsReasoningEffortPolicyPlatform,
   type ReasoningEffortMappingRow,
+	 type ReasoningEffortModelPolicyRow,
 } from "./groupsReasoningEffort";
 import {
   getDefaultImagePreviewPrice,
@@ -5118,6 +5125,7 @@ const createForm = reactive({
   rpm_limit: 0 as number,
   max_reasoning_effort: "",
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
+	 reasoning_effort_model_policies: [] as ReasoningEffortModelPolicyRow[],
 });
 
 // 简单账号类型（用于模型路由选择）
@@ -5480,6 +5488,7 @@ const editForm = reactive({
   rpm_limit: 0 as number,
   max_reasoning_effort: "",
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
+	 reasoning_effort_model_policies: [] as ReasoningEffortModelPolicyRow[],
 });
 
 type ImagePricingFormState = {
@@ -5920,6 +5929,7 @@ const closeCreateModal = () => {
   createForm.rpm_limit = 0;
   createForm.max_reasoning_effort = "";
   createForm.reasoning_effort_mappings = [];
+	 createForm.reasoning_effort_model_policies = [];
   createReasoningEffortPolicyRef.value?.resetValidation();
   resetModelsListState(createModelsListState);
   createModelRoutingRules.value = [];
@@ -6031,6 +6041,9 @@ const handleCreateGroup = async () => {
       reasoning_effort_mappings: reasoningEffortMappingsToAPI(
         createForm.reasoning_effort_mappings,
       ),
+	  reasoning_effort_model_policies: reasoningEffortModelPoliciesToAPI(
+		createForm.reasoning_effort_model_policies,
+	  ),
       // 利润控制：界面百分比转小数提交；仅五个 token 平台可启用
       profit_control_enabled:
         isProfitControlPlatform(createForm.platform) &&
@@ -6193,6 +6206,10 @@ const handleEdit = async (group: AdminGroup) => {
     group.reasoning_effort_mappings,
     group.platform,
   );
+	 editForm.reasoning_effort_model_policies = reasoningEffortModelPoliciesToRows(
+		group.reasoning_effort_model_policies,
+		group.platform,
+	 );
   resetModelsListState(editModelsListState, group.models_list_config);
   // 加载模型路由规则（异步加载账号名称）
   editModelRoutingRules.value = await convertApiFormatToRoutingRules(
@@ -6211,6 +6228,7 @@ const closeEditModal = () => {
   editingGroup.value = null;
   editForm.max_reasoning_effort = "";
   editForm.reasoning_effort_mappings = [];
+	 editForm.reasoning_effort_model_policies = [];
   editReasoningEffortPolicyRef.value?.resetValidation();
   editModelRoutingRules.value = [];
   editForm.copy_accounts_from_group_ids = [];
@@ -6304,6 +6322,9 @@ const handleUpdateGroup = async () => {
       reasoning_effort_mappings: reasoningEffortMappingsToAPI(
         editForm.reasoning_effort_mappings,
       ),
+	  reasoning_effort_model_policies: reasoningEffortModelPoliciesToAPI(
+		editForm.reasoning_effort_model_policies,
+	  ),
       // 利润控制：界面百分比转小数提交；仅五个 token 平台可启用
       profit_control_enabled:
         isProfitControlPlatform(editForm.platform) &&
@@ -6689,6 +6710,9 @@ watch(
       reasoningEffortMappingsToAPI(createForm.reasoning_effort_mappings),
       newVal,
     );
+	 createForm.reasoning_effort_model_policies = supportsReasoningEffortPolicyPlatform(newVal)
+		? createForm.reasoning_effort_model_policies
+		: [];
     createReasoningEffortPolicyRef.value?.resetValidation();
     if (!["openai", "antigravity", "anthropic", "gemini"].includes(newVal)) {
       createForm.require_oauth_only = false;
@@ -6739,6 +6763,9 @@ watch(
       reasoningEffortMappingsToAPI(editForm.reasoning_effort_mappings),
       newVal,
     );
+	 editForm.reasoning_effort_model_policies = supportsReasoningEffortPolicyPlatform(newVal)
+		? editForm.reasoning_effort_model_policies
+		: [];
     editReasoningEffortPolicyRef.value?.resetValidation();
     if (!["openai", "antigravity", "anthropic", "gemini"].includes(newVal)) {
       editForm.require_oauth_only = false;

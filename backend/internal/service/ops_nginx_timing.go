@@ -28,6 +28,7 @@ var nginxLegacyTimingLogPattern = regexp.MustCompile(`^\S+ \[([^\]]+)\] "([^"]*)
 
 type nginxTimingLogEntry struct {
 	Timestamp            string `json:"timestamp"`
+	CompletedAtMS        string `json:"completed_at_ms"`
 	Path                 string `json:"path"`
 	Gateway              string `json:"gateway"`
 	Upgrade              string `json:"upgrade"`
@@ -38,17 +39,20 @@ type nginxTimingLogEntry struct {
 	UpstreamResponseTime string `json:"upstream_response_time"`
 	RequestLength        int64  `json:"request_length"`
 	ClientRequestID      string `json:"client_request_id"`
+	GatewayReceivedAtMS  string `json:"gateway_received_at_ms"`
 }
 
 type nginxTimingAccumulator struct {
-	requestTime      []int
-	upstreamConnect  []int
-	upstreamHeader   []int
-	upstreamResponse []int
-	clientOverhead   []int
-	requestBytes     int64
-	requestByteCount int64
-	maxRequestBytes  int64
+	requestTime           []int
+	upstreamConnect       []int
+	upstreamHeader        []int
+	upstreamResponse      []int
+	clientOverhead        []int
+	clientUpload          []int
+	clientResponseReceive []int
+	requestBytes          int64
+	requestByteCount      int64
+	maxRequestBytes       int64
 }
 
 type nginxTimingKeyAccumulator struct {
@@ -180,7 +184,7 @@ func readOpsNginxTimingLog(path string, filter *OpsNginxTimingFilter, clientRequ
 				overview.MatchedRequestCount++
 			}
 
-			collectNginxTimingEntry(overview, &acc, entry)
+			collectNginxTimingEntry(overview, &acc, entry, at, false)
 		})
 		if err != nil {
 			return nil, err
@@ -233,7 +237,7 @@ func readOpsNginxTimingKeyDetailsLog(path string, filter *OpsNginxTimingFilter, 
 				item = &nginxTimingKeyAccumulator{key: requestKey}
 				accumulators[requestKey.APIKeyID] = item
 			}
-			collectNginxTimingEntry(&item.overview, &item.acc, entry)
+			collectNginxTimingEntry(&item.overview, &item.acc, entry, at, true)
 		})
 		if err != nil {
 			return nil, err
@@ -249,20 +253,25 @@ func readOpsNginxTimingKeyDetailsLog(path string, filter *OpsNginxTimingFilter, 
 	for _, item := range accumulators {
 		finishNginxTimingOverview(&item.overview, &item.acc)
 		details.Items = append(details.Items, OpsNginxTimingKeyMetric{
-			APIKeyID:               item.key.APIKeyID,
-			KeyName:                item.key.KeyName,
-			HTTPRequestCount:       item.overview.HTTPRequestCount,
-			WebSocketSessionCount:  item.overview.WebSocketSessionCount,
-			SuccessCount:           item.overview.SuccessCount,
-			ClientTimeout408Count:  item.overview.ClientTimeout408Count,
-			ClientClosed499Count:   item.overview.ClientClosed499Count,
-			ServerError5xxCount:    item.overview.ServerError5xxCount,
-			UpstreamUnreachedCount: item.overview.UpstreamUnreachedCount,
-			RequestTime:            item.overview.RequestTime,
-			UpstreamConnect:        item.overview.UpstreamConnect,
-			UpstreamHeader:         item.overview.UpstreamHeader,
-			UpstreamResponse:       item.overview.UpstreamResponse,
-			ClientOverhead:         item.overview.ClientOverhead,
+			APIKeyID:                         item.key.APIKeyID,
+			KeyName:                          item.key.KeyName,
+			HTTPRequestCount:                 item.overview.HTTPRequestCount,
+			WebSocketSessionCount:            item.overview.WebSocketSessionCount,
+			SuccessCount:                     item.overview.SuccessCount,
+			ClientTimeout408Count:            item.overview.ClientTimeout408Count,
+			ClientClosed499Count:             item.overview.ClientClosed499Count,
+			ServerError5xxCount:              item.overview.ServerError5xxCount,
+			UpstreamUnreachedCount:           item.overview.UpstreamUnreachedCount,
+			RequestTime:                      item.overview.RequestTime,
+			UpstreamConnect:                  item.overview.UpstreamConnect,
+			UpstreamHeader:                   item.overview.UpstreamHeader,
+			UpstreamResponse:                 item.overview.UpstreamResponse,
+			ClientOverhead:                   item.overview.ClientOverhead,
+			ClientOverheadSampleCount:        int64(len(item.acc.clientOverhead)),
+			ClientUploadSampleCount:          int64(len(item.acc.clientUpload)),
+			ClientUpload:                     opsNginxPercentiles(item.acc.clientUpload),
+			ClientResponseReceiveSampleCount: int64(len(item.acc.clientResponseReceive)),
+			ClientResponseReceive:            opsNginxPercentiles(item.acc.clientResponseReceive),
 		})
 	}
 	sort.Slice(details.Items, func(i, j int) bool {
@@ -283,7 +292,7 @@ func nginxTimingLogPaths(path string) []string {
 	}
 }
 
-func collectNginxTimingEntry(overview *OpsNginxTimingOverview, acc *nginxTimingAccumulator, entry nginxTimingLogEntry) {
+func collectNginxTimingEntry(overview *OpsNginxTimingOverview, acc *nginxTimingAccumulator, entry nginxTimingLogEntry, completedAt time.Time, collectClientTiming bool) {
 	if entry.isWebSocket() {
 		overview.WebSocketSessionCount++
 		return
@@ -323,6 +332,24 @@ func collectNginxTimingEntry(overview *OpsNginxTimingOverview, acc *nginxTimingA
 	}
 	if hasRequestTime && hasUpstreamResponse {
 		acc.clientOverhead = append(acc.clientOverhead, max(requestTimeMS-upstreamResponseMS, 0))
+	}
+	if collectClientTiming {
+		if gatewayReceivedAtMS, ok := nginxTimingUnixMS(entry.GatewayReceivedAtMS); ok {
+			completedAtMS := nginxTimingCompletedAtMS(entry.CompletedAtMS, completedAt)
+			if hasRequestTime {
+				clientUploadMS := gatewayReceivedAtMS - (completedAtMS - int64(requestTimeMS))
+				if clientUploadMS >= 0 {
+					acc.clientUpload = append(acc.clientUpload, int(clientUploadMS))
+				}
+			}
+			if hasUpstreamResponse {
+				clientResponseReceiveMS := completedAtMS - gatewayReceivedAtMS - int64(upstreamResponseMS)
+				if clientResponseReceiveMS < 0 {
+					clientResponseReceiveMS = 0
+				}
+				acc.clientResponseReceive = append(acc.clientResponseReceive, int(clientResponseReceiveMS))
+			}
+		}
 	}
 	if entry.RequestLength > 0 {
 		acc.requestBytes += entry.RequestLength
@@ -462,6 +489,31 @@ func nginxTimingDurationMS(raw string) (int, bool) {
 		found = true
 	}
 	return total, found
+}
+
+func nginxTimingUnixMS(raw string) (int64, bool) {
+	value, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+	return value, err == nil && value > 0
+}
+
+func nginxTimingCompletedAtMS(raw string, fallback time.Time) int64 {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "-" {
+		return fallback.UnixMilli()
+	}
+	if strings.Contains(raw, ".") {
+		if seconds, err := strconv.ParseFloat(raw, 64); err == nil && seconds > 0 {
+			return int64(math.Round(seconds * 1000))
+		}
+		return fallback.UnixMilli()
+	}
+	if value, ok := nginxTimingUnixMS(raw); ok {
+		if value > 10_000_000_000 {
+			return value
+		}
+		return value * 1000
+	}
+	return fallback.UnixMilli()
 }
 
 func opsNginxPercentiles(values []int) OpsPercentiles {

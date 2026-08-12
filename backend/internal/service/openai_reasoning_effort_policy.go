@@ -3,15 +3,22 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
+	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
 
 const (
-	maxReasoningEffortMappings = 64
-	maxReasoningEffortValueLen = 64
+	maxReasoningEffortMappings      = 64
+	maxReasoningEffortModelPolicies = 64
+	maxReasoningEffortModelLen      = 200
+	maxReasoningEffortValueLen      = 64
+	firstReasoningEffortWeekday     = 1
+	lastReasoningEffortWeekday      = 7
 )
 
 var openAIReasoningEffortValues = []string{"minimal", "low", "medium", "high", "xhigh", "max"}
@@ -136,6 +143,172 @@ func NormalizeReasoningEffortMappings(platform string, raw []ReasoningEffortMapp
 	return normalized, nil
 }
 
+func normalizeReasoningEffortPolicyActiveDays(raw []int) ([]int, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+
+	normalized := make([]int, 0, len(raw))
+	seen := make(map[int]struct{}, len(raw))
+	for _, day := range raw {
+		if day < firstReasoningEffortWeekday || day > lastReasoningEffortWeekday {
+			return nil, fmt.Errorf("active_days values must be between %d (Monday) and %d (Sunday)", firstReasoningEffortWeekday, lastReasoningEffortWeekday)
+		}
+		if _, exists := seen[day]; exists {
+			continue
+		}
+		seen[day] = struct{}{}
+		normalized = append(normalized, day)
+	}
+	sort.Ints(normalized)
+	return normalized, nil
+}
+
+func normalizeReasoningEffortPolicyTime(raw string) (string, int, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return "", 0, nil
+	}
+	minutes, ok := parseMinutes(value)
+	if !ok {
+		return "", 0, fmt.Errorf("must use HH:MM format, got %q", raw)
+	}
+	return fmt.Sprintf("%02d:%02d", minutes/60, minutes%60), minutes, nil
+}
+
+func normalizeReasoningEffortModelPolicySchedule(policy ReasoningEffortModelPolicy) ([]int, string, string, error) {
+	activeDays, err := normalizeReasoningEffortPolicyActiveDays(policy.ActiveDays)
+	if err != nil {
+		return nil, "", "", err
+	}
+	startTime, startMinutes, err := normalizeReasoningEffortPolicyTime(policy.StartTime)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("start_time %w", err)
+	}
+	endTime, endMinutes, err := normalizeReasoningEffortPolicyTime(policy.EndTime)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("end_time %w", err)
+	}
+	if startTime == "" && endTime == "" {
+		return activeDays, "", "", nil
+	}
+	if startTime == "" || endTime == "" {
+		return nil, "", "", fmt.Errorf("start_time and end_time must be set together")
+	}
+	if startMinutes == endMinutes {
+		return nil, "", "", fmt.Errorf("start_time and end_time cannot be equal")
+	}
+	return activeDays, startTime, endTime, nil
+}
+
+// NormalizeReasoningEffortModelPolicies validates exact-model overrides. A
+// model may occur once, and each policy must set either a ceiling or a mapping.
+func NormalizeReasoningEffortModelPolicies(platform string, raw []ReasoningEffortModelPolicy) ([]ReasoningEffortModelPolicy, error) {
+	if len(raw) > maxReasoningEffortModelPolicies {
+		return nil, fmt.Errorf("reasoning effort model policies cannot exceed %d entries", maxReasoningEffortModelPolicies)
+	}
+
+	normalized := make([]ReasoningEffortModelPolicy, 0, len(raw))
+	seen := make(map[string]struct{}, len(raw))
+	for i, policy := range raw {
+		model := strings.TrimSpace(policy.Model)
+		if model == "" || len(model) > maxReasoningEffortModelLen {
+			return nil, fmt.Errorf("reasoning effort model policy %d has an invalid model", i+1)
+		}
+		key := strings.ToLower(model)
+		if _, exists := seen[key]; exists {
+			return nil, fmt.Errorf("duplicate reasoning effort model policy for %q", model)
+		}
+		maxEffort, err := normalizeMaxReasoningEffortForPlatform(platform, policy.MaxEffort)
+		if err != nil {
+			return nil, fmt.Errorf("reasoning effort model policy %d ceiling: %w", i+1, err)
+		}
+		mappings, err := NormalizeReasoningEffortMappings(platform, policy.Mappings)
+		if err != nil {
+			return nil, fmt.Errorf("reasoning effort model policy %d mappings: %w", i+1, err)
+		}
+		if maxEffort == "" && len(mappings) == 0 {
+			return nil, fmt.Errorf("reasoning effort model policy %d must set a ceiling or mapping", i+1)
+		}
+		activeDays, startTime, endTime, err := normalizeReasoningEffortModelPolicySchedule(policy)
+		if err != nil {
+			return nil, fmt.Errorf("reasoning effort model policy %d schedule: %w", i+1, err)
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, ReasoningEffortModelPolicy{
+			Model:      model,
+			MaxEffort:  maxEffort,
+			Mappings:   mappings,
+			ActiveDays: activeDays,
+			StartTime:  startTime,
+			EndTime:    endTime,
+		})
+	}
+	return normalized, nil
+}
+
+func reasoningEffortWeekday(t time.Time) int {
+	weekday := int(t.Weekday())
+	if weekday == int(time.Sunday) {
+		return lastReasoningEffortWeekday
+	}
+	return weekday
+}
+
+func reasoningEffortPolicyActiveOnDay(activeDays []int, day int) bool {
+	if len(activeDays) == 0 {
+		return true
+	}
+	for _, activeDay := range activeDays {
+		if activeDay == day {
+			return true
+		}
+	}
+	return false
+}
+
+func reasoningEffortModelPolicyActiveAt(policy ReasoningEffortModelPolicy, now time.Time) bool {
+	startMinutes, hasStart := parseMinutes(policy.StartTime)
+	endMinutes, hasEnd := parseMinutes(policy.EndTime)
+	if policy.StartTime == "" && policy.EndTime == "" {
+		return reasoningEffortPolicyActiveOnDay(policy.ActiveDays, reasoningEffortWeekday(now.In(timezone.Location())))
+	}
+	if !hasStart || !hasEnd || startMinutes == endMinutes {
+		return false
+	}
+
+	local := now.In(timezone.Location())
+	currentMinutes := local.Hour()*60 + local.Minute()
+	if startMinutes < endMinutes {
+		return currentMinutes >= startMinutes && currentMinutes < endMinutes &&
+			reasoningEffortPolicyActiveOnDay(policy.ActiveDays, reasoningEffortWeekday(local))
+	}
+	if currentMinutes >= startMinutes {
+		return reasoningEffortPolicyActiveOnDay(policy.ActiveDays, reasoningEffortWeekday(local))
+	}
+	if currentMinutes < endMinutes {
+		return reasoningEffortPolicyActiveOnDay(policy.ActiveDays, reasoningEffortWeekday(local.AddDate(0, 0, -1)))
+	}
+	return false
+}
+
+// OpenAIReasoningEffortPolicyForModel selects an exact active model override,
+// falling back to the group default when no override exists.
+func OpenAIReasoningEffortPolicyForModel(model, defaultMaxEffort string, defaultMappings []ReasoningEffortMapping, policies []ReasoningEffortModelPolicy) (string, []ReasoningEffortMapping) {
+	return OpenAIReasoningEffortPolicyForModelAt(timezone.Now(), model, defaultMaxEffort, defaultMappings, policies)
+}
+
+// OpenAIReasoningEffortPolicyForModelAt is the clock-injectable form used by tests.
+func OpenAIReasoningEffortPolicyForModelAt(now time.Time, model, defaultMaxEffort string, defaultMappings []ReasoningEffortMapping, policies []ReasoningEffortModelPolicy) (string, []ReasoningEffortMapping) {
+	requested := strings.TrimSpace(model)
+	for _, policy := range policies {
+		if strings.EqualFold(strings.TrimSpace(policy.Model), requested) && reasoningEffortModelPolicyActiveAt(policy, now) {
+			return policy.MaxEffort, policy.Mappings
+		}
+	}
+	return defaultMaxEffort, defaultMappings
+}
+
 // WithOpenAIReasoningEffortPolicy binds a group policy to a request after its
 // concrete target platform has been resolved to OpenAI. The policy is copied so
 // retries and asynchronous forwarding cannot observe later slice mutations.
@@ -180,14 +353,19 @@ func sanitizeGroupReasoningEffortPolicy(group *Group) {
 	}
 	maxEffort, maxErr := normalizeMaxReasoningEffortForPlatform(group.Platform, group.MaxReasoningEffort)
 	mappings, mappingsErr := NormalizeReasoningEffortMappings(group.Platform, group.ReasoningEffortMappings)
+	modelPolicies, modelPoliciesErr := NormalizeReasoningEffortModelPolicies(group.Platform, group.ReasoningEffortModelPolicies)
 	if maxErr != nil {
 		maxEffort = ""
 	}
 	if mappingsErr != nil {
 		mappings = []ReasoningEffortMapping{}
 	}
+	if modelPoliciesErr != nil {
+		modelPolicies = []ReasoningEffortModelPolicy{}
+	}
 	group.MaxReasoningEffort = maxEffort
 	group.ReasoningEffortMappings = mappings
+	group.ReasoningEffortModelPolicies = modelPolicies
 }
 
 // ApplyOpenAIReasoningEffortPolicy applies one exact mapping and then caps

@@ -1106,6 +1106,18 @@ func (_u *GroupUpdate) AppendReasoningEffortMappings(v []domain.ReasoningEffortM
 	return _u
 }
 
+// SetReasoningEffortModelPolicies sets the "reasoning_effort_model_policies" field.
+func (_u *GroupUpdate) SetReasoningEffortModelPolicies(v []domain.ReasoningEffortModelPolicy) *GroupUpdate {
+	_u.mutation.SetReasoningEffortModelPolicies(v)
+	return _u
+}
+
+// AppendReasoningEffortModelPolicies appends value to the "reasoning_effort_model_policies" field.
+func (_u *GroupUpdate) AppendReasoningEffortModelPolicies(v []domain.ReasoningEffortModelPolicy) *GroupUpdate {
+	_u.mutation.AppendReasoningEffortModelPolicies(v)
+	return _u
+}
+
 // SetProfitControlEnabled sets the "profit_control_enabled" field.
 func (_u *GroupUpdate) SetProfitControlEnabled(v bool) *GroupUpdate {
 	_u.mutation.SetProfitControlEnabled(v)
@@ -1827,6 +1839,14 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AppendedReasoningEffortMappings(); ok {
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, group.FieldReasoningEffortMappings, value)
+		})
+	}
+	if value, ok := _u.mutation.ReasoningEffortModelPolicies(); ok {
+		_spec.SetField(group.FieldReasoningEffortModelPolicies, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedReasoningEffortModelPolicies(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, group.FieldReasoningEffortModelPolicies, value)
 		})
 	}
 	if value, ok := _u.mutation.ProfitControlEnabled(); ok {
@@ -3227,6 +3247,18 @@ func (_u *GroupUpdateOne) AppendReasoningEffortMappings(v []domain.ReasoningEffo
 	return _u
 }
 
+// SetReasoningEffortModelPolicies sets the "reasoning_effort_model_policies" field.
+func (_u *GroupUpdateOne) SetReasoningEffortModelPolicies(v []domain.ReasoningEffortModelPolicy) *GroupUpdateOne {
+	_u.mutation.SetReasoningEffortModelPolicies(v)
+	return _u
+}
+
+// AppendReasoningEffortModelPolicies appends value to the "reasoning_effort_model_policies" field.
+func (_u *GroupUpdateOne) AppendReasoningEffortModelPolicies(v []domain.ReasoningEffortModelPolicy) *GroupUpdateOne {
+	_u.mutation.AppendReasoningEffortModelPolicies(v)
+	return _u
+}
+
 // SetProfitControlEnabled sets the "profit_control_enabled" field.
 func (_u *GroupUpdateOne) SetProfitControlEnabled(v bool) *GroupUpdateOne {
 	_u.mutation.SetProfitControlEnabled(v)
@@ -3978,6 +4010,14 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	if value, ok := _u.mutation.AppendedReasoningEffortMappings(); ok {
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, group.FieldReasoningEffortMappings, value)
+		})
+	}
+	if value, ok := _u.mutation.ReasoningEffortModelPolicies(); ok {
+		_spec.SetField(group.FieldReasoningEffortModelPolicies, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedReasoningEffortModelPolicies(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, group.FieldReasoningEffortModelPolicies, value)
 		})
 	}
 	if value, ok := _u.mutation.ProfitControlEnabled(); ok {

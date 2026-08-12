@@ -808,6 +808,12 @@ func (_c *GroupCreate) SetReasoningEffortMappings(v []domain.ReasoningEffortMapp
 	return _c
 }
 
+// SetReasoningEffortModelPolicies sets the "reasoning_effort_model_policies" field.
+func (_c *GroupCreate) SetReasoningEffortModelPolicies(v []domain.ReasoningEffortModelPolicy) *GroupCreate {
+	_c.mutation.SetReasoningEffortModelPolicies(v)
+	return _c
+}
+
 // SetProfitControlEnabled sets the "profit_control_enabled" field.
 func (_c *GroupCreate) SetProfitControlEnabled(v bool) *GroupCreate {
 	_c.mutation.SetProfitControlEnabled(v)
@@ -1127,6 +1133,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultReasoningEffortMappings
 		_c.mutation.SetReasoningEffortMappings(v)
 	}
+	if _, ok := _c.mutation.ReasoningEffortModelPolicies(); !ok {
+		v := group.DefaultReasoningEffortModelPolicies
+		_c.mutation.SetReasoningEffortModelPolicies(v)
+	}
 	if _, ok := _c.mutation.ProfitControlEnabled(); !ok {
 		v := group.DefaultProfitControlEnabled
 		_c.mutation.SetProfitControlEnabled(v)
@@ -1319,6 +1329,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.ReasoningEffortMappings(); !ok {
 		return &ValidationError{Name: "reasoning_effort_mappings", err: errors.New(`ent: missing required field "Group.reasoning_effort_mappings"`)}
+	}
+	if _, ok := _c.mutation.ReasoningEffortModelPolicies(); !ok {
+		return &ValidationError{Name: "reasoning_effort_model_policies", err: errors.New(`ent: missing required field "Group.reasoning_effort_model_policies"`)}
 	}
 	if _, ok := _c.mutation.ProfitControlEnabled(); !ok {
 		return &ValidationError{Name: "profit_control_enabled", err: errors.New(`ent: missing required field "Group.profit_control_enabled"`)}
@@ -1591,6 +1604,10 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ReasoningEffortMappings(); ok {
 		_spec.SetField(group.FieldReasoningEffortMappings, field.TypeJSON, value)
 		_node.ReasoningEffortMappings = value
+	}
+	if value, ok := _c.mutation.ReasoningEffortModelPolicies(); ok {
+		_spec.SetField(group.FieldReasoningEffortModelPolicies, field.TypeJSON, value)
+		_node.ReasoningEffortModelPolicies = value
 	}
 	if value, ok := _c.mutation.ProfitControlEnabled(); ok {
 		_spec.SetField(group.FieldProfitControlEnabled, field.TypeBool, value)
@@ -2717,6 +2734,18 @@ func (u *GroupUpsert) SetReasoningEffortMappings(v []domain.ReasoningEffortMappi
 // UpdateReasoningEffortMappings sets the "reasoning_effort_mappings" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateReasoningEffortMappings() *GroupUpsert {
 	u.SetExcluded(group.FieldReasoningEffortMappings)
+	return u
+}
+
+// SetReasoningEffortModelPolicies sets the "reasoning_effort_model_policies" field.
+func (u *GroupUpsert) SetReasoningEffortModelPolicies(v []domain.ReasoningEffortModelPolicy) *GroupUpsert {
+	u.Set(group.FieldReasoningEffortModelPolicies, v)
+	return u
+}
+
+// UpdateReasoningEffortModelPolicies sets the "reasoning_effort_model_policies" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateReasoningEffortModelPolicies() *GroupUpsert {
+	u.SetExcluded(group.FieldReasoningEffortModelPolicies)
 	return u
 }
 
@@ -3933,6 +3962,20 @@ func (u *GroupUpsertOne) SetReasoningEffortMappings(v []domain.ReasoningEffortMa
 func (u *GroupUpsertOne) UpdateReasoningEffortMappings() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateReasoningEffortMappings()
+	})
+}
+
+// SetReasoningEffortModelPolicies sets the "reasoning_effort_model_policies" field.
+func (u *GroupUpsertOne) SetReasoningEffortModelPolicies(v []domain.ReasoningEffortModelPolicy) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetReasoningEffortModelPolicies(v)
+	})
+}
+
+// UpdateReasoningEffortModelPolicies sets the "reasoning_effort_model_policies" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateReasoningEffortModelPolicies() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateReasoningEffortModelPolicies()
 	})
 }
 
@@ -5323,6 +5366,20 @@ func (u *GroupUpsertBulk) SetReasoningEffortMappings(v []domain.ReasoningEffortM
 func (u *GroupUpsertBulk) UpdateReasoningEffortMappings() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateReasoningEffortMappings()
+	})
+}
+
+// SetReasoningEffortModelPolicies sets the "reasoning_effort_model_policies" field.
+func (u *GroupUpsertBulk) SetReasoningEffortModelPolicies(v []domain.ReasoningEffortModelPolicy) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetReasoningEffortModelPolicies(v)
+	})
+}
+
+// UpdateReasoningEffortModelPolicies sets the "reasoning_effort_model_policies" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateReasoningEffortModelPolicies() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateReasoningEffortModelPolicies()
 	})
 }
 

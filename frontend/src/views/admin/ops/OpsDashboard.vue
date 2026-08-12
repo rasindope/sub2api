@@ -120,18 +120,23 @@
 
             <div class="flex items-center justify-between gap-3 text-xs">
               <span class="text-gray-500 dark:text-gray-400">{{ pendingApiKeyFilterIsAll ? t('admin.ops.sourceKeyFilter.all') : t('admin.ops.sourceKeyFilter.selectedCount', { count: pendingApiKeyIds.length }) }}</span>
-              <button type="button" class="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" @click="selectVisibleApiKeys">
-                {{ t('admin.ops.sourceKeyFilter.selectVisible') }}
-              </button>
+              <div class="flex items-center gap-3">
+                <button type="button" class="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" @click="selectVisibleApiKeys">
+                  {{ t('admin.ops.sourceKeyFilter.selectVisible') }}
+                </button>
+                <button type="button" class="font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" @click="clearPendingApiKeyFilter">
+                  {{ t('admin.ops.sourceKeyFilter.clear') }}
+                </button>
+              </div>
             </div>
 
-            <div class="max-h-[420px] overflow-y-auto rounded-lg border border-gray-200 dark:border-dark-700">
-              <div v-if="loadingApiKeys" class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">{{ t('common.loading') }}</div>
-              <div v-else-if="apiKeyOptions.length === 0" class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">{{ t('common.noData') }}</div>
+            <div class="grid max-h-[420px] grid-cols-5 overflow-y-auto rounded-lg border border-gray-200 dark:border-dark-700">
+              <div v-if="loadingApiKeys" class="col-span-5 px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">{{ t('common.loading') }}</div>
+              <div v-else-if="apiKeyOptions.length === 0" class="col-span-5 px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">{{ t('common.noData') }}</div>
               <label
                 v-for="key in apiKeyOptions"
                 :key="key.id"
-                class="flex cursor-pointer items-center gap-3 border-b border-gray-100 px-4 py-3 last:border-b-0 hover:bg-gray-50 dark:border-dark-700 dark:hover:bg-dark-800"
+                class="flex min-w-0 cursor-pointer items-center gap-2 border-b border-r border-gray-100 px-3 py-2.5 hover:bg-gray-50 dark:border-dark-700 dark:hover:bg-dark-800"
               >
                 <input
                   type="checkbox"
@@ -139,18 +144,14 @@
                   :checked="pendingApiKeyFilterIsAll || pendingApiKeyIds.includes(key.id)"
                   @change="toggleApiKey(key.id)"
                 />
-                <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">{{ key.name || `Key #${key.id}` }}</span>
-                <span class="font-mono text-xs text-gray-400">#{{ key.id }}</span>
+                <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100" :title="key.name || `Key #${key.id}`">{{ key.name || `Key #${key.id}` }}</span>
               </label>
             </div>
           </div>
           <template #footer>
-            <div class="flex items-center justify-between gap-3">
-              <button type="button" class="btn btn-secondary" @click="clearApiKeyFilter">{{ t('admin.ops.sourceKeyFilter.clearAndApply') }}</button>
-              <div class="flex gap-3">
-                <button type="button" class="btn btn-secondary" @click="closeApiKeyFilter">{{ t('common.cancel') }}</button>
-                <button type="button" class="btn btn-primary" @click="applyApiKeyFilter">{{ t('admin.ops.sourceKeyFilter.apply') }}</button>
-              </div>
+            <div class="flex justify-end gap-3">
+              <button type="button" class="btn btn-secondary" @click="closeApiKeyFilter">{{ t('common.cancel') }}</button>
+              <button type="button" class="btn btn-primary" @click="applyApiKeyFilter">{{ t('admin.ops.sourceKeyFilter.apply') }}</button>
             </div>
           </template>
         </BaseDialog>
@@ -569,7 +570,6 @@ function toggleApiKey(id: number) {
   if (next.has(id)) next.delete(id)
   else next.add(id)
   pendingApiKeyIds.value = normalizeApiKeyIds([...next])
-  pendingApiKeyFilterIsAll.value = pendingApiKeyIds.value.length === 0
 }
 
 function selectVisibleApiKeys() {
@@ -587,12 +587,9 @@ function applyApiKeyFilter() {
   showApiKeyFilter.value = false
 }
 
-function clearApiKeyFilter() {
-  selectedApiKeyIds.value = []
+function clearPendingApiKeyFilter() {
   pendingApiKeyIds.value = []
-  pendingApiKeyFilterIsAll.value = true
-  persistApiKeyFilter()
-  showApiKeyFilter.value = false
+  pendingApiKeyFilterIsAll.value = false
 }
 
 function handleThroughputSelectPlatform(nextPlatform: string) {

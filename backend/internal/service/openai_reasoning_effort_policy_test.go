@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 )
@@ -67,6 +69,81 @@ func TestNormalizeReasoningEffortMappings(t *testing.T) {
 		_, err = NormalizeReasoningEffortMappings(PlatformOpenAI, []ReasoningEffortMapping{{From: "ultra", To: "high"}})
 		require.ErrorContains(t, err, "empty or unknown")
 	})
+}
+
+func TestOpenAIReasoningEffortPolicyForModel(t *testing.T) {
+	defaultMappings := []ReasoningEffortMapping{{From: "max", To: "high"}}
+	policies := []ReasoningEffortModelPolicy{{
+		Model:     "gpt-5.6-sol",
+		MaxEffort: "medium",
+		Mappings:  []ReasoningEffortMapping{{From: "max", To: "xhigh"}},
+	}}
+
+	maxEffort, mappings := OpenAIReasoningEffortPolicyForModel("GPT-5.6-SOL", "", defaultMappings, policies)
+	require.Equal(t, "medium", maxEffort)
+	require.Equal(t, policies[0].Mappings, mappings)
+
+	maxEffort, mappings = OpenAIReasoningEffortPolicyForModel("gpt-5.6", "", defaultMappings, policies)
+	require.Empty(t, maxEffort)
+	require.Equal(t, defaultMappings, mappings)
+}
+
+func TestOpenAIReasoningEffortPolicyForModelAt(t *testing.T) {
+	defaultMappings := []ReasoningEffortMapping{{From: "max", To: "high"}}
+	policies := []ReasoningEffortModelPolicy{{
+		Model:      "gpt-5.6-sol",
+		MaxEffort:  "medium",
+		ActiveDays: []int{1},
+		StartTime:  "22:00",
+		EndTime:    "02:00",
+	}}
+
+	for _, tt := range []struct {
+		name    string
+		at      time.Time
+		wantMax string
+	}{
+		{name: "start day inside overnight window", at: time.Date(2026, time.January, 5, 23, 0, 0, 0, timezone.Location()), wantMax: "medium"},
+		{name: "following day inside overnight window", at: time.Date(2026, time.January, 6, 1, 0, 0, 0, timezone.Location()), wantMax: "medium"},
+		{name: "following day at window end", at: time.Date(2026, time.January, 6, 2, 0, 0, 0, timezone.Location()), wantMax: ""},
+		{name: "start day before window", at: time.Date(2026, time.January, 5, 21, 59, 0, 0, timezone.Location()), wantMax: ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			maxEffort, mappings := OpenAIReasoningEffortPolicyForModelAt(tt.at, "gpt-5.6-sol", "", defaultMappings, policies)
+			require.Equal(t, tt.wantMax, maxEffort)
+			if tt.wantMax == "" {
+				require.Equal(t, defaultMappings, mappings)
+			}
+		})
+	}
+}
+
+func TestNormalizeReasoningEffortModelPolicies(t *testing.T) {
+	policies, err := NormalizeReasoningEffortModelPolicies(PlatformOpenAI, []ReasoningEffortModelPolicy{{
+		Model:      " gpt-5.6-sol ",
+		MaxEffort:  " x-high ",
+		Mappings:   []ReasoningEffortMapping{{From: "max", To: "high"}},
+		ActiveDays: []int{5, 1, 5},
+		StartTime:  "9:30",
+		EndTime:    "02:00",
+	}})
+	require.NoError(t, err)
+	require.Equal(t, []ReasoningEffortModelPolicy{{
+		Model:      "gpt-5.6-sol",
+		MaxEffort:  "xhigh",
+		Mappings:   []ReasoningEffortMapping{{From: "max", To: "high"}},
+		ActiveDays: []int{1, 5},
+		StartTime:  "09:30",
+		EndTime:    "02:00",
+	}}, policies)
+
+	_, err = NormalizeReasoningEffortModelPolicies(PlatformOpenAI, []ReasoningEffortModelPolicy{{Model: "gpt-5"}})
+	require.ErrorContains(t, err, "must set a ceiling or mapping")
+
+	_, err = NormalizeReasoningEffortModelPolicies(PlatformOpenAI, []ReasoningEffortModelPolicy{{
+		Model: "gpt-5", MaxEffort: "medium", StartTime: "09:00",
+	}})
+	require.ErrorContains(t, err, "must be set together")
 }
 
 func TestNormalizeMaxReasoningEffortForPlatform(t *testing.T) {

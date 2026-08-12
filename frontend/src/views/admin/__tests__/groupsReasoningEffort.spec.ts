@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   createReasoningEffortMappingRow,
+	createReasoningEffortModelPolicyRow,
   normalizeReasoningEffortForPlatform,
+	reasoningEffortModelPoliciesToAPI,
+	reasoningEffortModelPoliciesToRows,
   reasoningEffortMappingsToAPI,
   reasoningEffortMappingsToRows,
   reasoningEffortOptionsForPlatform,
@@ -88,5 +91,31 @@ describe("groupsReasoningEffort", () => {
     expect(validateReasoningEffortMappings([row], "openai")).toEqual({
       [row.id]: { from: "unsupportedFrom" },
     });
+  });
+
+  it("round-trips model-specific policies", () => {
+    const rows = reasoningEffortModelPoliciesToRows([
+      {
+        model: " gpt-5.6-sol ",
+        max_effort: "medium",
+        mappings: [{ from: "max", to: "xhigh" }],
+		active_days: [5, 1, 5],
+		start_time: "09:30",
+		end_time: "02:00",
+      },
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(reasoningEffortModelPoliciesToAPI(rows)).toEqual([
+      {
+        model: "gpt-5.6-sol",
+        max_effort: "medium",
+        mappings: [{ from: "max", to: "xhigh" }],
+		active_days: [1, 5],
+		start_time: "09:30",
+		end_time: "02:00",
+      },
+    ]);
+    expect(createReasoningEffortModelPolicyRow().mappings).toEqual([]);
   });
 });

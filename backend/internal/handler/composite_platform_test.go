@@ -141,6 +141,24 @@ func TestOpenAIReasoningEffortPolicyForCompositeTarget(t *testing.T) {
 	require.Equal(t, body, got)
 }
 
+func TestOpenAIReasoningEffortPolicyUsesModelOverride(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest("POST", "/v1/responses", nil)
+	apiKey := &service.APIKey{Group: &service.Group{
+		Platform:           service.PlatformOpenAI,
+		MaxReasoningEffort: "medium",
+		ReasoningEffortModelPolicies: []service.ReasoningEffortModelPolicy{{
+			Model:     "gpt-5.6-sol",
+			MaxEffort: "low",
+		}},
+	}}
+
+	got, changed := applyOpenAIReasoningEffortPolicyForRequest(c, apiKey, []byte(`{"model":"gpt-5.6-sol","reasoning":{"effort":"max"}}`))
+	require.True(t, changed)
+	require.JSONEq(t, `{"model":"gpt-5.6-sol","reasoning":{"effort":"low"}}`, string(got))
+}
+
 func TestClientRequestedModelUsesCompositePublicModel(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
