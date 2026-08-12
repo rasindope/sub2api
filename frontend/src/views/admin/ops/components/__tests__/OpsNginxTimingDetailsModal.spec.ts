@@ -40,7 +40,12 @@ function item(id: number, keyName: string, p99: number | null, p50: number | nul
     upstream_connect_time: {},
     upstream_header_time: {},
     upstream_response_time: {},
-    client_overhead_time: {},
+    client_overhead_sample_count: id === 3 ? 0 : 1,
+    client_overhead_time: { p99_ms: id === 1 ? 500 : id === 2 ? 800 : null },
+    client_upload_sample_count: id === 3 ? 0 : 1,
+    client_upload_time: { p99_ms: id === 1 ? 400 : id === 2 ? 100 : null },
+    client_response_receive_sample_count: id === 3 ? 0 : 1,
+    client_response_receive_time: { p99_ms: id === 1 ? 100 : id === 2 ? 900 : null },
   }
 }
 
@@ -82,5 +87,30 @@ describe('OpsNginxTimingDetailsModal', () => {
 
     await p50Header!.trigger('click')
     expect(rowKeys()).toEqual(['Beta', 'Alpha', 'Gamma'])
+  })
+
+  it('switches client overhead details between total, upload, and response receive timing', async () => {
+    mockGetNginxTimingKeyDetails.mockResolvedValue(response)
+    const wrapper = mount(OpsNginxTimingDetailsModal, {
+      props: { modelValue: false, metric: 'client_overhead', timeRange: '1h' },
+      global: { stubs: { BaseDialog: BaseDialogStub, Icon: true } },
+    })
+
+    await wrapper.setProps({ modelValue: true })
+    await flushPromises()
+
+    const rowKeys = () => wrapper.findAll('tbody tr').map((row) => row.find('td').text())
+    const uploadTab = wrapper.findAll('button').find((button) => button.text().includes('clientUpload'))
+    const responseReceiveTab = wrapper.findAll('button').find((button) => button.text().includes('clientResponseReceive'))
+
+    expect(rowKeys()).toEqual(['Alpha', 'Beta'])
+    expect(uploadTab).toBeDefined()
+    expect(responseReceiveTab).toBeDefined()
+
+    await uploadTab!.trigger('click')
+    expect(rowKeys()).toEqual(['Beta', 'Alpha'])
+
+    await responseReceiveTab!.trigger('click')
+    expect(rowKeys()).toEqual(['Alpha', 'Beta'])
   })
 })

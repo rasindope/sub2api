@@ -157,6 +157,8 @@ type Group struct {
 	MaxReasoningEffortOverLimit string `json:"max_reasoning_effort_over_limit"`
 	// ReasoningEffortMappings Anthropic/OpenAI 推理强度映射，可按模型精确名、前缀或后缀限定。
 	ReasoningEffortMappings []domain.ReasoningEffortMapping `json:"reasoning_effort_mappings"`
+	// ReasoningEffortModelPolicies OpenAI/Codex 按模型覆盖默认推理强度规则。
+	ReasoningEffortModelPolicies []domain.ReasoningEffortModelPolicy `json:"reasoning_effort_model_policies"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

@@ -2,7 +2,9 @@ package middleware
 
 import (
 	"context"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -11,7 +13,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const clientRequestIDHeader = "X-Client-Request-ID"
+const (
+	clientRequestIDHeader     = "X-Client-Request-ID"
+	gatewayReceivedAtMSHeader = "X-Sub2API-Ops-Received-At-Ms"
+)
 
 // ClientRequestID ensures every request has a unique client_request_id in request.Context().
 //
@@ -22,6 +27,8 @@ func ClientRequestID() gin.HandlerFunc {
 			c.Next()
 			return
 		}
+		// Nginx records this response header to split client upload from response drain.
+		c.Header(gatewayReceivedAtMSHeader, strconv.FormatInt(time.Now().UnixMilli(), 10))
 
 		if v, _ := c.Request.Context().Value(ctxkey.ClientRequestID).(string); strings.TrimSpace(v) != "" {
 			var valid bool

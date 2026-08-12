@@ -555,6 +555,15 @@ export interface ReasoningEffortMapping {
   model?: string
 }
 
+export interface ReasoningEffortModelPolicy {
+  model: string
+  max_effort: string
+  mappings: ReasoningEffortMapping[]
+  active_days?: number[] // ISO weekdays: 1 = Monday, 7 = Sunday; omitted means every day
+  start_time?: string
+  end_time?: string
+}
+
 export interface Group {
   id: number
   name: string
@@ -565,6 +574,7 @@ export interface Group {
   max_reasoning_effort?: string // Anthropic/OpenAI reasoning ceiling; empty means unlimited
   max_reasoning_effort_over_limit?: string // downgrade (default) or deny when over the ceiling
   reasoning_effort_mappings?: ReasoningEffortMapping[]
+  reasoning_effort_model_policies?: ReasoningEffortModelPolicy[]
   is_exclusive: boolean
   status: 'active' | 'inactive'
   subscription_type: SubscriptionType
@@ -840,6 +850,7 @@ export interface CreateGroupRequest {
   max_reasoning_effort?: string
   max_reasoning_effort_over_limit?: string
   reasoning_effort_mappings?: ReasoningEffortMapping[]
+  reasoning_effort_model_policies?: ReasoningEffortModelPolicy[]
   require_oauth_only?: boolean
   require_privacy_set?: boolean
   // 从指定分组复制账号
@@ -906,6 +917,7 @@ export interface UpdateGroupRequest {
   max_reasoning_effort?: string
   max_reasoning_effort_over_limit?: string
   reasoning_effort_mappings?: ReasoningEffortMapping[]
+  reasoning_effort_model_policies?: ReasoningEffortModelPolicy[]
   require_oauth_only?: boolean
   require_privacy_set?: boolean
   copy_accounts_from_group_ids?: number[]

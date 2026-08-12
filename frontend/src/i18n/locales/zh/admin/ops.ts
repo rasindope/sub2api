@@ -35,7 +35,7 @@ export default {
         searchPlaceholder: '搜索 Key 名称',
         selectedCount: '已选 {count} 个 Key',
         selectVisible: '全选当前结果',
-        clearAndApply: '清空并应用',
+        clear: '清空',
         apply: '应用筛选'
       },
       nginxTiming: {
@@ -62,13 +62,21 @@ export default {
           currentP99: '当前 P99',
           redThreshold: '标红阈值',
           matchedRequests: '已关联 {count} 条网关记录',
+          clientTotal: '总耗时',
+          clientUpload: '上传耗时',
+          clientResponseReceive: '接收响应耗时',
+          samples: '样本',
+          validSamples: '当前明细有效样本 {count}',
           success: '成功',
-          empty: '当前时间范围内没有可关联到 Key 的 Nginx 请求。'
+          empty: '当前时间范围内没有可关联到 Key 的 Nginx 请求。',
+          clientTimingEmpty: '当前范围没有已关联的 HTTP 时序样本。WS 会话不支持拆分。'
         },
         tooltips: {
           requests: '仅统计 HTTP 网关请求。WebSocket 连接按会话单独计数，不与每次 HTTP 请求混算。',
           requestTime: '每一条 HTTP 请求从 Nginx 接收请求到响应完成的时长，包含客户端上传、服务端处理和客户端下载。',
-          clientOverhead: '完整耗时 - 服务端耗时，包含客户端上传请求体和接收响应的附加时间，不等同于纯网络延迟。'
+          clientOverhead: '完整耗时 - 服务端耗时，包含客户端上传请求体和接收响应的附加时间，不等同于纯网络延迟。',
+          clientUpload: '从 Nginx 接收请求到 Sub2API 收到完整请求的时长，包含客户端上传与入口转发。',
+          clientResponseReceive: 'Nginx 向客户端完成传输的可观测响应尾部。流式响应会与上游处理并行，未观察到尾部的请求记为 0。'
         }
       },
       systemLogs: {

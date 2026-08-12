@@ -98,11 +98,16 @@ type OpsNginxTimingKeyMetric struct {
 	ServerError5xxCount    int64 `json:"server_error_5xx_count"`
 	UpstreamUnreachedCount int64 `json:"upstream_unreached_count"`
 
-	RequestTime      OpsPercentiles `json:"request_time"`
-	UpstreamConnect  OpsPercentiles `json:"upstream_connect_time"`
-	UpstreamHeader   OpsPercentiles `json:"upstream_header_time"`
-	UpstreamResponse OpsPercentiles `json:"upstream_response_time"`
-	ClientOverhead   OpsPercentiles `json:"client_overhead_time"`
+	RequestTime                      OpsPercentiles `json:"request_time"`
+	UpstreamConnect                  OpsPercentiles `json:"upstream_connect_time"`
+	UpstreamHeader                   OpsPercentiles `json:"upstream_header_time"`
+	UpstreamResponse                 OpsPercentiles `json:"upstream_response_time"`
+	ClientOverhead                   OpsPercentiles `json:"client_overhead_time"`
+	ClientOverheadSampleCount        int64          `json:"client_overhead_sample_count"`
+	ClientUploadSampleCount          int64          `json:"client_upload_sample_count"`
+	ClientUpload                     OpsPercentiles `json:"client_upload_time"`
+	ClientResponseReceiveSampleCount int64          `json:"client_response_receive_sample_count"`
+	ClientResponseReceive            OpsPercentiles `json:"client_response_receive_time"`
 }
 
 // OpsNginxTimingKeyDetails is loaded only when an administrator opens a card's
