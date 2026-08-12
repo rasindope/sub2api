@@ -110,6 +110,11 @@ func LoadFactor(v int) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldLoadFactor, v))
 }
 
+// SystemConcurrencyActivationThreshold applies equality check predicate on the "system_concurrency_activation_threshold" field. It's identical to SystemConcurrencyActivationThresholdEQ.
+func SystemConcurrencyActivationThreshold(v int) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldSystemConcurrencyActivationThreshold, v))
+}
+
 // Priority applies equality check predicate on the "priority" field. It's identical to PriorityEQ.
 func Priority(v int) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldPriority, v))
@@ -763,6 +768,56 @@ func LoadFactorIsNil() predicate.Account {
 // LoadFactorNotNil applies the NotNil predicate on the "load_factor" field.
 func LoadFactorNotNil() predicate.Account {
 	return predicate.Account(sql.FieldNotNull(FieldLoadFactor))
+}
+
+// SystemConcurrencyActivationThresholdEQ applies the EQ predicate on the "system_concurrency_activation_threshold" field.
+func SystemConcurrencyActivationThresholdEQ(v int) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldSystemConcurrencyActivationThreshold, v))
+}
+
+// SystemConcurrencyActivationThresholdNEQ applies the NEQ predicate on the "system_concurrency_activation_threshold" field.
+func SystemConcurrencyActivationThresholdNEQ(v int) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldSystemConcurrencyActivationThreshold, v))
+}
+
+// SystemConcurrencyActivationThresholdIn applies the In predicate on the "system_concurrency_activation_threshold" field.
+func SystemConcurrencyActivationThresholdIn(vs ...int) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldSystemConcurrencyActivationThreshold, vs...))
+}
+
+// SystemConcurrencyActivationThresholdNotIn applies the NotIn predicate on the "system_concurrency_activation_threshold" field.
+func SystemConcurrencyActivationThresholdNotIn(vs ...int) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldSystemConcurrencyActivationThreshold, vs...))
+}
+
+// SystemConcurrencyActivationThresholdGT applies the GT predicate on the "system_concurrency_activation_threshold" field.
+func SystemConcurrencyActivationThresholdGT(v int) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldSystemConcurrencyActivationThreshold, v))
+}
+
+// SystemConcurrencyActivationThresholdGTE applies the GTE predicate on the "system_concurrency_activation_threshold" field.
+func SystemConcurrencyActivationThresholdGTE(v int) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldSystemConcurrencyActivationThreshold, v))
+}
+
+// SystemConcurrencyActivationThresholdLT applies the LT predicate on the "system_concurrency_activation_threshold" field.
+func SystemConcurrencyActivationThresholdLT(v int) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldSystemConcurrencyActivationThreshold, v))
+}
+
+// SystemConcurrencyActivationThresholdLTE applies the LTE predicate on the "system_concurrency_activation_threshold" field.
+func SystemConcurrencyActivationThresholdLTE(v int) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldSystemConcurrencyActivationThreshold, v))
+}
+
+// SystemConcurrencyActivationThresholdIsNil applies the IsNil predicate on the "system_concurrency_activation_threshold" field.
+func SystemConcurrencyActivationThresholdIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldSystemConcurrencyActivationThreshold))
+}
+
+// SystemConcurrencyActivationThresholdNotNil applies the NotNil predicate on the "system_concurrency_activation_threshold" field.
+func SystemConcurrencyActivationThresholdNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldSystemConcurrencyActivationThreshold))
 }
 
 // PriorityEQ applies the EQ predicate on the "priority" field.

@@ -426,14 +426,15 @@ func (c *concurrencyCache) redisUnixSeconds(ctx context.Context) (int64, error) 
 // slotIndexSpec 描述一个活跃索引及其对应的槽位/等待键构造方式。
 // 用具名字段避免把 slotKey/waitKey 两个同签名函数按位置传参时写反。
 type slotIndexSpec struct {
-	indexKey string
-	slotKey  func(int64) string
-	waitKey  func(int64) string
+	indexKey    string
+	slotKey     func(int64) string
+	liveSlotKey func(int64) string
+	waitKey     func(int64) string
 }
 
 var (
-	accountSlotIndex = slotIndexSpec{indexKey: accountActiveIndexKey, slotKey: accountSlotKey, waitKey: accountWaitKey}
-	userSlotIndex    = slotIndexSpec{indexKey: userActiveIndexKey, slotKey: userSlotKey, waitKey: waitQueueKey}
+	accountSlotIndex = slotIndexSpec{indexKey: accountActiveIndexKey, slotKey: accountSlotKey, liveSlotKey: liveAccountSlotKey, waitKey: accountWaitKey}
+	userSlotIndex    = slotIndexSpec{indexKey: userActiveIndexKey, slotKey: userSlotKey, liveSlotKey: liveUserSlotKey, waitKey: waitQueueKey}
 )
 
 // touchActiveIndexAt 是写路径上的轻量标记：主操作已成功时，尽力把 ID 放入活跃索引，
@@ -452,59 +453,64 @@ func (c *concurrencyCache) touchActiveIndexAt(ctx context.Context, indexKey stri
 }
 
 func (c *concurrencyCache) refreshAccountActiveIndex(ctx context.Context, accountID int64) {
-	c.refreshActiveIndex(ctx, accountActiveIndexKey, accountID, accountSlotKey(accountID), accountWaitKey(accountID))
+	c.refreshActiveIndex(ctx, accountSlotIndex, accountID)
 }
 
 func (c *concurrencyCache) refreshUserActiveIndex(ctx context.Context, userID int64) {
-	c.refreshActiveIndex(ctx, userActiveIndexKey, userID, userSlotKey(userID), waitQueueKey(userID))
+	c.refreshActiveIndex(ctx, userSlotIndex, userID)
 }
 
 // refreshActiveIndex 以 Redis 中的真实槽位/等待数为准重建索引状态。
 // 释放槽位、等待计数减少、清理过期成员后都会调用它，防止索引残留。
 // 索引维护是 best-effort：失败只记日志，不影响主流程。
-func (c *concurrencyCache) refreshActiveIndex(ctx context.Context, indexKey string, id int64, slotKey, waitKey string) {
+func (c *concurrencyCache) refreshActiveIndex(ctx context.Context, spec slotIndexSpec, id int64) {
 	if c == nil || c.rdb == nil || id <= 0 {
 		return
 	}
 	now, err := c.redisUnixSeconds(ctx)
 	if err != nil {
-		logger.LegacyPrintf("repository.concurrency", "Warning: refresh active index %s for %d failed: %v", indexKey, id, err)
+		logger.LegacyPrintf("repository.concurrency", "Warning: refresh active index %s for %d failed: %v", spec.indexKey, id, err)
 		return
 	}
 
-	load, err := c.readActiveLoadForKey(ctx, id, slotKey, waitKey, now)
+	load, err := c.readActiveLoadForKey(ctx, spec, id, now)
 	if err != nil {
-		logger.LegacyPrintf("repository.concurrency", "Warning: refresh active index %s for %d failed: %v", indexKey, id, err)
+		logger.LegacyPrintf("repository.concurrency", "Warning: refresh active index %s for %d failed: %v", spec.indexKey, id, err)
 		return
 	}
 	member := strconv.FormatInt(id, 10)
 	if load.slotCount == 0 && load.waitCount <= 0 {
-		if err := c.rdb.ZRem(ctx, indexKey, member).Err(); err != nil {
-			logger.LegacyPrintf("repository.concurrency", "Warning: remove active index member %s from %s failed: %v", member, indexKey, err)
+		if err := c.rdb.ZRem(ctx, spec.indexKey, member).Err(); err != nil {
+			logger.LegacyPrintf("repository.concurrency", "Warning: remove active index member %s from %s failed: %v", member, spec.indexKey, err)
 		}
 		return
 	}
 
-	ttlSeconds := c.activeIndexTTL(load.slotCount, load.waitCount)
+	ttlSeconds := c.activeIndexTTL(load.regularSlotCount, load.liveSlotCount, load.waitCount)
 	if ttlSeconds <= 0 {
 		return
 	}
-	c.touchActiveIndexAt(ctx, indexKey, id, now+int64(ttlSeconds))
+	c.touchActiveIndexAt(ctx, spec.indexKey, id, now+int64(ttlSeconds))
 }
 
 type activeIndexLoad struct {
-	id        int64
-	member    string
-	slotCount int
-	waitCount int
+	id               int64
+	member           string
+	regularSlotCount int
+	liveSlotCount    int
+	slotCount        int
+	waitCount        int
 }
 
 // activeIndexTTL 取槽位 TTL 与等待队列 TTL 中仍然需要关注的较大值。
 // 只要并发槽位或等待计数还有负载，就保留索引；两者都为 0 时调用方会删除索引。
-func (c *concurrencyCache) activeIndexTTL(slotCount int, waitCount int) int {
+func (c *concurrencyCache) activeIndexTTL(regularSlotCount, liveSlotCount, waitCount int) int {
 	ttlSeconds := 0
-	if slotCount > 0 {
+	if regularSlotCount > 0 {
 		ttlSeconds = c.slotTTLSeconds
+	}
+	if liveSlotCount > 0 && liveLeaseTTLSeconds > ttlSeconds {
+		ttlSeconds = liveLeaseTTLSeconds
 	}
 	if waitCount > 0 && c.waitQueueTTLSeconds > ttlSeconds {
 		ttlSeconds = c.waitQueueTTLSeconds
@@ -513,12 +519,19 @@ func (c *concurrencyCache) activeIndexTTL(slotCount int, waitCount int) int {
 }
 
 // readActiveLoadForKey 读取单个 ID 的当前负载，并顺手清理该槽位集合中的过期成员。
-func (c *concurrencyCache) readActiveLoadForKey(ctx context.Context, id int64, slotKey, waitKey string, now int64) (activeIndexLoad, error) {
+func (c *concurrencyCache) readActiveLoadForKey(ctx context.Context, spec slotIndexSpec, id int64, now int64) (activeIndexLoad, error) {
 	cutoffTime := now - int64(c.slotTTLSeconds)
 	pipe := c.rdb.Pipeline()
+	slotKey := spec.slotKey(id)
 	pipe.ZRemRangeByScore(ctx, slotKey, "-inf", strconv.FormatInt(cutoffTime, 10))
-	zcardCmd := pipe.ZCard(ctx, slotKey)
-	getCmd := pipe.Get(ctx, waitKey)
+	regularCmd := pipe.ZCard(ctx, slotKey)
+	var liveCmd *redis.IntCmd
+	if spec.liveSlotKey != nil {
+		liveKey := spec.liveSlotKey(id)
+		pipe.ZRemRangeByScore(ctx, liveKey, "-inf", strconv.FormatInt(now-int64(liveLeaseTTLSeconds), 10))
+		liveCmd = pipe.ZCard(ctx, liveKey)
+	}
+	getCmd := pipe.Get(ctx, spec.waitKey(id))
 	if _, err := pipe.Exec(ctx); err != nil && !errors.Is(err, redis.Nil) {
 		return activeIndexLoad{}, fmt.Errorf("pipeline exec: %w", err)
 	}
@@ -527,11 +540,17 @@ func (c *concurrencyCache) readActiveLoadForKey(ctx context.Context, id int64, s
 	if v, err := getCmd.Int(); err == nil && v > 0 {
 		waitCount = v
 	}
+	liveSlotCount := 0
+	if liveCmd != nil {
+		liveSlotCount = int(liveCmd.Val())
+	}
 	return activeIndexLoad{
-		id:        id,
-		member:    strconv.FormatInt(id, 10),
-		slotCount: int(zcardCmd.Val()),
-		waitCount: waitCount,
+		id:               id,
+		member:           strconv.FormatInt(id, 10),
+		regularSlotCount: int(regularCmd.Val()),
+		liveSlotCount:    liveSlotCount,
+		slotCount:        int(regularCmd.Val()) + liveSlotCount,
+		waitCount:        waitCount,
 	}, nil
 }
 
@@ -561,19 +580,26 @@ func (c *concurrencyCache) readIndexLoads(ctx context.Context, spec slotIndexSpe
 		pipe := c.rdb.Pipeline()
 		type loadCmd struct {
 			activeIndexLoad
-			zcardCmd *redis.IntCmd
-			getCmd   *redis.StringCmd
+			regularCmd *redis.IntCmd
+			liveCmd    *redis.IntCmd
+			getCmd     *redis.StringCmd
 		}
 		cmds := make([]loadCmd, 0, len(chunk))
 		for _, candidate := range chunk {
 			slotKey := spec.slotKey(candidate.id)
 			waitKey := spec.waitKey(candidate.id)
 			pipe.ZRemRangeByScore(ctx, slotKey, "-inf", strconv.FormatInt(cutoffTime, 10))
-			cmds = append(cmds, loadCmd{
+			cmd := loadCmd{
 				activeIndexLoad: candidate,
-				zcardCmd:        pipe.ZCard(ctx, slotKey),
+				regularCmd:      pipe.ZCard(ctx, slotKey),
 				getCmd:          pipe.Get(ctx, waitKey),
-			})
+			}
+			if spec.liveSlotKey != nil {
+				liveKey := spec.liveSlotKey(candidate.id)
+				pipe.ZRemRangeByScore(ctx, liveKey, "-inf", strconv.FormatInt(now-int64(liveLeaseTTLSeconds), 10))
+				cmd.liveCmd = pipe.ZCard(ctx, liveKey)
+			}
+			cmds = append(cmds, cmd)
 		}
 		if _, err := pipe.Exec(ctx); err != nil && !errors.Is(err, redis.Nil) {
 			return nil, nil, fmt.Errorf("pipeline exec: %w", err)
@@ -583,11 +609,17 @@ func (c *concurrencyCache) readIndexLoads(ctx context.Context, spec slotIndexSpe
 			if v, err := cmd.getCmd.Int(); err == nil && v > 0 {
 				waitCount = v
 			}
+			liveSlotCount := 0
+			if cmd.liveCmd != nil {
+				liveSlotCount = int(cmd.liveCmd.Val())
+			}
 			loads = append(loads, activeIndexLoad{
-				id:        cmd.id,
-				member:    cmd.member,
-				slotCount: int(cmd.zcardCmd.Val()),
-				waitCount: waitCount,
+				id:               cmd.id,
+				member:           cmd.member,
+				regularSlotCount: int(cmd.regularCmd.Val()),
+				liveSlotCount:    liveSlotCount,
+				slotCount:        int(cmd.regularCmd.Val()) + liveSlotCount,
+				waitCount:        waitCount,
 			})
 		}
 	}
@@ -703,6 +735,36 @@ func (c *concurrencyCache) GetAccountConcurrencyBatch(ctx context.Context, accou
 	return result, nil
 }
 
+// GetSystemAccountConcurrency returns current request and Live/WS concurrency
+// for every account known to the existing active-account index.
+func (c *concurrencyCache) GetSystemAccountConcurrency(ctx context.Context) (int, error) {
+	if c == nil || c.rdb == nil {
+		return 0, fmt.Errorf("redis client is unavailable")
+	}
+	now, err := c.redisUnixSeconds(ctx)
+	if err != nil {
+		return 0, err
+	}
+	members, err := c.rdb.ZRange(ctx, accountActiveIndexKey, 0, -1).Result()
+	if err != nil {
+		return 0, fmt.Errorf("read active account index: %w", err)
+	}
+	loads, staleMembers, err := c.readIndexLoads(ctx, accountSlotIndex, members, now)
+	if err != nil {
+		return 0, err
+	}
+	total := 0
+	for _, load := range loads {
+		if load.slotCount == 0 && load.waitCount <= 0 {
+			staleMembers = append(staleMembers, load.member)
+			continue
+		}
+		total += load.slotCount
+	}
+	c.removeActiveIndexMembers(ctx, accountActiveIndexKey, staleMembers)
+	return total, nil
+}
+
 // User slot operations
 
 func (c *concurrencyCache) AcquireUserSlot(ctx context.Context, userID int64, maxConcurrency int, requestID string) (bool, error) {
@@ -816,6 +878,12 @@ func (c *concurrencyCache) AcquireLiveLease(
 		liveUserSlotKey(userID),
 		liveAPIKeySlotKey(apiKeyID),
 	}, accountMax, userMax, liveLeaseTTLSeconds, leaseID, replacing).Int()
+	if err == nil && result == 1 {
+		if now, timeErr := c.redisUnixSeconds(ctx); timeErr == nil {
+			c.touchActiveIndexAt(ctx, accountActiveIndexKey, accountID, now+int64(liveLeaseTTLSeconds))
+			c.touchActiveIndexAt(ctx, userActiveIndexKey, userID, now+int64(liveLeaseTTLSeconds))
+		}
+	}
 	return result == 1, err
 }
 
@@ -828,6 +896,12 @@ func (c *concurrencyCache) RefreshLiveLease(ctx context.Context, accountID, user
 		liveUserSlotKey(userID),
 		liveAPIKeySlotKey(apiKeyID),
 	}, liveLeaseTTLSeconds, leaseID).Int()
+	if err == nil && result == 1 {
+		if now, timeErr := c.redisUnixSeconds(ctx); timeErr == nil {
+			c.touchActiveIndexAt(ctx, accountActiveIndexKey, accountID, now+int64(liveLeaseTTLSeconds))
+			c.touchActiveIndexAt(ctx, userActiveIndexKey, userID, now+int64(liveLeaseTTLSeconds))
+		}
+	}
 	return result == 1, err
 }
 
@@ -840,6 +914,10 @@ func (c *concurrencyCache) ReleaseLiveLease(ctx context.Context, accountID, user
 	pipe.ZRem(ctx, liveUserSlotKey(userID), leaseID)
 	pipe.ZRem(ctx, liveAPIKeySlotKey(apiKeyID), leaseID)
 	_, err := pipe.Exec(ctx)
+	if err == nil {
+		c.refreshAccountActiveIndex(ctx, accountID)
+		c.refreshUserActiveIndex(ctx, userID)
+	}
 	return err
 }
 
@@ -1123,7 +1201,7 @@ func (c *concurrencyCache) reconcileExpiredIndexCandidates(ctx context.Context, 
 			continue
 		}
 		refreshed = append(refreshed, redis.Z{
-			Score:  float64(now + int64(c.activeIndexTTL(load.slotCount, load.waitCount))),
+			Score:  float64(now + int64(c.activeIndexTTL(load.regularSlotCount, load.liveSlotCount, load.waitCount))),
 			Member: load.member,
 		})
 	}

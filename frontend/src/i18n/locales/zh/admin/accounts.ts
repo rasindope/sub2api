@@ -1006,6 +1006,8 @@ export default {
       concurrency: '并发数',
       loadFactor: '负载因子',
       loadFactorHint: '提高负载因子可以提高对账号的调度频率',
+      systemConcurrencyActivationThreshold: '系统并发启用阈值',
+      systemConcurrencyActivationThresholdHint: '全站账号并发大于此值时才参与调度；留空表示始终参与',
       priority: '优先级',
       priorityHint: '优先级越小的账号优先使用',
       billingRateMultiplier: '账号计费倍率',
