@@ -153,6 +153,12 @@ const kindBadgeClass = (kind: string) => {
   if (kind === 'error') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
   return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
 }
+
+const displayAPIKey = (row: OpsRequestDetail) => {
+  const name = row.api_key_name?.trim()
+  if (name) return name
+  return row.api_key_id ? `Key #${row.api_key_id}` : '-'
+}
 </script>
 
 <template>
@@ -202,7 +208,9 @@ const kindBadgeClass = (kind: string) => {
                     <span class="rounded-full px-2 py-1 text-[10px] font-bold" :class="kindBadgeClass(row.kind)">
                       {{ row.kind === 'error' ? t('admin.ops.requestDetails.kind.error') : t('admin.ops.requestDetails.kind.success') }}
                     </span>
-                    <span class="text-xs font-medium text-gray-700 dark:text-gray-200">{{ (row.platform || 'unknown').toUpperCase() }}</span>
+                    <span class="max-w-[60%] truncate text-xs font-medium text-gray-700 dark:text-gray-200" :title="displayAPIKey(row)">
+                      {{ displayAPIKey(row) }}
+                    </span>
                     <span class="ml-auto text-[11px] text-gray-500 dark:text-gray-400">{{ formatDateTime(row.created_at) }}</span>
                   </div>
                   <div class="break-all text-xs text-gray-600 dark:text-gray-300">{{ row.model || '-' }}</div>
@@ -240,7 +248,7 @@ const kindBadgeClass = (kind: string) => {
                     {{ t('admin.ops.requestDetails.table.kind') }}
                   </th>
                   <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    {{ t('admin.ops.requestDetails.table.platform') }}
+                    {{ t('admin.ops.requestDetails.table.apiKey') }}
                   </th>
                   <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {{ t('admin.ops.requestDetails.table.model') }}
@@ -269,8 +277,8 @@ const kindBadgeClass = (kind: string) => {
                       {{ row.kind === 'error' ? t('admin.ops.requestDetails.kind.error') : t('admin.ops.requestDetails.kind.success') }}
                     </span>
                   </td>
-                  <td class="whitespace-nowrap px-4 py-3 text-xs font-medium text-gray-700 dark:text-gray-200">
-                    {{ (row.platform || 'unknown').toUpperCase() }}
+                  <td class="max-w-[180px] truncate px-4 py-3 text-xs font-medium text-gray-700 dark:text-gray-200" :title="displayAPIKey(row)">
+                    {{ displayAPIKey(row) }}
                   </td>
                   <td class="max-w-[240px] truncate px-4 py-3 text-xs text-gray-600 dark:text-gray-300" :title="row.model || ''">
                     {{ row.model || '-' }}

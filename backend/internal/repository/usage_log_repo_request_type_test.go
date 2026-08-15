@@ -466,7 +466,7 @@ func TestUsageLogRepositoryGetModelStatsWithFiltersRequestTypePriority(t *testin
 
 	mock.ExpectQuery("AND \\(request_type = \\$3 OR \\(request_type = 0 AND openai_ws_mode = TRUE\\)\\)").
 		WithArgs(start, end, requestType).
-		WillReturnRows(sqlmock.NewRows([]string{"model", "requests", "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens", "total_tokens", "cost", "actual_cost", "account_cost"}))
+		WillReturnRows(sqlmock.NewRows([]string{"model", "requests", "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens", "total_tokens", "cost", "actual_cost", "account_cost", "average_duration_ms"}))
 
 	stats, err := repo.GetModelStatsWithFilters(context.Background(), start, end, 0, 0, 0, 0, &requestType, &stream, nil)
 	require.NoError(t, err)
@@ -486,13 +486,14 @@ func TestUsageLogRepositoryGetUserModelStatsUsesRequestedModel(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{
 			"model", "requests", "input_tokens", "output_tokens",
 			"cache_creation_tokens", "cache_read_tokens", "total_tokens",
-			"cost", "actual_cost", "account_cost",
-		}).AddRow("gpt-5.5", int64(2), int64(10), int64(20), int64(0), int64(0), int64(30), 0.1, 0.08, 0.07))
+			"cost", "actual_cost", "account_cost", "average_duration_ms",
+		}).AddRow("gpt-5.5", int64(2), int64(10), int64(20), int64(0), int64(0), int64(30), 0.1, 0.08, 0.07, 1500.0))
 
 	stats, err := repo.GetUserModelStats(context.Background(), 7, start, end)
 	require.NoError(t, err)
 	require.Len(t, stats, 1)
 	require.Equal(t, "gpt-5.5", stats[0].Model)
+	require.Equal(t, 1500.0, stats[0].AverageDurationMs)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -591,10 +592,10 @@ func TestUsageLogRepositoryGetModelStatsAccountCostColumn(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{
 			"model", "requests", "input_tokens", "output_tokens",
 			"cache_creation_tokens", "cache_read_tokens", "total_tokens",
-			"cost", "actual_cost", "account_cost",
+			"cost", "actual_cost", "account_cost", "average_duration_ms",
 		}).
-			AddRow("claude-opus-4-6", int64(10), int64(100), int64(200), int64(5), int64(3), int64(308), 2.5, 2.0, 1.8).
-			AddRow("claude-sonnet-4-6", int64(5), int64(50), int64(100), int64(0), int64(0), int64(150), 1.0, 0.8, 0.7))
+			AddRow("claude-opus-4-6", int64(10), int64(100), int64(200), int64(5), int64(3), int64(308), 2.5, 2.0, 1.8, 2500.0).
+			AddRow("claude-sonnet-4-6", int64(5), int64(50), int64(100), int64(0), int64(0), int64(150), 1.0, 0.8, 0.7, 800.0))
 
 	results, err := repo.GetModelStatsWithFilters(context.Background(), start, end, 0, 0, 0, 0, nil, nil, nil)
 	require.NoError(t, err)
@@ -603,8 +604,10 @@ func TestUsageLogRepositoryGetModelStatsAccountCostColumn(t *testing.T) {
 	require.Equal(t, 2.5, results[0].Cost)
 	require.Equal(t, 2.0, results[0].ActualCost)
 	require.Equal(t, 1.8, results[0].AccountCost)
+	require.Equal(t, 2500.0, results[0].AverageDurationMs)
 	require.Equal(t, "claude-sonnet-4-6", results[1].Model)
 	require.Equal(t, 0.7, results[1].AccountCost)
+	require.Equal(t, 800.0, results[1].AverageDurationMs)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -621,8 +624,8 @@ func TestUsageLogRepositoryGetModelStatsWithUsageFiltersAppliesRequestedModelFil
 		WillReturnRows(sqlmock.NewRows([]string{
 			"model", "requests", "input_tokens", "output_tokens",
 			"cache_creation_tokens", "cache_read_tokens", "total_tokens",
-			"cost", "actual_cost", "account_cost",
-		}).AddRow("gpt-5", int64(1), int64(10), int64(20), int64(0), int64(0), int64(30), 0.1, 0.08, 0.07))
+			"cost", "actual_cost", "account_cost", "average_duration_ms",
+		}).AddRow("gpt-5", int64(1), int64(10), int64(20), int64(0), int64(0), int64(30), 0.1, 0.08, 0.07, 900.0))
 
 	results, err := repo.GetModelStatsWithUsageFiltersBySource(context.Background(), start, end, filters, usagestats.ModelSourceRequested)
 	require.NoError(t, err)
@@ -741,6 +744,55 @@ func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUsageLogRepositoryGetAccountSpendingRanking(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+	rows := sqlmock.NewRows([]string{"account_id", "account_name", "platform", "account_cost", "requests", "tokens", "total_account_cost", "total_requests", "total_tokens"}).
+		AddRow(int64(8), "openai-primary", "openai", 15.5, int64(10), int64(1000), 25.0, int64(18), int64(1700)).
+		AddRow(int64(3), "claude-backup", "anthropic", 9.5, int64(8), int64(700), 25.0, int64(18), int64(1700))
+
+	mock.ExpectQuery(`(?s)WITH account_spend AS \(.*COALESCE\(u\.account_stats_cost, u\.total_cost\) \* COALESCE\(u\.account_rate_multiplier, 1\)`).
+		WithArgs(start, end, 12).
+		WillReturnRows(rows)
+
+	got, err := repo.GetAccountSpendingRanking(context.Background(), start, end, 12)
+	require.NoError(t, err)
+	require.Equal(t, &usagestats.AccountSpendingRankingResponse{
+		Ranking: []usagestats.AccountSpendingRankingItem{
+			{AccountID: 8, AccountName: "openai-primary", Platform: "openai", AccountCost: 15.5, Requests: 10, Tokens: 1000},
+			{AccountID: 3, AccountName: "claude-backup", Platform: "anthropic", AccountCost: 9.5, Requests: 8, Tokens: 700},
+		},
+		TotalAccountCost: 25.0,
+		TotalRequests:    18,
+		TotalTokens:      1700,
+	}, got)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetAPIKeySpendingRankingIncludesAverageDuration(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+	rows := sqlmock.NewRows([]string{
+		"api_key_id", "key_name", "user_id", "email", "actual_cost", "requests", "tokens",
+		"average_duration_ms", "total_actual_cost", "total_requests", "total_tokens",
+	}).AddRow(int64(9), "client-a", int64(7), "rank@example.com", 12.5, int64(4), int64(400), 1500.0, 12.5, int64(4), int64(400))
+
+	mock.ExpectQuery(`(?s)WITH key_spend AS \(.*COALESCE\(AVG\(u\.duration_ms\), 0\) as average_duration_ms`).
+		WithArgs(start, end, 12).
+		WillReturnRows(rows)
+
+	got, err := repo.GetAPIKeySpendingRanking(context.Background(), start, end, 12)
+	require.NoError(t, err)
+	require.Equal(t, 1500.0, got.Ranking[0].AverageDurationMs)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestBuildRequestTypeFilterConditionLegacyFallback(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -793,7 +845,7 @@ func (s usageLogScannerStub) Scan(dest ...any) error {
 	}
 	for i := range dest {
 		dv := reflect.ValueOf(dest[i])
-		if dv.Kind() != reflect.Ptr {
+		if dv.Kind() != reflect.Pointer {
 			return fmt.Errorf("dest[%d] is not pointer", i)
 		}
 		dv.Elem().Set(reflect.ValueOf(s.values[i]))

@@ -15,19 +15,22 @@ import (
 
 type dashboardUsageRepoCapture struct {
 	service.UsageLogRepository
-	trendRequestType *int16
-	trendStream      *bool
-	modelRequestType *int16
-	modelStream      *bool
-	trendMismatch    *bool
-	modelMismatch    *bool
-	groupMismatch    *bool
-	rankingLimit     int
-	ranking          []usagestats.UserSpendingRankingItem
-	rankingTotal     float64
-	keyRankingLimit  int
-	keyRanking       []usagestats.APIKeySpendingRankingItem
-	keyRankingTotal  float64
+	trendRequestType    *int16
+	trendStream         *bool
+	modelRequestType    *int16
+	modelStream         *bool
+	trendMismatch       *bool
+	modelMismatch       *bool
+	groupMismatch       *bool
+	rankingLimit        int
+	ranking             []usagestats.UserSpendingRankingItem
+	rankingTotal        float64
+	accountRankingLimit int
+	accountRanking      []usagestats.AccountSpendingRankingItem
+	accountRankingTotal float64
+	keyRankingLimit     int
+	keyRanking          []usagestats.APIKeySpendingRankingItem
+	keyRankingTotal     float64
 }
 
 func (s *dashboardUsageRepoCapture) GetUsageTrendWithUsageFilters(
@@ -105,6 +108,20 @@ func (s *dashboardUsageRepoCapture) GetUserSpendingRanking(
 	}, nil
 }
 
+func (s *dashboardUsageRepoCapture) GetAccountSpendingRanking(
+	ctx context.Context,
+	startTime, endTime time.Time,
+	limit int,
+) (*usagestats.AccountSpendingRankingResponse, error) {
+	s.accountRankingLimit = limit
+	return &usagestats.AccountSpendingRankingResponse{
+		Ranking:          s.accountRanking,
+		TotalAccountCost: s.accountRankingTotal,
+		TotalRequests:    66,
+		TotalTokens:      3456,
+	}, nil
+}
+
 func (s *dashboardUsageRepoCapture) GetAPIKeySpendingRanking(
 	ctx context.Context,
 	startTime, endTime time.Time,
@@ -128,6 +145,7 @@ func newDashboardRequestTypeTestRouter(repo *dashboardUsageRepoCapture) *gin.Eng
 	router.GET("/admin/dashboard/models", handler.GetModelStats)
 	router.GET("/admin/dashboard/groups", handler.GetGroupStats)
 	router.GET("/admin/dashboard/users-ranking", handler.GetUserSpendingRanking)
+	router.GET("/admin/dashboard/accounts-ranking", handler.GetAccountSpendingRanking)
 	router.GET("/admin/dashboard/api-keys-ranking", handler.GetAPIKeySpendingRanking)
 	return router
 }
@@ -299,7 +317,7 @@ func TestDashboardAPIKeysRankingLimitAndCache(t *testing.T) {
 	dashboardAPIKeysRankingCache = newSnapshotCache(5 * time.Minute)
 	repo := &dashboardUsageRepoCapture{
 		keyRanking: []usagestats.APIKeySpendingRankingItem{
-			{APIKeyID: 9, KeyName: "client-a", UserID: 7, Email: "rank@example.com", ActualCost: 12.5, Requests: 4, Tokens: 400},
+			{APIKeyID: 9, KeyName: "client-a", UserID: 7, Email: "rank@example.com", ActualCost: 12.5, Requests: 4, Tokens: 400, AverageDurationMs: 1500},
 		},
 		keyRankingTotal: 99.9,
 	}
@@ -314,9 +332,39 @@ func TestDashboardAPIKeysRankingLimitAndCache(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "\"total_actual_cost\":99.9")
 	require.Contains(t, rec.Body.String(), "\"total_requests\":55")
 	require.Contains(t, rec.Body.String(), "\"total_tokens\":2345")
+	require.Contains(t, rec.Body.String(), "\"average_duration_ms\":1500")
 	require.Equal(t, "miss", rec.Header().Get("X-Snapshot-Cache"))
 
 	req2 := httptest.NewRequest(http.MethodGet, "/admin/dashboard/api-keys-ranking?limit=100&start_date=2025-01-01&end_date=2025-01-02", nil)
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+
+	require.Equal(t, http.StatusOK, rec2.Code)
+	require.Equal(t, "hit", rec2.Header().Get("X-Snapshot-Cache"))
+}
+
+func TestDashboardAccountsRankingLimitAndCache(t *testing.T) {
+	dashboardAccountsRankingCache = newSnapshotCache(5 * time.Minute)
+	repo := &dashboardUsageRepoCapture{
+		accountRanking: []usagestats.AccountSpendingRankingItem{
+			{AccountID: 8, AccountName: "openai-primary", Platform: "openai", AccountCost: 15.5, Requests: 10, Tokens: 1000},
+		},
+		accountRankingTotal: 25,
+	}
+	router := newDashboardRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/dashboard/accounts-ranking?limit=100&start_date=2025-01-01&end_date=2025-01-02", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, 50, repo.accountRankingLimit)
+	require.Contains(t, rec.Body.String(), "\"total_account_cost\":25")
+	require.Contains(t, rec.Body.String(), "\"total_requests\":66")
+	require.Contains(t, rec.Body.String(), "\"total_tokens\":3456")
+	require.Equal(t, "miss", rec.Header().Get("X-Snapshot-Cache"))
+
+	req2 := httptest.NewRequest(http.MethodGet, "/admin/dashboard/accounts-ranking?limit=100&start_date=2025-01-01&end_date=2025-01-02", nil)
 	rec2 := httptest.NewRecorder()
 	router.ServeHTTP(rec2, req2)
 
