@@ -325,27 +325,6 @@ func splitCodexInviteEmailInput(input string) []string {
 	})
 }
 
-func normalizeCodexInviteResetCredits(raw map[string]any) []CodexInviteResetCredit {
-	items := codexInviteResetMapSliceFromMap(raw, "credits")
-	credits := make([]CodexInviteResetCredit, 0, len(items))
-	for _, item := range items {
-		id := codexInviteResetStringFromMap(item, "id")
-		if id == "" {
-			continue
-		}
-		credits = append(credits, CodexInviteResetCredit{
-			ID:              id,
-			Status:          codexInviteResetStringFromMap(item, "status"),
-			Title:           codexInviteResetStringFromMap(item, "title"),
-			Description:     codexInviteResetStringFromMap(item, "description"),
-			ProfileUserID:   codexInviteResetStringFromMap(item, "profile_user_id"),
-			ProfileImageURL: codexInviteResetStringFromMap(item, "profile_image_url"),
-			Raw:             item,
-		})
-	}
-	return credits
-}
-
 func normalizeCodexInviteResetRules(raw map[string]any) []string {
 	rulesRaw, ok := raw["rules"].([]any)
 	if !ok {
@@ -385,25 +364,6 @@ func codexInviteResetStringFromMap(raw map[string]any, key string) string {
 		return strings.TrimSpace(v.String())
 	default:
 		return strings.TrimSpace(fmt.Sprint(v))
-	}
-}
-
-func codexInviteResetIntFromMap(raw map[string]any, key string) int {
-	if raw == nil {
-		return 0
-	}
-	switch value := raw[key].(type) {
-	case int:
-		return value
-	case int64:
-		return int(value)
-	case float64:
-		return int(value)
-	case json.Number:
-		i, _ := value.Int64()
-		return int(i)
-	default:
-		return 0
 	}
 }
 

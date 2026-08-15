@@ -382,7 +382,7 @@ func scanOpsNginxTimingLog(path string, visit func(nginxTimingLogEntry, time.Tim
 	if err != nil {
 		return false, nil, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	info, err := file.Stat()
 	if err != nil {

@@ -74,22 +74,28 @@
             </div>
           </div>
 
-          <!-- New Users Today -->
+          <!-- Performance (RPM/TPM) -->
           <div class="card p-4">
             <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-emerald-100 p-2 dark:bg-emerald-900/30">
-                <Icon name="userPlus" size="md" class="text-emerald-600 dark:text-emerald-400" :stroke-width="2" />
+              <div class="rounded-lg bg-violet-100 p-2 dark:bg-violet-900/30">
+                <Icon name="bolt" size="md" class="text-violet-600 dark:text-violet-400" :stroke-width="2" />
               </div>
-              <div>
+              <div class="flex-1">
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.users') }}
+                  {{ t('admin.dashboard.performance') }}
                 </p>
-                <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                  +{{ stats.today_new_users }}
-                </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                  {{ t('common.total') }}: {{ formatNumber(stats.total_users) }}
-                </p>
+                <div class="flex items-baseline gap-2">
+                  <p class="text-xl font-bold text-gray-900 dark:text-white">
+                    {{ formatTokens(stats.rpm) }}
+                  </p>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">RPM</span>
+                </div>
+                <div class="flex items-baseline gap-2">
+                  <p class="text-sm font-semibold text-violet-600 dark:text-violet-400">
+                    {{ formatTokens(stats.tpm) }}
+                  </p>
+                  <span class="text-xs text-gray-500 dark:text-gray-400">TPM</span>
+                </div>
               </div>
             </div>
           </div>
@@ -97,6 +103,8 @@
 
         <!-- Row 2: Token Stats -->
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <AccountUsageOverviewCard />
+
           <!-- Today Tokens -->
           <div class="card p-4">
             <div class="flex items-center gap-3">
@@ -169,32 +177,6 @@
             </div>
           </div>
 
-          <!-- Performance (RPM/TPM) -->
-          <div class="card p-4">
-            <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-violet-100 p-2 dark:bg-violet-900/30">
-                <Icon name="bolt" size="md" class="text-violet-600 dark:text-violet-400" :stroke-width="2" />
-              </div>
-              <div class="flex-1">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.performance') }}
-                </p>
-                <div class="flex items-baseline gap-2">
-                  <p class="text-xl font-bold text-gray-900 dark:text-white">
-                    {{ formatTokens(stats.rpm) }}
-                  </p>
-                  <span class="text-xs text-gray-500 dark:text-gray-400">RPM</span>
-                </div>
-                <div class="flex items-baseline gap-2">
-                  <p class="text-sm font-semibold text-violet-600 dark:text-violet-400">
-                    {{ formatTokens(stats.tpm) }}
-                  </p>
-                  <span class="text-xs text-gray-500 dark:text-gray-400">TPM</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <!-- Avg Response Time -->
           <div class="card p-4">
             <div class="flex items-center gap-3">
@@ -213,54 +195,6 @@
                 </p>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="card p-4">
-          <div class="mb-3 flex items-center justify-between">
-            <h2 class="text-sm font-semibold text-gray-900 dark:text-white">
-              {{ t('admin.dashboard.quickActions') }}
-            </h2>
-          </div>
-          <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <button
-              v-if="canUseBatchImage"
-              type="button"
-              class="group flex items-center gap-3 rounded-lg bg-gray-50 p-3 text-left transition-colors hover:bg-sky-50 dark:bg-dark-800/50 dark:hover:bg-sky-900/20"
-              @click="router.push('/batch-image')"
-            >
-              <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400">
-                <Icon name="sparkles" size="md" :stroke-width="2" />
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="block text-sm font-medium text-gray-900 dark:text-white">
-                  {{ t('admin.dashboard.batchImage') }}
-                </span>
-                <span class="block text-xs text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.batchImageDesc') }}
-                </span>
-              </span>
-              <Icon name="chevronRight" size="sm" class="text-gray-400 group-hover:text-sky-500" />
-            </button>
-            <button
-              type="button"
-              class="group flex items-center gap-3 rounded-lg bg-gray-50 p-3 text-left transition-colors hover:bg-emerald-50 dark:bg-dark-800/50 dark:hover:bg-emerald-900/20"
-              @click="router.push('/admin/groups')"
-            >
-              <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-                <Icon name="grid" size="md" :stroke-width="2" />
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="block text-sm font-medium text-gray-900 dark:text-white">
-                  {{ t('admin.dashboard.groupPricing') }}
-                </span>
-                <span class="block text-xs text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.groupPricingDesc') }}
-                </span>
-              </span>
-              <Icon name="chevronRight" size="sm" class="text-gray-400 group-hover:text-emerald-500" />
-            </button>
           </div>
         </div>
 
@@ -297,32 +231,28 @@
             </div>
           </div>
 
-          <!-- Charts Grid -->
-          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <ModelDistributionChart
-              :model-stats="modelStats"
-              :enable-ranking-view="true"
-              :ranking-items="rankingItems"
-              :ranking-total-actual-cost="rankingTotalActualCost"
-              :ranking-total-requests="rankingTotalRequests"
-              :ranking-total-tokens="rankingTotalTokens"
-              :api-key-ranking-items="apiKeyRankingItems"
-              :api-key-ranking-total-actual-cost="apiKeyRankingTotalActualCost"
-              :api-key-ranking-total-requests="apiKeyRankingTotalRequests"
-              :api-key-ranking-total-tokens="apiKeyRankingTotalTokens"
-              :loading="chartsLoading"
-              :ranking-loading="rankingLoading"
-              :ranking-error="rankingError"
-              :api-key-ranking-loading="apiKeyRankingLoading"
-              :api-key-ranking-error="apiKeyRankingError"
-              default-ranking-view="api_key_spending_ranking"
-              :start-date="startDate"
-              :end-date="endDate"
-              @ranking-click="goToUserUsage"
-              @api-key-ranking-click="goToAPIKeyUsage"
-            />
-            <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
-          </div>
+          <!-- Distribution and Rankings (Full Width) -->
+          <ModelDistributionChart
+            :model-stats="modelStats"
+            :enable-ranking-view="true"
+            :ranking-items="rankingItems"
+            :ranking-total-cost="rankingTotalCost"
+            :ranking-total-requests="rankingTotalRequests"
+            :ranking-total-tokens="rankingTotalTokens"
+            :api-key-ranking-items="apiKeyRankingItems"
+            :api-key-ranking-total-actual-cost="apiKeyRankingTotalActualCost"
+            :api-key-ranking-total-requests="apiKeyRankingTotalRequests"
+            :api-key-ranking-total-tokens="apiKeyRankingTotalTokens"
+            :loading="chartsLoading"
+            :ranking-loading="rankingLoading"
+            :ranking-error="rankingError"
+            :api-key-ranking-loading="apiKeyRankingLoading"
+            :api-key-ranking-error="apiKeyRankingError"
+            default-ranking-view="api_key_spending_ranking"
+            :start-date="startDate"
+            :end-date="endDate"
+            @ranking-click="goToAccountUsage"
+          />
 
           <!-- API Key Usage Trend (Full Width) -->
           <div class="card p-4">
@@ -342,6 +272,9 @@
               </div>
             </div>
           </div>
+
+          <!-- Token Usage Trend (Full Width) -->
+          <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
         </div>
       </template>
     </div>
@@ -361,7 +294,7 @@ import type {
   TrendDataPoint,
   ModelStat,
   ApiKeyUsageTrendPoint,
-  UserSpendingRankingItem,
+  AccountSpendingRankingItem,
   ApiKeySpendingRankingItem
 } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -371,7 +304,7 @@ import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import Select from '@/components/common/Select.vue'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
-import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
+import AccountUsageOverviewCard from '@/components/admin/dashboard/AccountUsageOverviewCard.vue'
 
 import {
   Chart as ChartJS,
@@ -398,7 +331,6 @@ ChartJS.register(
 
 const appStore = useAppStore()
 const router = useRouter()
-const { canUseBatchImage, refreshBatchImageAccess } = useBatchImageAccess()
 const stats = ref<DashboardStats | null>(null)
 const loading = ref(false)
 const chartsLoading = ref(false)
@@ -412,8 +344,8 @@ const apiKeyRankingError = ref(false)
 const trendData = ref<TrendDataPoint[]>([])
 const modelStats = ref<ModelStat[]>([])
 const apiKeyTrend = ref<ApiKeyUsageTrendPoint[]>([])
-const rankingItems = ref<UserSpendingRankingItem[]>([])
-const rankingTotalActualCost = ref(0)
+const rankingItems = ref<AccountSpendingRankingItem[]>([])
+const rankingTotalCost = ref(0)
 const rankingTotalRequests = ref(0)
 const rankingTotalTokens = ref(0)
 const apiKeyRankingItems = ref<ApiKeySpendingRankingItem[]>([])
@@ -431,18 +363,14 @@ const formatLocalDate = (date: Date): string => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-const getLast24HoursRangeDates = (): { start: string; end: string } => {
-  const end = new Date()
-  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000)
-  return {
-    start: formatLocalDate(start),
-    end: formatLocalDate(end)
-  }
+const getTodayRangeDates = (): { start: string; end: string } => {
+  const today = formatLocalDate(new Date())
+  return { start: today, end: today }
 }
 
 // Date range
 const granularity = ref<'day' | 'hour'>('hour')
-const defaultRange = getLast24HoursRangeDates()
+const defaultRange = getTodayRangeDates()
 const startDate = ref(defaultRange.start)
 const endDate = ref(defaultRange.end)
 
@@ -619,22 +547,11 @@ const formatDuration = (ms: number): string => {
   return `${Math.round(ms)}ms`
 }
 
-const goToUserUsage = (item: UserSpendingRankingItem) => {
+const goToAccountUsage = (item: AccountSpendingRankingItem) => {
   void router.push({
     path: '/admin/usage',
     query: {
-      user_id: String(item.user_id),
-      start_date: startDate.value,
-      end_date: endDate.value
-    }
-  })
-}
-
-const goToAPIKeyUsage = (item: ApiKeySpendingRankingItem) => {
-  void router.push({
-    path: '/admin/usage',
-    query: {
-      api_key_id: String(item.api_key_id),
+      account_id: String(item.account_id),
       start_date: startDate.value,
       end_date: endDate.value
     }
@@ -721,26 +638,26 @@ const loadAPIKeyTrend = async () => {
   }
 }
 
-const loadUserSpendingRanking = async () => {
+const loadAccountSpendingRanking = async () => {
   const currentSeq = ++rankingLoadSeq
   rankingLoading.value = true
   rankingError.value = false
   try {
-    const response = await adminAPI.dashboard.getUserSpendingRanking({
+    const response = await adminAPI.dashboard.getAccountSpendingRanking({
       start_date: startDate.value,
       end_date: endDate.value,
       limit: rankingLimit
     })
     if (currentSeq !== rankingLoadSeq) return
     rankingItems.value = response.ranking || []
-    rankingTotalActualCost.value = response.total_actual_cost || 0
+    rankingTotalCost.value = response.total_account_cost || 0
     rankingTotalRequests.value = response.total_requests || 0
     rankingTotalTokens.value = response.total_tokens || 0
   } catch (error) {
     if (currentSeq !== rankingLoadSeq) return
-    console.error('Error loading user spending ranking:', error)
+    console.error('Error loading account spending ranking:', error)
     rankingItems.value = []
-    rankingTotalActualCost.value = 0
+    rankingTotalCost.value = 0
     rankingTotalRequests.value = 0
     rankingTotalTokens.value = 0
     rankingError.value = true
@@ -785,7 +702,7 @@ const loadDashboardStats = async () => {
   await Promise.all([
     loadDashboardSnapshot(true),
     loadAPIKeyTrend(),
-    loadUserSpendingRanking(),
+    loadAccountSpendingRanking(),
     loadAPIKeySpendingRanking()
   ])
 }
@@ -794,13 +711,12 @@ const loadChartData = async () => {
   await Promise.all([
     loadDashboardSnapshot(false),
     loadAPIKeyTrend(),
-    loadUserSpendingRanking(),
+    loadAccountSpendingRanking(),
     loadAPIKeySpendingRanking()
   ])
 }
 
 onMounted(() => {
-  void refreshBatchImageAccess()
   loadDashboardStats()
 })
 </script>

@@ -322,6 +322,7 @@ const applyRouteQueryFilters = () => {
   const queryEndDate = getSingleQueryValue(route.query.end_date)
   const queryUserId = getNumericQueryValue(route.query.user_id)
   const queryAPIKeyId = getNumericQueryValue(route.query.api_key_id)
+  const queryAccountId = getNumericQueryValue(route.query.account_id)
 
   if (queryStartDate) {
     startDate.value = queryStartDate
@@ -334,6 +335,7 @@ const applyRouteQueryFilters = () => {
     ...filters.value,
     user_id: queryUserId,
     api_key_id: queryAPIKeyId,
+    account_id: queryAccountId,
     start_date: startDate.value,
     end_date: endDate.value
   }

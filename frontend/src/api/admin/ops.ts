@@ -197,6 +197,7 @@ export interface OpsRequestDetail {
 
   user_id?: number | null
   api_key_id?: number | null
+  api_key_name?: string
   account_id?: number | null
   group_id?: number | null
 
