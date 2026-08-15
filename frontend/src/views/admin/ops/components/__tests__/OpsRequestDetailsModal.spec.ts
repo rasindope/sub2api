@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { defineComponent, ref } from 'vue'
 import type { OpsDashboardOverview } from '@/api/admin/ops'
 import { flushPromises, mount, shallowMount } from '@vue/test-utils'
 import OpsDashboardHeader from '../OpsDashboardHeader.vue'
@@ -14,7 +14,7 @@ vi.mock('@vueuse/core', () => ({ useMediaQuery: () => ref(viewport.desktop) }))
 vi.mock('@/api/admin/ops', () => ({ opsAPI: { listRequestDetails } }))
 vi.mock('@/api', () => ({ adminAPI: { groups: { getAll: vi.fn().mockResolvedValue([]) } } }))
 vi.mock('@/stores', () => ({
-  useAppStore: () => ({ showError: vi.fn() }),
+  useAppStore: () => ({ showError: vi.fn(), showWarning: vi.fn() }),
   useAdminSettingsStore: () => ({ opsRealtimeMonitoringEnabled: false }),
 }))
 vi.mock('@/composables/useClipboard', () => ({ useClipboard: () => ({ copyToClipboard: vi.fn() }) }))
@@ -22,6 +22,11 @@ vi.mock('vue-i18n', async (importOriginal) => ({
   ...await importOriginal<typeof import('vue-i18n')>(),
   useI18n: () => ({ t: (key: string) => key }),
 }))
+
+const BaseDialogStub = defineComponent({
+  props: { show: Boolean },
+  template: '<div v-if="show"><slot /></div>',
+})
 
 async function openDetails(sort: 'duration_desc' | 'ttft_desc') {
   const wrapper = mount(OpsRequestDetailsModal, {
@@ -86,5 +91,31 @@ describe('Ops request latency details', () => {
     expect(wrapper.text()).toContain('12000 ms')
     expect(wrapper.text()).not.toContain('800 ms')
     wrapper.unmount()
+  })
+})
+
+describe('OpsRequestDetailsModal', () => {
+  it('shows the Key name with an ID fallback instead of platform', async () => {
+    listRequestDetails.mockResolvedValue({
+      items: [
+        { kind: 'success', created_at: '2026-08-13T00:00:00Z', request_id: 'req-1', platform: 'openai', api_key_id: 1, api_key_name: '王唯迪' },
+        { kind: 'success', created_at: '2026-08-13T00:00:01Z', request_id: 'req-2', platform: 'openai', api_key_id: 2 }
+      ],
+      total: 2,
+      page: 1,
+      page_size: 10
+    })
+
+    const wrapper = mount(OpsRequestDetailsModal, {
+      props: { modelValue: false, timeRange: '1h', preset: { title: '请求明细' } },
+      global: { stubs: { BaseDialog: BaseDialogStub, Pagination: true } }
+    })
+    await wrapper.setProps({ modelValue: true })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('admin.ops.requestDetails.table.apiKey')
+    expect(wrapper.text()).toContain('王唯迪')
+    expect(wrapper.text()).toContain('Key #2')
+    expect(wrapper.text()).not.toContain('OPENAI')
   })
 })

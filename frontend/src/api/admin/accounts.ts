@@ -1012,7 +1012,7 @@ export async function refreshOpenAIQuota(id: number): Promise<OpenAIQuotaRefresh
   return data
 }
 
-export const getOpenAIQuota = queryOpenAIQuota
+export const getOpenAIQuota = refreshOpenAIQuota
 
 /**
  * Consume one rate-limit-reset credit for an OpenAI/Codex OAuth account.
