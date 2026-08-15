@@ -221,7 +221,7 @@ describe('ModelDistributionChart', () => {
     expect(wrapper.emitted('ranking-click')?.[0]?.[0]).toEqual(expect.objectContaining({ account_id: 1 }))
   })
 
-  it('selects the top key and shows its model distribution beside the ranking', async () => {
+  it('expands a key model distribution below its ranking row on click', async () => {
     getModelStats.mockImplementation(async ({ api_key_id }: { api_key_id: number }) => ({
       models: api_key_id === 9
         ? [
@@ -281,6 +281,10 @@ describe('ModelDistributionChart', () => {
     expect(rankingChartData.labels).toEqual(['#1 sales-key', '#2 support-key'])
     expect(rankingChartData.datasets[0].data).toEqual([5, 2])
 
+    expect(getModelStats).not.toHaveBeenCalled()
+    expect(wrapper.text()).not.toContain('gpt-5')
+
+    await wrapper.findAll('tbody button')[0].trigger('click')
     await flushPromises()
 
     expect(getModelStats).toHaveBeenCalledWith(expect.objectContaining({
@@ -295,8 +299,11 @@ describe('ModelDistributionChart', () => {
     expect(wrapper.text()).toContain('800ms')
     expect(wrapper.text()).toContain('80.0%')
     expect(wrapper.get('tbody button').attributes('aria-expanded')).toBe('true')
-    expect(wrapper.find('tr.lg\\:hidden').exists()).toBe(true)
-    expect(wrapper.find('tr.lg\\:hidden table').exists()).toBe(false)
+    expect(wrapper.find('#api-key-models-9').exists()).toBe(true)
+    expect(wrapper.find('#api-key-models-9 table').exists()).toBe(false)
+
+    await wrapper.findAll('tbody button')[0].trigger('click')
+    expect(wrapper.find('#api-key-models-9').exists()).toBe(false)
 
     await wrapper.findAll('tbody button')[1].trigger('click')
     await flushPromises()
