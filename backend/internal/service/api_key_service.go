@@ -1068,6 +1068,7 @@ func (s *APIKeyService) SearchAPIKeys(ctx context.Context, userID int64, keyword
 	if err != nil {
 		return nil, fmt.Errorf("search api keys: %w", err)
 	}
+	s.fillCurrentConcurrency(ctx, keys)
 	return keys, nil
 }
 

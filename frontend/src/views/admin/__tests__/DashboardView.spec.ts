@@ -5,11 +5,12 @@ import { createPinia, setActivePinia } from 'pinia'
 import type { DashboardStats } from '@/types'
 import DashboardView from '../DashboardView.vue'
 
-const { getSnapshotV2, getApiKeyUsageTrend, getAccountSpendingRanking, getApiKeySpendingRanking } = vi.hoisted(() => ({
+const { getSnapshotV2, getApiKeyUsageTrend, getAccountSpendingRanking, getApiKeySpendingRanking, searchApiKeys } = vi.hoisted(() => ({
   getSnapshotV2: vi.fn(),
   getApiKeyUsageTrend: vi.fn(),
   getAccountSpendingRanking: vi.fn(),
-  getApiKeySpendingRanking: vi.fn()
+  getApiKeySpendingRanking: vi.fn(),
+  searchApiKeys: vi.fn()
 }))
 
 vi.mock('@/api/admin', () => ({
@@ -19,7 +20,8 @@ vi.mock('@/api/admin', () => ({
       getApiKeyUsageTrend,
       getAccountSpendingRanking,
       getApiKeySpendingRanking
-    }
+    },
+    usage: { searchApiKeys }
   }
 }))
 
@@ -98,6 +100,7 @@ describe('admin DashboardView', () => {
     getApiKeyUsageTrend.mockReset()
     getAccountSpendingRanking.mockReset()
     getApiKeySpendingRanking.mockReset()
+    searchApiKeys.mockReset()
 
     getSnapshotV2.mockResolvedValue({
       stats: createDashboardStats(),
@@ -126,10 +129,14 @@ describe('admin DashboardView', () => {
       start_date: '',
       end_date: ''
     })
+    searchApiKeys.mockResolvedValue([
+      { id: 1, name: 'busy-key', user_id: 1, current_concurrency: 3 },
+      { id: 2, name: 'idle-key', user_id: 1, current_concurrency: 0 }
+    ])
   })
 
   it('uses today as default dashboard range', async () => {
-    mount(DashboardView, {
+    const wrapper = mount(DashboardView, {
       global: {
         stubs: {
           AppLayout: { template: '<div><slot /></div>' },
@@ -166,9 +173,14 @@ describe('admin DashboardView', () => {
       end_date: formatLocalDate(now),
       limit: 12
     }))
+    expect(searchApiKeys).toHaveBeenCalledWith(undefined, undefined, 100)
+    expect(wrapper.get('[data-testid="active-key-concurrency-card"]').text()).toContain('3')
+    expect(wrapper.get('[data-testid="active-key-concurrency-card"]').text()).toContain('busy-key')
+    expect(wrapper.get('[data-testid="active-key-concurrency-card"]').text()).not.toContain('idle-key')
+    wrapper.unmount()
   })
 
-  it('keeps the token usage trend below the full-width key usage trend', async () => {
+  it('keeps the key ranking in the left two-thirds and trends below it', async () => {
     const wrapper = mount(DashboardView, {
       global: {
         stubs: {
@@ -195,5 +207,8 @@ describe('admin DashboardView', () => {
     expect(wrapper.html().indexOf('admin.dashboard.apiKeyUsageTrend')).toBeLessThan(
       wrapper.html().indexOf('token-usage-trend-stub')
     )
+    expect(distributionCharts[0].classes()).toContain('lg:col-span-2')
+    expect(wrapper.find('[data-testid="active-key-concurrency-card"]').exists()).toBe(true)
+    wrapper.unmount()
   })
 })

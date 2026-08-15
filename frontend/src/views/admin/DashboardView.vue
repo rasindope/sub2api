@@ -231,28 +231,56 @@
             </div>
           </div>
 
-          <!-- Distribution and Rankings (Full Width) -->
-          <ModelDistributionChart
-            :model-stats="modelStats"
-            :enable-ranking-view="true"
-            :ranking-items="rankingItems"
-            :ranking-total-cost="rankingTotalCost"
-            :ranking-total-requests="rankingTotalRequests"
-            :ranking-total-tokens="rankingTotalTokens"
-            :api-key-ranking-items="apiKeyRankingItems"
-            :api-key-ranking-total-actual-cost="apiKeyRankingTotalActualCost"
-            :api-key-ranking-total-requests="apiKeyRankingTotalRequests"
-            :api-key-ranking-total-tokens="apiKeyRankingTotalTokens"
-            :loading="chartsLoading"
-            :ranking-loading="rankingLoading"
-            :ranking-error="rankingError"
-            :api-key-ranking-loading="apiKeyRankingLoading"
-            :api-key-ranking-error="apiKeyRankingError"
-            default-ranking-view="api_key_spending_ranking"
-            :start-date="startDate"
-            :end-date="endDate"
-            @ranking-click="goToAccountUsage"
-          />
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <ModelDistributionChart
+              class="min-w-0 lg:col-span-2"
+              :model-stats="modelStats"
+              :enable-ranking-view="true"
+              :ranking-items="rankingItems"
+              :ranking-total-cost="rankingTotalCost"
+              :ranking-total-requests="rankingTotalRequests"
+              :ranking-total-tokens="rankingTotalTokens"
+              :api-key-ranking-items="apiKeyRankingItems"
+              :api-key-ranking-total-actual-cost="apiKeyRankingTotalActualCost"
+              :api-key-ranking-total-requests="apiKeyRankingTotalRequests"
+              :api-key-ranking-total-tokens="apiKeyRankingTotalTokens"
+              :loading="chartsLoading"
+              :ranking-loading="rankingLoading"
+              :ranking-error="rankingError"
+              :api-key-ranking-loading="apiKeyRankingLoading"
+              :api-key-ranking-error="apiKeyRankingError"
+              default-ranking-view="api_key_spending_ranking"
+              :start-date="startDate"
+              :end-date="endDate"
+              @ranking-click="goToAccountUsage"
+            />
+
+            <div class="card min-w-0 p-4" data-testid="active-key-concurrency-card">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.dashboard.activeKeyConcurrency') }}</h3>
+                  <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">{{ t('admin.dashboard.activeKeyConcurrencyHint') }}</p>
+                </div>
+                <span class="h-2.5 w-2.5 shrink-0 rounded-full" :class="totalKeyConcurrency > 0 ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-dark-600'" />
+              </div>
+              <div class="mt-4 flex items-end gap-2 border-b border-gray-100 pb-3 dark:border-dark-700">
+                <span class="text-3xl font-bold tabular-nums text-gray-900 dark:text-white">{{ totalKeyConcurrency }}</span>
+                <span class="pb-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.dashboard.totalConcurrency') }}</span>
+              </div>
+              <div v-if="keyConcurrencyLoading && activeConcurrencyKeys.length === 0" class="flex h-28 items-center justify-center">
+                <LoadingSpinner size="sm" />
+              </div>
+              <div v-else-if="activeConcurrencyKeys.length === 0" class="flex h-28 items-center justify-center text-xs text-gray-400">
+                {{ t('admin.dashboard.noActiveKeyConcurrency') }}
+              </div>
+              <div v-else class="mt-2 max-h-32 space-y-1.5 overflow-auto pr-1">
+                <div v-for="key in activeConcurrencyKeys" :key="key.id" class="flex min-w-0 items-center gap-2 rounded-md bg-gray-50 px-2.5 py-1.5 dark:bg-dark-800/60">
+                  <span class="min-w-0 flex-1 truncate text-xs font-medium text-gray-700 dark:text-gray-300" :title="key.name || `Key #${key.id}`">{{ key.name || `Key #${key.id}` }}</span>
+                  <span class="shrink-0 rounded bg-emerald-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">{{ key.current_concurrency }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <!-- API Key Usage Trend (Full Width) -->
           <div class="card p-4">
@@ -282,7 +310,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
@@ -305,6 +333,7 @@ import Select from '@/components/common/Select.vue'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
 import AccountUsageOverviewCard from '@/components/admin/dashboard/AccountUsageOverviewCard.vue'
+import type { SimpleApiKey } from '@/api/admin/usage'
 
 import {
   Chart as ChartJS,
@@ -352,11 +381,21 @@ const apiKeyRankingItems = ref<ApiKeySpendingRankingItem[]>([])
 const apiKeyRankingTotalActualCost = ref(0)
 const apiKeyRankingTotalRequests = ref(0)
 const apiKeyRankingTotalTokens = ref(0)
+const concurrencyKeys = ref<SimpleApiKey[]>([])
+const keyConcurrencyLoading = ref(false)
+let concurrencyTimer: ReturnType<typeof setInterval> | null = null
 let chartLoadSeq = 0
 let apiKeyTrendLoadSeq = 0
 let rankingLoadSeq = 0
 let apiKeyRankingLoadSeq = 0
 const rankingLimit = 12
+const activeConcurrencyKeys = computed(() => concurrencyKeys.value
+  .filter(key => key.current_concurrency > 0)
+  .sort((left, right) => right.current_concurrency - left.current_concurrency))
+const totalKeyConcurrency = computed(() => activeConcurrencyKeys.value.reduce(
+  (total, key) => total + key.current_concurrency,
+  0
+))
 
 // Helper function to format date in local timezone
 const formatLocalDate = (date: Date): string => {
@@ -707,6 +746,17 @@ const loadDashboardStats = async () => {
   ])
 }
 
+const loadKeyConcurrency = async () => {
+  keyConcurrencyLoading.value = true
+  try {
+    concurrencyKeys.value = await adminAPI.usage.searchApiKeys(undefined, undefined, 100)
+  } catch (error) {
+    console.error('Error loading API key concurrency:', error)
+  } finally {
+    keyConcurrencyLoading.value = false
+  }
+}
+
 const loadChartData = async () => {
   await Promise.all([
     loadDashboardSnapshot(false),
@@ -718,6 +768,12 @@ const loadChartData = async () => {
 
 onMounted(() => {
   loadDashboardStats()
+  void loadKeyConcurrency()
+  concurrencyTimer = setInterval(loadKeyConcurrency, 5000)
+})
+
+onUnmounted(() => {
+  if (concurrencyTimer) clearInterval(concurrencyTimer)
 })
 </script>
 
