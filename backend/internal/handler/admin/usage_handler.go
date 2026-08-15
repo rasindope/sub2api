@@ -440,19 +440,21 @@ func (h *UsageHandler) SearchAPIKeys(c *gin.Context) {
 		return
 	}
 
-	// Return simplified API key list (only id and name)
+	// Return the lightweight fields needed by filters and the dashboard.
 	type SimpleAPIKey struct {
-		ID     int64  `json:"id"`
-		Name   string `json:"name"`
-		UserID int64  `json:"user_id"`
+		ID                 int64  `json:"id"`
+		Name               string `json:"name"`
+		UserID             int64  `json:"user_id"`
+		CurrentConcurrency int    `json:"current_concurrency"`
 	}
 
 	result := make([]SimpleAPIKey, len(keys))
 	for i, k := range keys {
 		result[i] = SimpleAPIKey{
-			ID:     k.ID,
-			Name:   k.Name,
-			UserID: k.UserID,
+			ID:                 k.ID,
+			Name:               k.Name,
+			UserID:             k.UserID,
+			CurrentConcurrency: k.CurrentConcurrency,
 		}
 	}
 
