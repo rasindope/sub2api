@@ -4,12 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 )
 
 const (
 	codexQuotaObservationsExtraKey = "codex_quota_observations"
 	codexQuotaObservationLimit     = 1024
 )
+
+// ponytail: one process-wide lock is enough for the current single replica; use a DB atomic append before scaling out.
+var codexQuotaObservationMu sync.Mutex
 
 type codexQuotaObservation struct {
 	ObservedAt    string   `json:"observed_at"`
@@ -31,6 +35,18 @@ func buildCodexQuotaObservationHistory(raw any, updates map[string]any) ([]codex
 			_ = json.Unmarshal(encoded, &history)
 		}
 	}
+	originalLength := len(history)
+	compacted := history[:0]
+	for _, item := range history {
+		if len(compacted) > 0 {
+			last := compacted[len(compacted)-1]
+			if equalFloatPointers(last.Used7dPercent, item.Used7dPercent) && last.Reset7dAt == item.Reset7dAt {
+				continue
+			}
+		}
+		compacted = append(compacted, item)
+	}
+	history = compacted
 	observation := codexQuotaObservation{
 		ObservedAt:    quotaStringValue(updates["codex_usage_updated_at"]),
 		Used5hPercent: numberPointer(updates["codex_5h_used_percent"]),
@@ -44,7 +60,7 @@ func buildCodexQuotaObservationHistory(raw any, updates map[string]any) ([]codex
 	if len(history) > 0 {
 		last := history[len(history)-1]
 		if equalFloatPointers(last.Used7dPercent, observation.Used7dPercent) && last.Reset7dAt == observation.Reset7dAt {
-			return history, false
+			return history, len(history) != originalLength
 		}
 	}
 	history = append(history, observation)
@@ -58,6 +74,8 @@ func persistCodexQuotaObservation(ctx context.Context, repo AccountRepository, a
 	if repo == nil || accountID <= 0 {
 		return
 	}
+	codexQuotaObservationMu.Lock()
+	defer codexQuotaObservationMu.Unlock()
 	account, err := repo.GetByID(ctx, accountID)
 	if err != nil || account == nil {
 		return
@@ -66,7 +84,6 @@ func persistCodexQuotaObservation(ctx context.Context, repo AccountRepository, a
 	if !changed {
 		return
 	}
-	// ponytail: one writer per account is expected; switch to an atomic JSON append if multi-instance contention becomes measurable.
 	_ = repo.UpdateExtra(ctx, accountID, map[string]any{codexQuotaObservationsExtraKey: history})
 }
 
