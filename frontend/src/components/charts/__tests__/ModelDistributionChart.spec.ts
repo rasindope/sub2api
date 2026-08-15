@@ -296,6 +296,7 @@ describe('ModelDistributionChart', () => {
     expect(wrapper.text()).toContain('80.0%')
     expect(wrapper.get('tbody button').attributes('aria-expanded')).toBe('true')
     expect(wrapper.find('tr.lg\\:hidden').exists()).toBe(true)
+    expect(wrapper.find('tr.lg\\:hidden table').exists()).toBe(false)
 
     await wrapper.findAll('tbody button')[1].trigger('click')
     await flushPromises()
