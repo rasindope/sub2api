@@ -36,6 +36,7 @@ export interface SimpleApiKey {
   id: number
   name: string
   user_id: number
+  current_concurrency: number
 }
 
 export interface UsageCleanupFilters {

@@ -1,6 +1,6 @@
 <template>
   <div class="card p-4">
-    <div class="mb-4 flex items-center justify-between gap-3">
+    <div class="mb-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
         {{ !enableRankingView || activeView === 'model_distribution'
           ? t('admin.dashboard.modelDistribution')
@@ -8,7 +8,7 @@
             ? t('admin.dashboard.spendingRankingTitle')
             : t('admin.dashboard.apiKeySpendingRankingTitle') }}
       </h3>
-      <div class="flex flex-wrap items-center justify-end gap-2">
+      <div class="flex flex-wrap items-center gap-2 sm:justify-end">
         <div
           v-if="showSourceToggle"
           class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-dark-700 dark:bg-dark-800"
@@ -69,10 +69,10 @@
             {{ t('admin.dashboard.metricActualCost') }}
           </button>
         </div>
-        <div v-if="enableRankingView" class="inline-flex rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
+        <div v-if="enableRankingView" class="grid w-full grid-cols-3 rounded-lg bg-gray-100 p-1 dark:bg-dark-800 sm:inline-flex sm:w-auto">
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+            class="rounded-md px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2.5 sm:text-xs"
             :class="
               activeView === 'model_distribution'
                 ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
@@ -84,7 +84,7 @@
           </button>
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+            class="rounded-md px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2.5 sm:text-xs"
             :class="
               activeView === 'spending_ranking'
                 ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
@@ -96,7 +96,7 @@
           </button>
           <button
             type="button"
-            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+            class="rounded-md px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2.5 sm:text-xs"
             :class="
               activeView === 'api_key_spending_ranking'
                 ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
@@ -201,18 +201,18 @@
       :class="isApiKeyRankingView ? 'lg:grid lg:grid-cols-3 lg:gap-4' : 'flex flex-col items-center gap-4 sm:flex-row sm:gap-6'"
     >
       <div :class="isApiKeyRankingView ? 'flex flex-col items-center gap-4 sm:flex-row sm:gap-6 lg:col-span-2' : 'contents'">
-        <div class="h-48 w-48 shrink-0">
+        <div class="hidden h-48 w-48 shrink-0 sm:block">
           <Doughnut :data="rankingChartData" :options="rankingDoughnutOptions" />
         </div>
         <div class="max-h-48 w-full min-w-0 flex-1 overflow-auto">
-          <table class="w-full text-xs" :class="showApiKeyExtendedColumns ? 'min-w-[640px]' : ''">
+          <table class="w-full table-fixed text-[11px] sm:text-xs" :class="showApiKeyExtendedColumns ? 'lg:min-w-[640px]' : ''">
           <thead>
             <tr class="text-gray-500 dark:text-gray-400">
-              <th class="pb-2 text-left">{{ activeRankingNameHeader }}</th>
-              <th class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingRequests') }}</th>
+              <th class="w-[40%] pb-2 text-left">{{ activeRankingNameHeader }}</th>
+              <th class="w-[20%] pb-2 text-right">{{ t('admin.dashboard.spendingRankingRequests') }}</th>
               <th v-if="showApiKeyExtendedColumns" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingAverageDuration') }}</th>
-              <th class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingTokens') }}</th>
-              <th class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingSpend') }}</th>
+              <th class="w-[20%] pb-2 text-right">{{ t('admin.dashboard.spendingRankingTokens') }}</th>
+              <th class="w-[20%] pb-2 text-right">{{ t('admin.dashboard.spendingRankingSpend') }}</th>
               <th v-if="showApiKeyExtendedColumns" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingShare') }}</th>
             </tr>
           </thead>
@@ -280,7 +280,7 @@
                 class="lg:hidden"
               >
                 <td :colspan="apiKeyRankingColspan" class="p-0">
-                  <div class="bg-gray-50/70 px-6 py-3 dark:bg-dark-700/30">
+                  <div class="bg-gray-50/70 px-2 py-3 dark:bg-dark-700/30 sm:px-6">
                     <div v-if="apiKeyModelsLoading" class="flex items-center justify-center py-3">
                       <LoadingSpinner />
                     </div>
@@ -290,28 +290,19 @@
                     <div v-else-if="apiKeyModelStats.length === 0" class="py-2 text-center text-xs text-gray-400">
                       {{ t('admin.dashboard.noDataAvailable') }}
                     </div>
-                    <table v-else class="w-full min-w-[640px] text-xs">
-                      <thead>
-                        <tr class="text-gray-400 dark:text-gray-500">
-                          <th class="pb-1.5 text-left">{{ t('admin.dashboard.model') }}</th>
-                          <th class="pb-1.5 text-right">{{ t('admin.dashboard.spendingRankingRequests') }}</th>
-                          <th class="pb-1.5 text-right">{{ t('admin.dashboard.spendingRankingAverageDuration') }}</th>
-                          <th class="pb-1.5 text-right">{{ t('admin.dashboard.spendingRankingTokens') }}</th>
-                          <th class="pb-1.5 text-right">{{ t('admin.dashboard.spendingRankingSpend') }}</th>
-                          <th class="pb-1.5 text-right">{{ t('admin.dashboard.spendingRankingShare') }}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="model in apiKeyModelStats" :key="model.model" class="border-t border-gray-200/70 dark:border-dark-600/70">
-                          <td class="max-w-[220px] truncate py-1.5 font-medium text-gray-700 dark:text-gray-200" :title="model.model">{{ model.model }}</td>
-                          <td class="py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatNumber(model.requests) }}</td>
-                          <td class="py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatAverageDuration(model.average_duration_ms) }}</td>
-                          <td class="py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatTokens(model.total_tokens) }}</td>
-                          <td class="py-1.5 text-right text-green-600 dark:text-green-400">${{ formatCost(model.actual_cost) }}</td>
-                          <td class="py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatApiKeyModelShare(model.actual_cost) }}</td>
-                        </tr>
-                      </tbody>
-                    </table>
+                    <div v-else class="space-y-2">
+                      <div v-for="model in apiKeyModelStats" :key="model.model" class="min-w-0 rounded-md border border-gray-200/70 bg-white px-2.5 py-2 dark:border-dark-600/70 dark:bg-dark-800/50">
+                        <div class="flex min-w-0 items-center justify-between gap-2">
+                          <span class="truncate text-xs font-medium text-gray-700 dark:text-gray-200" :title="model.model">{{ model.model }}</span>
+                          <span class="shrink-0 text-xs text-green-600 dark:text-green-400">${{ formatCost(model.actual_cost) }}</span>
+                        </div>
+                        <div class="mt-1 truncate text-[10px] text-gray-400 dark:text-gray-500">
+                          {{ formatNumber(model.requests) }} {{ t('admin.dashboard.spendingRankingRequests') }} ·
+                          {{ formatTokens(model.total_tokens) }} · {{ formatAverageDuration(model.average_duration_ms) }} ·
+                          {{ formatApiKeyModelShare(model.actual_cost) }}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </td>
               </tr>
