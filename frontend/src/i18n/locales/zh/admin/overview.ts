@@ -73,7 +73,7 @@ export default {
       spendingRankingAccountFallback: '账号 #{id}',
       spendingRankingApiKey: 'Key',
       spendingRankingRequests: '请求',
-      spendingRankingAverageDuration: '平均响应',
+      spendingRankingAverageDuration: '平均请求耗时',
       spendingRankingTokens: 'Token',
       spendingRankingSpend: '消费',
       spendingRankingShare: '消费占比',

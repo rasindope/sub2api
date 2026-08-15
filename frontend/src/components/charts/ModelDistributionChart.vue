@@ -201,19 +201,19 @@
       class="flex flex-col items-center gap-4 sm:flex-row sm:gap-6"
     >
       <div class="contents">
-        <div class="hidden h-48 w-48 shrink-0 sm:block">
+        <div class="h-48 w-48 shrink-0">
           <Doughnut :data="rankingChartData" :options="rankingDoughnutOptions" />
         </div>
         <div class="max-h-48 w-full min-w-0 flex-1 overflow-auto">
           <table class="w-full table-fixed text-[11px] sm:text-xs" :class="showApiKeyExtendedColumns ? 'lg:min-w-[640px]' : ''">
           <thead>
             <tr class="text-gray-500 dark:text-gray-400">
-              <th class="w-[40%] pb-2 text-left">{{ activeRankingNameHeader }}</th>
-              <th class="w-[20%] pb-2 text-right">{{ t('admin.dashboard.spendingRankingRequests') }}</th>
-              <th v-if="showApiKeyExtendedColumns" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingAverageDuration') }}</th>
-              <th class="w-[20%] pb-2 text-right">{{ t('admin.dashboard.spendingRankingTokens') }}</th>
-              <th class="w-[20%] pb-2 text-right">{{ t('admin.dashboard.spendingRankingSpend') }}</th>
-              <th v-if="showApiKeyExtendedColumns" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingShare') }}</th>
+              <th :class="showApiKeyExtendedColumns ? 'w-[28%]' : isApiKeyRankingView ? 'w-[32%]' : 'w-[40%]'" class="pb-2 text-left">{{ activeRankingNameHeader }}</th>
+              <th :class="showApiKeyExtendedColumns ? 'w-[14%]' : isApiKeyRankingView ? 'w-[16%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingRequests') }}</th>
+              <th v-if="isApiKeyRankingView" :class="showApiKeyExtendedColumns ? 'w-[16%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingAverageDuration') }}</th>
+              <th :class="showApiKeyExtendedColumns ? 'w-[14%]' : isApiKeyRankingView ? 'w-[16%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingTokens') }}</th>
+              <th :class="showApiKeyExtendedColumns ? 'w-[14%]' : isApiKeyRankingView ? 'w-[16%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingSpend') }}</th>
+              <th v-if="showApiKeyExtendedColumns" class="w-[14%] pb-2 text-right">{{ t('admin.dashboard.spendingRankingShare') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -259,7 +259,7 @@
                 <td class="py-1.5 text-right text-gray-600 dark:text-gray-400">
                   {{ formatNumber(item.requests) }}
                 </td>
-                <td v-if="showApiKeyExtendedColumns" class="py-1.5 text-right text-gray-600 dark:text-gray-400">
+                <td v-if="isApiKeyRankingView" class="py-1.5 text-right text-gray-600 dark:text-gray-400">
                   {{ formatAverageDuration(getRankingAverageDuration(item)) }}
                 </td>
                 <td class="py-1.5 text-right text-gray-600 dark:text-gray-400">
@@ -287,19 +287,28 @@
                     <div v-else-if="apiKeyModelStats.length === 0" class="py-2 text-center text-xs text-gray-400">
                       {{ t('admin.dashboard.noDataAvailable') }}
                     </div>
-                    <div v-else class="space-y-2">
-                      <div v-for="model in apiKeyModelStats" :key="model.model" class="min-w-0 rounded-md border border-gray-200/70 bg-white px-2.5 py-2 dark:border-dark-600/70 dark:bg-dark-800/50">
-                        <div class="flex min-w-0 items-center justify-between gap-2">
-                          <span class="truncate text-xs font-medium text-gray-700 dark:text-gray-200" :title="model.model">{{ model.model }}</span>
-                          <span class="shrink-0 text-xs text-green-600 dark:text-green-400">${{ formatCost(model.actual_cost) }}</span>
-                        </div>
-                        <div class="mt-1 truncate text-[10px] text-gray-400 dark:text-gray-500">
-                          {{ formatNumber(model.requests) }} {{ t('admin.dashboard.spendingRankingRequests') }} ·
-                          {{ formatTokens(model.total_tokens) }} · {{ formatAverageDuration(model.average_duration_ms) }} ·
-                          {{ formatApiKeyModelShare(model.actual_cost) }}
-                        </div>
-                      </div>
-                    </div>
+                    <table v-else class="w-full table-fixed text-[10px] sm:text-xs">
+                      <thead>
+                        <tr class="text-gray-400 dark:text-gray-500">
+                          <th class="w-[28%] pb-1.5 text-left">{{ t('admin.dashboard.model') }}</th>
+                          <th class="w-[14%] pb-1.5 text-right">{{ t('admin.dashboard.spendingRankingRequests') }}</th>
+                          <th class="w-[18%] pb-1.5 text-right">{{ t('admin.dashboard.spendingRankingAverageDuration') }}</th>
+                          <th class="w-[14%] pb-1.5 text-right">{{ t('admin.dashboard.spendingRankingTokens') }}</th>
+                          <th class="w-[14%] pb-1.5 text-right">{{ t('admin.dashboard.spendingRankingSpend') }}</th>
+                          <th class="w-[12%] pb-1.5 text-right">{{ t('admin.dashboard.spendingRankingShare') }}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="model in apiKeyModelStats" :key="model.model" class="border-t border-gray-200/70 dark:border-dark-600/70">
+                          <td class="truncate py-1.5 font-medium text-gray-700 dark:text-gray-200" :title="model.model">{{ model.model }}</td>
+                          <td class="py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatNumber(model.requests) }}</td>
+                          <td class="py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatAverageDuration(model.average_duration_ms) }}</td>
+                          <td class="py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatTokens(model.total_tokens) }}</td>
+                          <td class="py-1.5 text-right text-green-600 dark:text-green-400">${{ formatCost(model.actual_cost) }}</td>
+                          <td class="py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatApiKeyModelShare(model.actual_cost) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </td>
               </tr>
@@ -446,7 +455,7 @@ const showAccountCost = computed(() => props.showAccountCost)
 const distributionColspan = computed(() => showAccountCost.value ? 6 : 5)
 const isApiKeyRankingView = computed(() => activeView.value === 'api_key_spending_ranking')
 const showApiKeyExtendedColumns = computed(() => isApiKeyRankingView.value && props.wideRankingLayout)
-const apiKeyRankingColspan = computed(() => showApiKeyExtendedColumns.value ? 6 : 4)
+const apiKeyRankingColspan = computed(() => showApiKeyExtendedColumns.value ? 6 : 5)
 
 const chartColors = [
   '#3b82f6',
