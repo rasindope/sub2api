@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 )
 
 const (
@@ -40,7 +41,7 @@ func buildCodexQuotaObservationHistory(raw any, updates map[string]any) ([]codex
 	for _, item := range history {
 		if len(compacted) > 0 {
 			last := compacted[len(compacted)-1]
-			if equalFloatPointers(last.Used7dPercent, item.Used7dPercent) && last.Reset7dAt == item.Reset7dAt {
+			if sameCodexQuotaObservation(last, item) {
 				continue
 			}
 		}
@@ -59,7 +60,7 @@ func buildCodexQuotaObservationHistory(raw any, updates map[string]any) ([]codex
 	}
 	if len(history) > 0 {
 		last := history[len(history)-1]
-		if equalFloatPointers(last.Used7dPercent, observation.Used7dPercent) && last.Reset7dAt == observation.Reset7dAt {
+		if sameCodexQuotaObservation(last, observation) {
 			return history, len(history) != originalLength
 		}
 	}
@@ -114,4 +115,20 @@ func quotaStringValue(value any) string {
 
 func equalFloatPointers(left, right *float64) bool {
 	return left != nil && right != nil && *left == *right
+}
+
+func sameCodexQuotaObservation(left, right codexQuotaObservation) bool {
+	if !equalFloatPointers(left.Used7dPercent, right.Used7dPercent) {
+		return false
+	}
+	if left.Reset7dAt == right.Reset7dAt {
+		return true
+	}
+	leftReset, leftErr := time.Parse(time.RFC3339, left.Reset7dAt)
+	rightReset, rightErr := time.Parse(time.RFC3339, right.Reset7dAt)
+	if leftErr != nil || rightErr != nil {
+		return false
+	}
+	drift := leftReset.Sub(rightReset)
+	return drift >= -5*time.Minute && drift <= 5*time.Minute
 }
