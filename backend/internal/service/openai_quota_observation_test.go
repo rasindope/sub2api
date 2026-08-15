@@ -15,7 +15,7 @@ func TestBuildCodexQuotaObservationHistoryKeepsOnlyPercentTransitions(t *testing
 	unchanged, changed := buildCodexQuotaObservationHistory(first, map[string]any{
 		"codex_usage_updated_at": "2026-08-15T10:01:00Z",
 		"codex_7d_used_percent":  42.5,
-		"codex_7d_reset_at":      "2026-08-20T03:00:00Z",
+		"codex_7d_reset_at":      "2026-08-20T03:00:03Z",
 	})
 	if changed || len(unchanged) != 1 {
 		t.Fatalf("unchanged observation appended: %#v", unchanged)
@@ -29,13 +29,22 @@ func TestBuildCodexQuotaObservationHistoryKeepsOnlyPercentTransitions(t *testing
 	if !changed || len(second) != 2 || *second[1].Used7dPercent != 43.0 {
 		t.Fatalf("second observation = %#v, changed=%v", second, changed)
 	}
+
+	reset, changed := buildCodexQuotaObservationHistory(first, map[string]any{
+		"codex_usage_updated_at": "2026-08-22T10:00:00Z",
+		"codex_7d_used_percent":  42.5,
+		"codex_7d_reset_at":      "2026-08-27T03:00:00Z",
+	})
+	if !changed || len(reset) != 2 {
+		t.Fatalf("new quota window not appended: %#v, changed=%v", reset, changed)
+	}
 }
 
 func TestBuildCodexQuotaObservationHistoryCompactsExistingDuplicates(t *testing.T) {
 	percent := 42.5
 	history, changed := buildCodexQuotaObservationHistory([]codexQuotaObservation{
 		{ObservedAt: "2026-08-15T10:00:00Z", Used7dPercent: &percent, Reset7dAt: "2026-08-20T03:00:00Z"},
-		{ObservedAt: "2026-08-15T10:01:00Z", Used7dPercent: &percent, Reset7dAt: "2026-08-20T03:00:00Z"},
+		{ObservedAt: "2026-08-15T10:01:00Z", Used7dPercent: &percent, Reset7dAt: "2026-08-20T03:00:02Z"},
 	}, map[string]any{
 		"codex_usage_updated_at": "2026-08-15T10:02:00Z",
 		"codex_7d_used_percent":  percent,
