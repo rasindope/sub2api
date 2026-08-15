@@ -5,10 +5,10 @@ import { createPinia, setActivePinia } from 'pinia'
 import type { DashboardStats } from '@/types'
 import DashboardView from '../DashboardView.vue'
 
-const { getSnapshotV2, getApiKeyUsageTrend, getUserSpendingRanking, getApiKeySpendingRanking } = vi.hoisted(() => ({
+const { getSnapshotV2, getApiKeyUsageTrend, getAccountSpendingRanking, getApiKeySpendingRanking } = vi.hoisted(() => ({
   getSnapshotV2: vi.fn(),
   getApiKeyUsageTrend: vi.fn(),
-  getUserSpendingRanking: vi.fn(),
+  getAccountSpendingRanking: vi.fn(),
   getApiKeySpendingRanking: vi.fn()
 }))
 
@@ -17,7 +17,7 @@ vi.mock('@/api/admin', () => ({
     dashboard: {
       getSnapshotV2,
       getApiKeyUsageTrend,
-      getUserSpendingRanking,
+      getAccountSpendingRanking,
       getApiKeySpendingRanking
     }
   }
@@ -96,7 +96,7 @@ describe('admin DashboardView', () => {
 
     getSnapshotV2.mockReset()
     getApiKeyUsageTrend.mockReset()
-    getUserSpendingRanking.mockReset()
+    getAccountSpendingRanking.mockReset()
     getApiKeySpendingRanking.mockReset()
 
     getSnapshotV2.mockResolvedValue({
@@ -110,9 +110,9 @@ describe('admin DashboardView', () => {
       end_date: '',
       granularity: 'hour'
     })
-    getUserSpendingRanking.mockResolvedValue({
+    getAccountSpendingRanking.mockResolvedValue({
       ranking: [],
-      total_actual_cost: 0,
+      total_account_cost: 0,
       total_requests: 0,
       total_tokens: 0,
       start_date: '',
@@ -128,7 +128,7 @@ describe('admin DashboardView', () => {
     })
   })
 
-  it('uses last 24 hours as default dashboard range', async () => {
+  it('uses today as default dashboard range', async () => {
     mount(DashboardView, {
       global: {
         stubs: {
@@ -139,6 +139,7 @@ describe('admin DashboardView', () => {
           Select: true,
           ModelDistributionChart: true,
           TokenUsageTrend: true,
+          AccountUsageOverviewCard: true,
           Line: true
         }
       }
@@ -147,19 +148,52 @@ describe('admin DashboardView', () => {
     await flushPromises()
 
     const now = new Date()
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
     expect(getSnapshotV2).toHaveBeenCalledTimes(1)
     expect(getSnapshotV2).toHaveBeenCalledWith(expect.objectContaining({
-      start_date: formatLocalDate(yesterday),
+      start_date: formatLocalDate(now),
       end_date: formatLocalDate(now),
       granularity: 'hour'
     }))
     expect(getApiKeyUsageTrend).toHaveBeenCalledWith(expect.objectContaining({
-      start_date: formatLocalDate(yesterday),
+      start_date: formatLocalDate(now),
       end_date: formatLocalDate(now),
       granularity: 'hour',
       limit: 12
     }))
+    expect(getAccountSpendingRanking).toHaveBeenCalledWith(expect.objectContaining({
+      start_date: formatLocalDate(now),
+      end_date: formatLocalDate(now),
+      limit: 12
+    }))
+  })
+
+  it('keeps the token usage trend below the full-width key usage trend', async () => {
+    const wrapper = mount(DashboardView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          LoadingSpinner: true,
+          Icon: true,
+          DateRangePicker: true,
+          Select: true,
+          ModelDistributionChart: true,
+          TokenUsageTrend: true,
+          AccountUsageOverviewCard: true,
+          Line: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="toggle-token-usage-trend"]').exists()).toBe(false)
+    expect(wrapper.find('token-usage-trend-stub').exists()).toBe(true)
+    const distributionCharts = wrapper.findAllComponents({ name: 'ModelDistributionChart' })
+    expect(distributionCharts).toHaveLength(1)
+    expect(distributionCharts[0].props('wideRankingLayout')).toBe(false)
+    expect(wrapper.html().indexOf('admin.dashboard.apiKeyUsageTrend')).toBeLessThan(
+      wrapper.html().indexOf('token-usage-trend-stub')
+    )
   })
 })

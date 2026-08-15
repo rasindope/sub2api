@@ -211,6 +211,15 @@ describe('admin UsageView route filters', () => {
     expect(wrapper.find('[data-test="user-filter-label"]').text()).toBe('route-user@test.com')
   })
 
+  it('applies routed account_id to usage requests', async () => {
+    routeQuery.account_id = '8'
+
+    mountRouteFilteredUsageView()
+    await flushPromises()
+
+    expect(list).toHaveBeenCalledWith(expect.objectContaining({ account_id: 8 }), expect.anything())
+  })
+
   it('does not apply a stale routed user label after user_id changes', async () => {
     routeQuery.user_id = '42'
     let resolveLookup!: (user: { id: number; email: string }) => void
