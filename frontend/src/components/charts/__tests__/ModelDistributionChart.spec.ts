@@ -280,6 +280,7 @@ describe('ModelDistributionChart', () => {
     const rankingChartData = JSON.parse(wrapper.find('.chart-data').text())
     expect(rankingChartData.labels).toEqual(['#1 sales-key', '#2 support-key'])
     expect(rankingChartData.datasets[0].data).toEqual([5, 2])
+    expect(wrapper.find('.chart-data').element.parentElement?.className).not.toContain('hidden')
 
     expect(getModelStats).not.toHaveBeenCalled()
     expect(wrapper.text()).not.toContain('gpt-5')
@@ -300,7 +301,7 @@ describe('ModelDistributionChart', () => {
     expect(wrapper.text()).toContain('80.0%')
     expect(wrapper.get('tbody button').attributes('aria-expanded')).toBe('true')
     expect(wrapper.find('#api-key-models-9').exists()).toBe(true)
-    expect(wrapper.find('#api-key-models-9 table').exists()).toBe(false)
+    expect(wrapper.find('#api-key-models-9 table').exists()).toBe(true)
 
     await wrapper.findAll('tbody button')[0].trigger('click')
     expect(wrapper.find('#api-key-models-9').exists()).toBe(false)
@@ -312,7 +313,7 @@ describe('ModelDistributionChart', () => {
     expect(wrapper.text()).toContain('claude-sonnet')
   })
 
-  it('keeps the key ranking at four columns until the chart is wide', () => {
+  it('shows average response in the compact key ranking without the wide-only columns', () => {
     const wrapper = mount(ModelDistributionChart, {
       props: {
         modelStats: [],
@@ -328,9 +329,9 @@ describe('ModelDistributionChart', () => {
       global: { stubs: { LoadingSpinner: true } }
     })
 
-    expect(wrapper.findAll('thead').at(0)!.findAll('th')).toHaveLength(4)
+    expect(wrapper.findAll('thead').at(0)!.findAll('th')).toHaveLength(5)
     expect(wrapper.findAll('thead').at(0)!.text()).not.toContain('Owner')
-    expect(wrapper.findAll('thead').at(0)!.text()).not.toContain('Avg Response')
+    expect(wrapper.findAll('thead').at(0)!.text()).toContain('Avg Response')
     expect(wrapper.findAll('thead').at(0)!.text()).not.toContain('Spend Share')
   })
 
