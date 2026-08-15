@@ -198,9 +198,9 @@
     </div>
     <div
       v-else-if="activeRankingDisplayItems.length > 0 && rankingChartData"
-      :class="isApiKeyRankingView ? 'lg:grid lg:grid-cols-3 lg:gap-4' : 'flex flex-col items-center gap-4 sm:flex-row sm:gap-6'"
+      class="flex flex-col items-center gap-4 sm:flex-row sm:gap-6"
     >
-      <div :class="isApiKeyRankingView ? 'flex flex-col items-center gap-4 sm:flex-row sm:gap-6 lg:col-span-2' : 'contents'">
+      <div class="contents">
         <div class="hidden h-48 w-48 shrink-0 sm:block">
           <Doughnut :data="rankingChartData" :options="rankingDoughnutOptions" />
         </div>
@@ -222,10 +222,8 @@
                 class="border-t border-gray-100 transition-colors dark:border-dark-700"
                 :class="item.isOther
                   ? 'bg-gray-50/70 dark:bg-dark-700/20'
-                  : isApiKeyRankingItem(item)
-                    ? ''
-                    : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-700/40'"
-                @click="!isApiKeyRankingItem(item) && handleRankingClick(item)"
+                  : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-700/40'"
+                @click="handleRankingClick(item)"
               >
                 <td class="py-1.5">
                   <div class="flex min-w-0 items-center gap-2">
@@ -238,7 +236,7 @@
                       class="flex min-w-0 items-center gap-1 text-left font-medium text-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                       :aria-expanded="expandedApiKeyID === item.api_key_id"
                       :aria-controls="`api-key-models-${item.api_key_id}`"
-                      @click="selectApiKeyModels(item)"
+                      @click.stop="selectApiKeyModels(item)"
                     >
                       <Icon
                         :name="expandedApiKeyID === item.api_key_id ? 'chevronDown' : 'chevronRight'"
@@ -277,7 +275,6 @@
               <tr
                 v-if="isApiKeyRankingItem(item) && expandedApiKeyID === item.api_key_id"
                 :id="`api-key-models-${item.api_key_id}`"
-                class="lg:hidden"
               >
                 <td :colspan="apiKeyRankingColspan" class="p-0">
                   <div class="bg-gray-50/70 px-2 py-3 dark:bg-dark-700/30 sm:px-6">
@@ -309,49 +306,6 @@
             </template>
           </tbody>
           </table>
-        </div>
-      </div>
-      <div
-        v-if="isApiKeyRankingView"
-        class="hidden h-48 min-w-0 rounded-lg border border-gray-100 bg-gray-50/70 p-3 dark:border-dark-700 dark:bg-dark-700/20 lg:block"
-      >
-        <div class="mb-2 min-w-0">
-          <div class="truncate text-xs font-semibold text-gray-900 dark:text-white" :title="selectedApiKeyLabel">
-            {{ selectedApiKeyLabel }}
-          </div>
-          <div class="text-[11px] text-gray-400 dark:text-gray-500">
-            {{ t('admin.dashboard.modelDistribution') }}
-          </div>
-        </div>
-        <div v-if="apiKeyModelsLoading" class="flex h-32 items-center justify-center">
-          <LoadingSpinner />
-        </div>
-        <div v-else-if="apiKeyModelsError" class="flex h-32 items-center justify-center text-xs text-gray-400">
-          {{ t('admin.dashboard.failedToLoad') }}
-        </div>
-        <div v-else-if="apiKeyModelStats.length > 0 && apiKeyModelChartData" class="flex h-32 min-w-0 gap-3">
-          <div class="h-28 w-28 shrink-0 self-center">
-            <Doughnut :data="apiKeyModelChartData" :options="rankingDoughnutOptions" />
-          </div>
-          <div class="min-w-0 flex-1 overflow-auto">
-            <div
-              v-for="model in apiKeyModelStats"
-              :key="model.model"
-              class="border-t border-gray-200/70 py-1 first:border-t-0 dark:border-dark-600/70"
-            >
-              <div class="flex items-center justify-between gap-2 text-xs">
-                <span class="truncate font-medium text-gray-700 dark:text-gray-200" :title="model.model">{{ model.model }}</span>
-                <span class="shrink-0 text-green-600 dark:text-green-400">${{ formatCost(model.actual_cost) }}</span>
-              </div>
-              <div class="truncate text-[10px] text-gray-400 dark:text-gray-500">
-                {{ formatNumber(model.requests) }} {{ t('admin.dashboard.spendingRankingRequests') }} ·
-                {{ formatTokens(model.total_tokens) }} · {{ formatAverageDuration(model.average_duration_ms) }}
-              </div>
-            </div>
-          </div>
-        </div>
-        <div v-else class="flex h-32 items-center justify-center text-xs text-gray-400">
-          {{ t('admin.dashboard.noDataAvailable') }}
         </div>
       </div>
     </div>
@@ -591,20 +545,6 @@ const apiKeyModelTotalActualCost = computed(() => apiKeyModelStats.value.reduce(
   0
 ))
 
-const selectedApiKeyLabel = computed(() => {
-  const item = props.apiKeyRankingItems.find((candidate) => candidate.api_key_id === expandedApiKeyID.value)
-  return item ? getRankingApiKeyLabel(item) : t('admin.dashboard.noDataAvailable')
-})
-
-const apiKeyModelChartData = computed(() => apiKeyModelStats.value.length ? {
-  labels: apiKeyModelStats.value.map((model) => model.model),
-  datasets: [{
-    data: apiKeyModelStats.value.map((model) => toFiniteNumber(model.actual_cost)),
-    backgroundColor: chartColors.slice(0, apiKeyModelStats.value.length),
-    borderWidth: 0
-  }]
-} : null)
-
 const otherRankingItem = computed<RankingDisplayItem | null>(() => {
   const items = activeRankingItems.value
   if (!items.length) return null
@@ -743,7 +683,14 @@ const getRankingRowKey = (item: RankingDisplayItem, index: number): string => {
 }
 
 const selectApiKeyModels = async (item: ApiKeySpendingRankingItem) => {
-  if (expandedApiKeyID.value === item.api_key_id && (apiKeyModelsLoading.value || apiKeyModelStats.value.length > 0)) return
+  if (expandedApiKeyID.value === item.api_key_id) {
+    expandedApiKeyID.value = null
+    apiKeyModelStats.value = []
+    apiKeyModelsLoading.value = false
+    apiKeyModelsError.value = false
+    apiKeyModelsLoadSeq++
+    return
+  }
   const currentSeq = ++apiKeyModelsLoadSeq
   expandedApiKeyID.value = item.api_key_id
   apiKeyModelStats.value = []
@@ -823,13 +770,17 @@ watch(() => props.apiKeyRankingItems, (items) => {
   if (!items.some((item) => item.api_key_id === expandedApiKeyID.value)) {
     expandedApiKeyID.value = null
     apiKeyModelStats.value = []
-    if (items[0]) void selectApiKeyModels(items[0])
+    apiKeyModelsLoading.value = false
+    apiKeyModelsError.value = false
+    apiKeyModelsLoadSeq++
   }
-}, { immediate: true })
+})
 
 watch(() => [props.startDate, props.endDate], () => {
   expandedApiKeyID.value = null
   apiKeyModelStats.value = []
+  apiKeyModelsLoading.value = false
+  apiKeyModelsError.value = false
   apiKeyModelsLoadSeq++
 })
 </script>
