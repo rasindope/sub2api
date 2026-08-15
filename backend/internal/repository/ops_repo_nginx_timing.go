@@ -56,7 +56,7 @@ ORDER BY matched.client_request_id`, args...)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	keys := make(map[string]service.OpsNginxTimingRequestKey)
 	for rows.Next() {

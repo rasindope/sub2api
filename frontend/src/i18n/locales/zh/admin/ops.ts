@@ -456,7 +456,7 @@ export default {
         table: {
           time: '时间',
           kind: '类型',
-          platform: '平台',
+          apiKey: 'Key',
           model: '模型',
           duration: '耗时',
           status: '状态码',

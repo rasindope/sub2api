@@ -1893,6 +1893,7 @@ export interface ModelStat {
   cost: number // 标准计费
   actual_cost: number // 实际扣除
   account_cost?: number // 账号成本（仅管理员接口返回）
+  average_duration_ms?: number
 }
 
 export interface EndpointStat {
@@ -1955,6 +1956,24 @@ export interface UserSpendingRankingResponse {
   end_date: string
 }
 
+export interface AccountSpendingRankingItem {
+  account_id: number
+  account_name: string
+  platform: string
+  account_cost: number
+  requests: number
+  tokens: number
+}
+
+export interface AccountSpendingRankingResponse {
+  ranking: AccountSpendingRankingItem[]
+  total_account_cost: number
+  total_requests: number
+  total_tokens: number
+  start_date: string
+  end_date: string
+}
+
 export interface ApiKeySpendingRankingItem {
   api_key_id: number
   key_name: string
@@ -1963,6 +1982,7 @@ export interface ApiKeySpendingRankingItem {
   actual_cost: number
   requests: number
   tokens: number
+  average_duration_ms?: number
 }
 
 export interface ApiKeySpendingRankingResponse {
