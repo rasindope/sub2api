@@ -23,6 +23,10 @@ type UserUsageTrendPoint = usagestats.UserUsageTrendPoint
 type UserSpendingRankingItem = usagestats.UserSpendingRankingItem
 type UserSpendingRankingResponse = usagestats.UserSpendingRankingResponse
 
+// AccountSpendingRankingItem represents an upstream account spending ranking row.
+type AccountSpendingRankingItem = usagestats.AccountSpendingRankingItem
+type AccountSpendingRankingResponse = usagestats.AccountSpendingRankingResponse
+
 // APIKeySpendingRankingItem represents an API key spending ranking row.
 type APIKeySpendingRankingItem = usagestats.APIKeySpendingRankingItem
 type APIKeySpendingRankingResponse = usagestats.APIKeySpendingRankingResponse
@@ -226,6 +230,89 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 	}, nil
 }
 
+// GetAccountSpendingRanking returns upstream account spending ranking aggregated within the time range.
+func (r *usageLogRepository) GetAccountSpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (result *AccountSpendingRankingResponse, err error) {
+	if limit <= 0 {
+		limit = 12
+	}
+
+	query := `
+		WITH account_spend AS (
+			SELECT
+				u.account_id,
+				COALESCE(a.name, '') as account_name,
+				COALESCE(a.platform, '') as platform,
+				COALESCE(SUM(COALESCE(u.account_stats_cost, u.total_cost) * COALESCE(u.account_rate_multiplier, 1)), 0) as account_cost,
+				COUNT(*) as requests,
+				COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens), 0) as tokens
+			FROM usage_logs u
+			LEFT JOIN accounts a ON u.account_id = a.id
+			WHERE u.created_at >= $1 AND u.created_at < $2
+			GROUP BY u.account_id, a.name, a.platform
+		),
+		ranked AS (
+			SELECT
+				account_id,
+				account_name,
+				platform,
+				account_cost,
+				requests,
+				tokens,
+				COALESCE(SUM(account_cost) OVER (), 0) as total_account_cost,
+				COALESCE(SUM(requests) OVER (), 0) as total_requests,
+				COALESCE(SUM(tokens) OVER (), 0) as total_tokens
+			FROM account_spend
+			ORDER BY account_cost DESC, tokens DESC, account_id ASC
+			LIMIT $3
+		)
+		SELECT
+			account_id,
+			account_name,
+			platform,
+			account_cost,
+			requests,
+			tokens,
+			total_account_cost,
+			total_requests,
+			total_tokens
+		FROM ranked
+		ORDER BY account_cost DESC, tokens DESC, account_id ASC
+	`
+
+	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
+
+	ranking := make([]AccountSpendingRankingItem, 0)
+	totalAccountCost := 0.0
+	totalRequests := int64(0)
+	totalTokens := int64(0)
+	for rows.Next() {
+		var row AccountSpendingRankingItem
+		if err = rows.Scan(&row.AccountID, &row.AccountName, &row.Platform, &row.AccountCost, &row.Requests, &row.Tokens, &totalAccountCost, &totalRequests, &totalTokens); err != nil {
+			return nil, err
+		}
+		ranking = append(ranking, row)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return &AccountSpendingRankingResponse{
+		Ranking:          ranking,
+		TotalAccountCost: totalAccountCost,
+		TotalRequests:    totalRequests,
+		TotalTokens:      totalTokens,
+	}, nil
+}
+
 // GetAPIKeySpendingRanking returns API key spending ranking aggregated within the time range.
 func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (result *APIKeySpendingRankingResponse, err error) {
 	if limit <= 0 {
@@ -241,7 +328,8 @@ func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, start
 				COALESCE(us.email, '') as email,
 				COALESCE(SUM(u.actual_cost), 0) as actual_cost,
 				COUNT(*) as requests,
-				COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens), 0) as tokens
+				COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens), 0) as tokens,
+				COALESCE(AVG(u.duration_ms), 0) as average_duration_ms
 			FROM usage_logs u
 			LEFT JOIN api_keys k ON u.api_key_id = k.id
 			LEFT JOIN users us ON us.id = COALESCE(k.user_id, u.user_id)
@@ -257,6 +345,7 @@ func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, start
 				actual_cost,
 				requests,
 				tokens,
+				average_duration_ms,
 				COALESCE(SUM(actual_cost) OVER (), 0) as total_actual_cost,
 				COALESCE(SUM(requests) OVER (), 0) as total_requests,
 				COALESCE(SUM(tokens) OVER (), 0) as total_tokens
@@ -272,6 +361,7 @@ func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, start
 			actual_cost,
 			requests,
 			tokens,
+			average_duration_ms,
 			total_actual_cost,
 			total_requests,
 			total_tokens
@@ -296,7 +386,7 @@ func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, start
 	totalTokens := int64(0)
 	for rows.Next() {
 		var row APIKeySpendingRankingItem
-		if err = rows.Scan(&row.APIKeyID, &row.KeyName, &row.UserID, &row.Email, &row.ActualCost, &row.Requests, &row.Tokens, &totalActualCost, &totalRequests, &totalTokens); err != nil {
+		if err = rows.Scan(&row.APIKeyID, &row.KeyName, &row.UserID, &row.Email, &row.ActualCost, &row.Requests, &row.Tokens, &row.AverageDurationMs, &totalActualCost, &totalRequests, &totalTokens); err != nil {
 			return nil, err
 		}
 		ranking = append(ranking, row)
@@ -553,7 +643,8 @@ func (r *usageLogRepository) getModelStatsWithFiltersBySource(ctx context.Contex
 			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) as total_tokens,
 			COALESCE(SUM(total_cost), 0) as cost,
 			%s,
-			%s
+			%s,
+			COALESCE(AVG(duration_ms), 0) as average_duration_ms
 		FROM usage_logs
 		WHERE created_at >= $1 AND created_at < $2
 	`, modelExpr, actualCostExpr, accountCostExpr)
@@ -875,6 +966,7 @@ func scanModelStatsRows(rows *sql.Rows) ([]ModelStat, error) {
 			&row.Cost,
 			&row.ActualCost,
 			&row.AccountCost,
+			&row.AverageDurationMs,
 		); err != nil {
 			return nil, err
 		}

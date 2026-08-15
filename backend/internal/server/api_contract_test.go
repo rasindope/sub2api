@@ -2638,6 +2638,10 @@ func (r *stubUsageLogRepo) GetUserSpendingRanking(ctx context.Context, startTime
 	return nil, errors.New("not implemented")
 }
 
+func (r *stubUsageLogRepo) GetAccountSpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (*usagestats.AccountSpendingRankingResponse, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (r *stubUsageLogRepo) GetAPIKeySpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (*usagestats.APIKeySpendingRankingResponse, error) {
 	return nil, errors.New("not implemented")
 }

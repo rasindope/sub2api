@@ -22041,6 +22041,8 @@ type GroupMutation struct {
 	max_reasoning_effort                    *string
 	reasoning_effort_mappings               *[]domain.ReasoningEffortMapping
 	appendreasoning_effort_mappings         []domain.ReasoningEffortMapping
+	reasoning_effort_model_policies         *[]domain.ReasoningEffortModelPolicy
+	appendreasoning_effort_model_policies   []domain.ReasoningEffortModelPolicy
 	profit_control_enabled                  *bool
 	profit_min_margin                       *float64
 	addprofit_min_margin                    *float64
@@ -25140,6 +25142,57 @@ func (m *GroupMutation) ResetReasoningEffortMappings() {
 	m.appendreasoning_effort_mappings = nil
 }
 
+// SetReasoningEffortModelPolicies sets the "reasoning_effort_model_policies" field.
+func (m *GroupMutation) SetReasoningEffortModelPolicies(demp []domain.ReasoningEffortModelPolicy) {
+	m.reasoning_effort_model_policies = &demp
+	m.appendreasoning_effort_model_policies = nil
+}
+
+// ReasoningEffortModelPolicies returns the value of the "reasoning_effort_model_policies" field in the mutation.
+func (m *GroupMutation) ReasoningEffortModelPolicies() (r []domain.ReasoningEffortModelPolicy, exists bool) {
+	v := m.reasoning_effort_model_policies
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReasoningEffortModelPolicies returns the old "reasoning_effort_model_policies" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldReasoningEffortModelPolicies(ctx context.Context) (v []domain.ReasoningEffortModelPolicy, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReasoningEffortModelPolicies is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReasoningEffortModelPolicies requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReasoningEffortModelPolicies: %w", err)
+	}
+	return oldValue.ReasoningEffortModelPolicies, nil
+}
+
+// AppendReasoningEffortModelPolicies adds demp to the "reasoning_effort_model_policies" field.
+func (m *GroupMutation) AppendReasoningEffortModelPolicies(demp []domain.ReasoningEffortModelPolicy) {
+	m.appendreasoning_effort_model_policies = append(m.appendreasoning_effort_model_policies, demp...)
+}
+
+// AppendedReasoningEffortModelPolicies returns the list of values that were appended to the "reasoning_effort_model_policies" field in this mutation.
+func (m *GroupMutation) AppendedReasoningEffortModelPolicies() ([]domain.ReasoningEffortModelPolicy, bool) {
+	if len(m.appendreasoning_effort_model_policies) == 0 {
+		return nil, false
+	}
+	return m.appendreasoning_effort_model_policies, true
+}
+
+// ResetReasoningEffortModelPolicies resets all changes to the "reasoning_effort_model_policies" field.
+func (m *GroupMutation) ResetReasoningEffortModelPolicies() {
+	m.reasoning_effort_model_policies = nil
+	m.appendreasoning_effort_model_policies = nil
+}
+
 // SetProfitControlEnabled sets the "profit_control_enabled" field.
 func (m *GroupMutation) SetProfitControlEnabled(b bool) {
 	m.profit_control_enabled = &b
@@ -25646,7 +25699,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 62)
+	fields := make([]string, 0, 63)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -25824,6 +25877,9 @@ func (m *GroupMutation) Fields() []string {
 	if m.reasoning_effort_mappings != nil {
 		fields = append(fields, group.FieldReasoningEffortMappings)
 	}
+	if m.reasoning_effort_model_policies != nil {
+		fields = append(fields, group.FieldReasoningEffortModelPolicies)
+	}
 	if m.profit_control_enabled != nil {
 		fields = append(fields, group.FieldProfitControlEnabled)
 	}
@@ -25959,6 +26015,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.MaxReasoningEffort()
 	case group.FieldReasoningEffortMappings:
 		return m.ReasoningEffortMappings()
+	case group.FieldReasoningEffortModelPolicies:
+		return m.ReasoningEffortModelPolicies()
 	case group.FieldProfitControlEnabled:
 		return m.ProfitControlEnabled()
 	case group.FieldProfitMinMargin:
@@ -26092,6 +26150,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldMaxReasoningEffort(ctx)
 	case group.FieldReasoningEffortMappings:
 		return m.OldReasoningEffortMappings(ctx)
+	case group.FieldReasoningEffortModelPolicies:
+		return m.OldReasoningEffortModelPolicies(ctx)
 	case group.FieldProfitControlEnabled:
 		return m.OldProfitControlEnabled(ctx)
 	case group.FieldProfitMinMargin:
@@ -26519,6 +26579,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetReasoningEffortMappings(v)
+		return nil
+	case group.FieldReasoningEffortModelPolicies:
+		v, ok := value.([]domain.ReasoningEffortModelPolicy)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReasoningEffortModelPolicies(v)
 		return nil
 	case group.FieldProfitControlEnabled:
 		v, ok := value.(bool)
@@ -27228,6 +27295,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldReasoningEffortMappings:
 		m.ResetReasoningEffortMappings()
+		return nil
+	case group.FieldReasoningEffortModelPolicies:
+		m.ResetReasoningEffortModelPolicies()
 		return nil
 	case group.FieldProfitControlEnabled:
 		m.ResetProfitControlEnabled()

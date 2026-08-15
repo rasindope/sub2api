@@ -82,6 +82,9 @@ func (r *usageBatchLogRepoStub) GetUserUsageTrend(context.Context, time.Time, ti
 func (r *usageBatchLogRepoStub) GetUserSpendingRanking(context.Context, time.Time, time.Time, int) (*usagestats.UserSpendingRankingResponse, error) {
 	return nil, nil
 }
+func (r *usageBatchLogRepoStub) GetAccountSpendingRanking(context.Context, time.Time, time.Time, int) (*usagestats.AccountSpendingRankingResponse, error) {
+	return nil, nil
+}
 func (r *usageBatchLogRepoStub) GetAPIKeySpendingRanking(context.Context, time.Time, time.Time, int) (*usagestats.APIKeySpendingRankingResponse, error) {
 	return nil, nil
 }

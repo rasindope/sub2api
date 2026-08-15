@@ -456,7 +456,7 @@ export default {
         table: {
           time: 'Time',
           kind: 'Kind',
-          platform: 'Platform',
+          apiKey: 'Key',
           model: 'Model',
           duration: 'Duration',
           status: 'Status',

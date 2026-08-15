@@ -104,6 +104,7 @@ type ModelStat struct {
 	Cost                float64 `json:"cost"`         // 标准计费
 	ActualCost          float64 `json:"actual_cost"`  // 实际扣除
 	AccountCost         float64 `json:"account_cost"` // 账号成本
+	AverageDurationMs   float64 `json:"average_duration_ms"`
 }
 
 // EndpointStat represents usage statistics for a single request endpoint.
@@ -164,15 +165,34 @@ type UserSpendingRankingResponse struct {
 	TotalTokens     int64                     `json:"total_tokens"`
 }
 
+// AccountSpendingRankingItem represents an upstream account spending ranking row.
+type AccountSpendingRankingItem struct {
+	AccountID   int64   `json:"account_id"`
+	AccountName string  `json:"account_name"`
+	Platform    string  `json:"platform"`
+	AccountCost float64 `json:"account_cost"`
+	Requests    int64   `json:"requests"`
+	Tokens      int64   `json:"tokens"`
+}
+
+// AccountSpendingRankingResponse represents upstream account ranking rows plus totals.
+type AccountSpendingRankingResponse struct {
+	Ranking          []AccountSpendingRankingItem `json:"ranking"`
+	TotalAccountCost float64                      `json:"total_account_cost"`
+	TotalRequests    int64                        `json:"total_requests"`
+	TotalTokens      int64                        `json:"total_tokens"`
+}
+
 // APIKeySpendingRankingItem represents an API key spending ranking row.
 type APIKeySpendingRankingItem struct {
-	APIKeyID   int64   `json:"api_key_id"`
-	KeyName    string  `json:"key_name"`
-	UserID     int64   `json:"user_id"`
-	Email      string  `json:"email"`
-	ActualCost float64 `json:"actual_cost"` // 实际扣除
-	Requests   int64   `json:"requests"`
-	Tokens     int64   `json:"tokens"`
+	APIKeyID          int64   `json:"api_key_id"`
+	KeyName           string  `json:"key_name"`
+	UserID            int64   `json:"user_id"`
+	Email             string  `json:"email"`
+	ActualCost        float64 `json:"actual_cost"` // 实际扣除
+	Requests          int64   `json:"requests"`
+	Tokens            int64   `json:"tokens"`
+	AverageDurationMs float64 `json:"average_duration_ms"`
 }
 
 // APIKeySpendingRankingResponse represents API key ranking rows plus total spend for the time range.
