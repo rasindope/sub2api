@@ -19,6 +19,7 @@ type dashboardUsageRepoCapture struct {
 	trendStream         *bool
 	modelRequestType    *int16
 	modelStream         *bool
+	modelSource         string
 	trendMismatch       *bool
 	modelMismatch       *bool
 	groupMismatch       *bool
@@ -69,6 +70,7 @@ func (s *dashboardUsageRepoCapture) GetModelStatsWithUsageFiltersBySource(
 	s.modelRequestType = filters.RequestType
 	s.modelStream = filters.Stream
 	s.modelMismatch = filters.UpstreamModelMismatch
+	s.modelSource = source
 	return []usagestats.ModelStat{}, nil
 }
 
@@ -242,6 +244,19 @@ func TestDashboardModelStatsValidModelSource(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestDashboardModelStatsUsesUpstreamModelForAPIKey(t *testing.T) {
+	resetDashboardReadCachesForTest()
+	repo := &dashboardUsageRepoCapture{}
+	router := newDashboardRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/dashboard/models?api_key_id=9&model_source=requested", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, usagestats.ModelSourceUpstream, repo.modelSource)
 }
 
 func TestDashboardModelAuditFilterPropagatesToTrendModelAndGroupQueries(t *testing.T) {

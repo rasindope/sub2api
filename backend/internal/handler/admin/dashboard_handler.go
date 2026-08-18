@@ -324,6 +324,10 @@ func (h *DashboardHandler) GetModelStats(c *gin.Context) {
 		}
 		modelSource = rawModelSource
 	}
+	// Key 消费榜展开的是该 Key 实际发往上游的模型；前端仍沿用既有请求参数。
+	if apiKeyID > 0 {
+		modelSource = usagestats.ModelSourceUpstream
+	}
 	if requestTypeStr := strings.TrimSpace(c.Query("request_type")); requestTypeStr != "" {
 		parsed, err := service.ParseUsageRequestType(requestTypeStr)
 		if err != nil {
