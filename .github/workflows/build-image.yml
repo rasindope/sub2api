@@ -30,7 +30,7 @@ jobs:
           version=$(tr -d '[:space:]' < backend/cmd/server/VERSION)
           sha=$(echo '${{ github.sha }}' | cut -c1-12)
           image="ghcr.io/${owner}/sub2api"
-          date_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          date_utc=$(TZ=UTC git show -s --format=%cd --date=format:%Y-%m-%dT%H:%M:%SZ HEAD)
           extra='${{ inputs.extra_tag }}'
           {
             echo "image=${image}"
