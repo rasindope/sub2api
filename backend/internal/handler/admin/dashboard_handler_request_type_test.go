@@ -20,6 +20,7 @@ type dashboardUsageRepoCapture struct {
 	trendNativeCompaction *bool
 	modelRequestType      *int16
 	modelStream           *bool
+	modelSource           string
 	modelNativeCompaction *bool
 	groupNativeCompaction *bool
 	trendMismatch         *bool
@@ -74,6 +75,7 @@ func (s *dashboardUsageRepoCapture) GetModelStatsWithUsageFiltersBySource(
 	s.modelStream = filters.Stream
 	s.modelNativeCompaction = filters.NativeCompactionV2
 	s.modelMismatch = filters.UpstreamModelMismatch
+	s.modelSource = source
 	return []usagestats.ModelStat{}, nil
 }
 
@@ -290,6 +292,19 @@ func TestDashboardNativeCompactionFilterRejectsInvalidBoolean(t *testing.T) {
 		router.ServeHTTP(rec, req)
 		require.Equal(t, http.StatusBadRequest, rec.Code, path)
 	}
+}
+
+func TestDashboardModelStatsUsesUpstreamModelForAPIKey(t *testing.T) {
+	resetDashboardReadCachesForTest()
+	repo := &dashboardUsageRepoCapture{}
+	router := newDashboardRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/dashboard/models?api_key_id=9&model_source=requested", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, usagestats.ModelSourceUpstream, repo.modelSource)
 }
 
 func TestDashboardModelAuditFilterPropagatesToTrendModelAndGroupQueries(t *testing.T) {
