@@ -339,8 +339,8 @@
                 data-testid="api-key-overflow-ranking"
               >
                 <td :colspan="apiKeyRankingColspan" class="p-0">
-                  <div class="max-h-72 overflow-auto bg-gray-50/70 px-2 py-2 dark:bg-dark-700/30 sm:px-6">
-                    <table class="w-full min-w-[560px] table-fixed text-[10px] sm:text-xs">
+                  <div class="max-h-72 overflow-y-auto overflow-x-hidden bg-gray-50/70 px-2 py-2 dark:bg-dark-700/30 sm:px-6">
+                    <table class="w-full table-fixed text-[10px] sm:text-xs">
                       <tbody>
                         <tr
                           v-for="(overflowItem, overflowIndex) in apiKeyOverflowItems"

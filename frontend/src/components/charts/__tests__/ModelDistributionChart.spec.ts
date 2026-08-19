@@ -350,6 +350,8 @@ describe('ModelDistributionChart', () => {
     expect(overflow.text()).toContain('#13')
     expect(overflow.text()).toContain('key-13')
     expect(overflow.text()).toContain('2 IP')
+    expect(overflow.get('div').classes()).toContain('overflow-x-hidden')
+    expect(overflow.get('table').classes()).not.toContain('min-w-[560px]')
   })
 
   it('shows the IP count badge and opens the access source dialog', async () => {
