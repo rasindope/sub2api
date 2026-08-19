@@ -204,11 +204,8 @@
         <div class="h-48 w-48 shrink-0">
           <Doughnut :data="rankingChartData" :options="rankingDoughnutOptions" />
         </div>
-        <div class="max-h-48 w-full min-w-0 flex-1 overflow-auto">
-          <table
-            class="w-full table-fixed text-[11px] sm:text-xs"
-            :class="showApiKeyExtendedColumns ? 'lg:min-w-[640px]' : isApiKeyRankingView ? 'min-w-[620px]' : ''"
-          >
+        <div class="max-h-48 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+          <table class="w-full table-fixed text-[11px] sm:text-xs">
           <thead>
             <tr class="text-gray-500 dark:text-gray-400">
               <th :class="showApiKeyExtendedColumns ? 'w-[28%]' : isApiKeyRankingView ? 'w-[38%]' : 'w-[40%]'" class="pb-2 text-left">{{ activeRankingNameHeader }}</th>
