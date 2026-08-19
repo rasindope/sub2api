@@ -1974,6 +1974,13 @@ export interface AccountSpendingRankingResponse {
   end_date: string
 }
 
+export interface ApiKeyIPUsage {
+  ip_address: string
+  requests: number
+  first_seen_at: string
+  last_seen_at: string
+}
+
 export interface ApiKeySpendingRankingItem {
   api_key_id: number
   key_name: string
@@ -1983,6 +1990,8 @@ export interface ApiKeySpendingRankingItem {
   requests: number
   tokens: number
   average_duration_ms?: number
+  distinct_ip_count?: number
+  ip_usages?: ApiKeyIPUsage[]
 }
 
 export interface ApiKeySpendingRankingResponse {

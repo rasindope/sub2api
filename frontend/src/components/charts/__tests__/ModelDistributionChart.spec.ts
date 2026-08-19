@@ -22,6 +22,8 @@ const messages: Record<string, string> = {
   'admin.dashboard.spendingRankingApiKey': 'Key',
   'admin.dashboard.spendingRankingRequests': 'Requests',
   'admin.dashboard.spendingRankingAverageDuration': 'Avg Response',
+  'admin.dashboard.ipCountShort': '{count} IP',
+  'admin.dashboard.ipDetailsOpen': 'View access sources',
   'admin.dashboard.spendingRankingTokens': 'Tokens',
   'admin.dashboard.spendingRankingSpend': 'Spend',
   'admin.dashboard.spendingRankingShare': 'Spend Share',
@@ -285,7 +287,7 @@ describe('ModelDistributionChart', () => {
     expect(getModelStats).not.toHaveBeenCalled()
     expect(wrapper.text()).not.toContain('gpt-5')
 
-    await wrapper.findAll('tbody button')[0].trigger('click')
+    await wrapper.findAll('[data-testid="api-key-model-toggle"]')[0].trigger('click')
     await flushPromises()
 
     expect(getModelStats).toHaveBeenCalledWith(expect.objectContaining({
@@ -299,18 +301,100 @@ describe('ModelDistributionChart', () => {
     expect(wrapper.text()).toContain('2.50s')
     expect(wrapper.text()).toContain('800ms')
     expect(wrapper.text()).toContain('80.0%')
-    expect(wrapper.get('tbody button').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('[data-testid="api-key-model-toggle"]').attributes('aria-expanded')).toBe('true')
     expect(wrapper.find('#api-key-models-9').exists()).toBe(true)
     expect(wrapper.find('#api-key-models-9 table').exists()).toBe(true)
 
-    await wrapper.findAll('tbody button')[0].trigger('click')
+    await wrapper.findAll('[data-testid="api-key-model-toggle"]')[0].trigger('click')
     expect(wrapper.find('#api-key-models-9').exists()).toBe(false)
 
-    await wrapper.findAll('tbody button')[1].trigger('click')
+    await wrapper.findAll('[data-testid="api-key-model-toggle"]')[1].trigger('click')
     await flushPromises()
 
     expect(getModelStats).toHaveBeenLastCalledWith(expect.objectContaining({ api_key_id: 10 }))
     expect(wrapper.text()).toContain('claude-sonnet')
+  })
+
+  it('expands Other to show API keys after rank 12', async () => {
+    const items = Array.from({ length: 13 }, (_, index) => ({
+      api_key_id: index + 1,
+      key_name: `key-${index + 1}`,
+      user_id: 1,
+      email: 'owner@example.com',
+      actual_cost: 13 - index,
+      requests: 100 - index,
+      tokens: 1000 - index,
+      average_duration_ms: 1000 + index,
+      distinct_ip_count: 2,
+      ip_usages: []
+    }))
+    const wrapper = mount(ModelDistributionChart, {
+      props: {
+        modelStats: [],
+        enableRankingView: true,
+        defaultRankingView: 'api_key_spending_ranking',
+        apiKeyRankingItems: items,
+        apiKeyRankingTotalActualCost: items.reduce((sum, item) => sum + item.actual_cost, 0),
+        apiKeyRankingTotalRequests: items.reduce((sum, item) => sum + item.requests, 0),
+        apiKeyRankingTotalTokens: items.reduce((sum, item) => sum + item.tokens, 0)
+      },
+      global: { stubs: { LoadingSpinner: true, ApiKeyIpDetailsDialog: true } }
+    })
+
+    expect(wrapper.find('[data-testid="api-key-overflow-ranking"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="api-key-model-toggle"]')).toHaveLength(12)
+
+    await wrapper.get('[data-testid="other-ranking-row"]').trigger('click')
+
+    const overflow = wrapper.get('[data-testid="api-key-overflow-ranking"]')
+    expect(overflow.text()).toContain('#13')
+    expect(overflow.text()).toContain('key-13')
+    expect(overflow.text()).toContain('2 IP')
+  })
+
+  it('shows the IP count badge and opens the access source dialog', async () => {
+    const wrapper = mount(ModelDistributionChart, {
+      props: {
+        modelStats: [],
+        enableRankingView: true,
+        defaultRankingView: 'api_key_spending_ranking',
+        apiKeyRankingItems: [{
+          api_key_id: 9,
+          key_name: 'sales-key',
+          user_id: 1,
+          email: 'owner@example.com',
+          actual_cost: 5,
+          requests: 4,
+          tokens: 500,
+          distinct_ip_count: 3,
+          ip_usages: [{
+            ip_address: '8.8.8.8',
+            requests: 4,
+            first_seen_at: '2026-08-19T01:00:00.000Z',
+            last_seen_at: '2026-08-19T02:00:00.000Z'
+          }]
+        }],
+        apiKeyRankingTotalActualCost: 5,
+        apiKeyRankingTotalRequests: 4,
+        apiKeyRankingTotalTokens: 500
+      },
+      global: {
+        stubs: {
+          LoadingSpinner: true,
+          ApiKeyIpDetailsDialog: {
+            props: ['show', 'item'],
+            template: '<div v-if="show" data-testid="ip-details-dialog">{{ item.key_name }}:{{ item.distinct_ip_count }}</div>'
+          }
+        }
+      }
+    })
+
+    const badge = wrapper.get('[data-testid="api-key-ip-source"]')
+    expect(badge.text()).toContain('3 IP')
+    expect(badge.classes()).toContain('text-amber-700')
+
+    await badge.trigger('click')
+    expect(wrapper.get('[data-testid="ip-details-dialog"]').text()).toBe('sales-key:3')
   })
 
   it('shows average response in the compact key ranking without the wide-only columns', () => {

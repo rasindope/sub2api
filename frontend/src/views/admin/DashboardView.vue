@@ -253,6 +253,7 @@
               :start-date="startDate"
               :end-date="endDate"
               @ranking-click="goToAccountUsage"
+              @ip-geo-batch-failed="appStore.showError(t('usage.ipGeo.batchFailed'))"
             />
 
             <div class="card min-w-0 p-4" data-testid="active-key-concurrency-card">
@@ -389,6 +390,7 @@ let apiKeyTrendLoadSeq = 0
 let rankingLoadSeq = 0
 let apiKeyRankingLoadSeq = 0
 const rankingLimit = 12
+const apiKeyRankingFetchLimit = 50
 const activeConcurrencyKeys = computed(() => concurrencyKeys.value
   .filter(key => key.current_concurrency > 0)
   .sort((left, right) => right.current_concurrency - left.current_concurrency))
@@ -715,7 +717,7 @@ const loadAPIKeySpendingRanking = async () => {
     const response = await adminAPI.dashboard.getApiKeySpendingRanking({
       start_date: startDate.value,
       end_date: endDate.value,
-      limit: rankingLimit
+      limit: apiKeyRankingFetchLimit
     })
     if (currentSeq !== apiKeyRankingLoadSeq) return
     apiKeyRankingItems.value = response.ranking || []

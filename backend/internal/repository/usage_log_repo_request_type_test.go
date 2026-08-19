@@ -780,8 +780,12 @@ func TestUsageLogRepositoryGetAPIKeySpendingRankingIncludesAverageDuration(t *te
 	end := start.Add(24 * time.Hour)
 	rows := sqlmock.NewRows([]string{
 		"api_key_id", "key_name", "user_id", "email", "actual_cost", "requests", "tokens",
-		"average_duration_ms", "total_actual_cost", "total_requests", "total_tokens",
-	}).AddRow(int64(9), "client-a", int64(7), "rank@example.com", 12.5, int64(4), int64(400), 1500.0, 12.5, int64(4), int64(400))
+		"average_duration_ms", "distinct_ip_count", "ip_usages", "total_actual_cost", "total_requests", "total_tokens",
+	}).AddRow(
+		int64(9), "client-a", int64(7), "rank@example.com", 12.5, int64(4), int64(400), 1500.0,
+		int64(2), []byte(`[{"ip_address":"8.8.8.8","requests":3,"first_seen_at":"2025-01-01T01:00:00.000Z","last_seen_at":"2025-01-01T02:00:00.000Z"}]`),
+		12.5, int64(4), int64(400),
+	)
 
 	mock.ExpectQuery(`(?s)WITH key_spend AS \(.*COALESCE\(AVG\(u\.duration_ms\), 0\) as average_duration_ms`).
 		WithArgs(start, end, 12).
@@ -790,6 +794,13 @@ func TestUsageLogRepositoryGetAPIKeySpendingRankingIncludesAverageDuration(t *te
 	got, err := repo.GetAPIKeySpendingRanking(context.Background(), start, end, 12)
 	require.NoError(t, err)
 	require.Equal(t, 1500.0, got.Ranking[0].AverageDurationMs)
+	require.Equal(t, int64(2), got.Ranking[0].DistinctIPCount)
+	require.Equal(t, []usagestats.APIKeyIPUsage{{
+		IPAddress:   "8.8.8.8",
+		Requests:    3,
+		FirstSeenAt: "2025-01-01T01:00:00.000Z",
+		LastSeenAt:  "2025-01-01T02:00:00.000Z",
+	}}, got.Ranking[0].IPUsages)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
