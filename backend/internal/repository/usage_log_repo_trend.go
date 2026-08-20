@@ -359,7 +359,9 @@ func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, start
 				u.api_key_id,
 				BTRIM(u.ip_address) AS ip_address,
 				COUNT(*) AS requests,
+				MIN(u.created_at) AS first_seen_at,
 				MAX(u.created_at) AS last_seen_at,
+				COUNT(*) OVER (PARTITION BY u.api_key_id) AS distinct_ip_count,
 				ROW_NUMBER() OVER (
 					PARTITION BY u.api_key_id
 					ORDER BY COUNT(*) DESC, MAX(u.created_at) DESC, BTRIM(u.ip_address) ASC
@@ -373,12 +375,13 @@ func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, start
 		key_ip_stats AS (
 			SELECT
 				api_key_id,
-				COUNT(*) AS distinct_ip_count,
-				jsonb_agg(
-					jsonb_build_object(
+				MAX(distinct_ip_count) AS distinct_ip_count,
+				JSONB_AGG(
+					JSONB_BUILD_OBJECT(
 						'ip_address', ip_address,
 						'requests', requests,
-						'last_seen_at', last_seen_at
+						'first_seen_at', TO_CHAR(first_seen_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+						'last_seen_at', TO_CHAR(last_seen_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
 					)
 					ORDER BY requests DESC, last_seen_at DESC, ip_address ASC
 				) FILTER (WHERE ip_rank <= 20) AS ip_usages
@@ -395,7 +398,7 @@ func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, start
 			r.tokens,
 			r.average_duration_ms,
 			COALESCE(i.distinct_ip_count, 0) AS distinct_ip_count,
-			COALESCE(i.ip_usages, '[]'::jsonb)::text AS ip_usages,
+			COALESCE(i.ip_usages, '[]'::jsonb) AS ip_usages,
 			r.total_actual_cost,
 			r.total_requests,
 			r.total_tokens
