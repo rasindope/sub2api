@@ -2063,6 +2063,7 @@ export interface ApiKeySpendingRankingItem {
 export interface ApiKeyIPUsage {
   ip_address: string
   requests: number
+  first_seen_at: string
   last_seen_at: string
 }
 

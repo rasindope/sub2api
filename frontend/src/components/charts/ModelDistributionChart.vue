@@ -246,9 +246,16 @@
                       <span class="block max-w-[180px] truncate" :title="getRankingRowLabel(item)">
                         {{ getRankingRowLabel(item) }}
                       </span>
-                      <span v-if="item.distinct_ip_count" class="shrink-0 text-[10px] text-gray-400 dark:text-gray-500">
-                        {{ t('admin.dashboard.ipCountShort', { count: item.distinct_ip_count }) }}
-                      </span>
+                    </button>
+                    <button
+                      v-if="isApiKeyRankingItem(item) && !item.isOther"
+                      type="button"
+                      class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors"
+                      :class="getIPCountClass(item.distinct_ip_count ?? 0)"
+                      :title="t('admin.dashboard.ipDetailsOpen')"
+                      @click.stop="openApiKeyIPDetails(item)"
+                    >
+                      {{ t('admin.dashboard.ipCountShort', { count: item.distinct_ip_count ?? 0 }) }}
                     </button>
                     <span
                       v-else
@@ -312,28 +319,6 @@
                         </tr>
                       </tbody>
                     </table>
-                    <div v-if="item.ip_usages?.length" class="mt-3 border-t border-gray-200 pt-2 dark:border-dark-600">
-                      <div class="mb-1 flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500 sm:text-xs">
-                        <span>{{ t('admin.dashboard.ipLocation') }}</span>
-                        <span>{{ t('admin.dashboard.ipTopOnly') }}</span>
-                      </div>
-                      <table class="w-full table-fixed text-[10px] sm:text-xs">
-                        <thead>
-                          <tr class="text-gray-400 dark:text-gray-500">
-                            <th class="w-[48%] pb-1 text-left">IP</th>
-                            <th class="w-[20%] pb-1 text-right">{{ t('admin.dashboard.spendingRankingRequests') }}</th>
-                            <th class="w-[32%] pb-1 text-right">{{ t('admin.dashboard.ipLastSeen') }}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr v-for="ipUsage in item.ip_usages" :key="ipUsage.ip_address" class="border-t border-gray-200/70 dark:border-dark-600/70">
-                            <td class="truncate py-1 text-gray-600 dark:text-gray-300" :title="ipUsage.ip_address">{{ ipUsage.ip_address }}</td>
-                            <td class="py-1 text-right text-gray-500 dark:text-gray-400">{{ formatNumber(ipUsage.requests) }}</td>
-                            <td class="truncate py-1 text-right text-gray-500 dark:text-gray-400" :title="formatIPLastSeen(ipUsage.last_seen_at)">{{ formatIPLastSeen(ipUsage.last_seen_at) }}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
                   </div>
                 </td>
               </tr>
@@ -350,6 +335,12 @@
       {{ t('admin.dashboard.noDataAvailable') }}
     </div>
   </div>
+  <ApiKeyIpDetailsDialog
+    :show="selectedApiKeyIPItem !== null"
+    :item="selectedApiKeyIPItem"
+    @close="selectedApiKeyIPItem = null"
+    @geo-failed="emit('ip-geo-batch-failed')"
+  />
 </template>
 
 <script setup lang="ts">
@@ -359,6 +350,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { Doughnut } from 'vue-chartjs'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Icon from '@/components/icons/Icon.vue'
+import ApiKeyIpDetailsDialog from './ApiKeyIpDetailsDialog.vue'
 import UserBreakdownSubTable from './UserBreakdownSubTable.vue'
 import type {
   AccountSpendingRankingItem,
@@ -441,6 +433,7 @@ const expandedApiKeyID = ref<number | null>(null)
 const apiKeyModelStats = ref<ModelStat[]>([])
 const apiKeyModelsLoading = ref(false)
 const apiKeyModelsError = ref(false)
+const selectedApiKeyIPItem = ref<ApiKeySpendingRankingItem | null>(null)
 let apiKeyModelsLoadSeq = 0
 
 const toggleBreakdown = async (type: string, id: string) => {
@@ -472,6 +465,7 @@ const emit = defineEmits<{
   'update:metric': [value: DistributionMetric]
   'update:source': [value: ModelSource]
   'ranking-click': [item: AccountSpendingRankingItem]
+  'ip-geo-batch-failed': []
 }>()
 
 const enableRankingView = computed(() => props.enableRankingView)
@@ -750,6 +744,10 @@ const selectApiKeyModels = async (item: ApiKeySpendingRankingItem) => {
   }
 }
 
+const openApiKeyIPDetails = (item: ApiKeySpendingRankingItem) => {
+  selectedApiKeyIPItem.value = item
+}
+
 const handleRankingClick = (item: RankingDisplayItem) => {
   if (item.isOther) return
   if (isApiKeyRankingItem(item)) {
@@ -784,9 +782,11 @@ const formatAverageDuration = (value: number | null | undefined): string => {
     : `${Math.round(milliseconds)}ms`
 }
 
-const formatIPLastSeen = (value: string): string => {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString()
+const getIPCountClass = (count: number): string => {
+  if (count === 1) return 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400'
+  if (count <= 0) return 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-dark-700 dark:text-gray-400'
+  if (count <= 3) return 'bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400'
+  return 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400'
 }
 
 const formatPercentage = (value: number, total: number): string => {
