@@ -185,9 +185,10 @@ type AccountSpendingRankingResponse struct {
 
 // APIKeySpendingRankingItem represents an API key spending ranking row.
 type APIKeyIPUsage struct {
-	IPAddress  string    `json:"ip_address"`
-	Requests   int64     `json:"requests"`
-	LastSeenAt time.Time `json:"last_seen_at"`
+	IPAddress   string `json:"ip_address"`
+	Requests    int64  `json:"requests"`
+	FirstSeenAt string `json:"first_seen_at"`
+	LastSeenAt  string `json:"last_seen_at"`
 }
 
 type APIKeySpendingRankingItem struct {

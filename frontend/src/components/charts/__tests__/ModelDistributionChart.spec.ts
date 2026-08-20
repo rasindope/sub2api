@@ -26,9 +26,14 @@ const messages: Record<string, string> = {
   'admin.dashboard.spendingRankingSpend': 'Spend',
   'admin.dashboard.spendingRankingShare': 'Spend Share',
   'admin.dashboard.ipLocation': 'IP sources',
-  'admin.dashboard.ipTopOnly': 'Top 20 only',
   'admin.dashboard.ipCountShort': '{count} IP',
+  'admin.dashboard.ipDetailsOpen': 'View access sources',
+  'admin.dashboard.ipDetailsTitle': 'Access sources for {key}',
+  'admin.dashboard.ipDistinctCount': 'Distinct IPs',
+  'admin.dashboard.ipFirstSeen': 'First request',
   'admin.dashboard.ipLastSeen': 'Last request',
+  'admin.dashboard.ipNoData': 'No access IPs were recorded in this time range',
+  'admin.dashboard.ipTopOnly': 'Showing the top {shown} IPs by requests, {total} total',
   'admin.dashboard.spendingRankingOther': 'Others',
   'admin.dashboard.model': 'Model',
   'admin.dashboard.requests': 'Requests',
@@ -254,8 +259,8 @@ describe('ModelDistributionChart', () => {
             requests: 4,
             tokens: 500,
             average_duration_ms: 1500,
-			distinct_ip_count: 2,
-			ip_usages: [{ ip_address: '203.0.113.8', requests: 3, last_seen_at: '2026-08-13T10:00:00Z' }],
+            distinct_ip_count: 2,
+            ip_usages: [{ ip_address: '203.0.113.8', requests: 3, first_seen_at: '2026-08-13T09:00:00.000Z', last_seen_at: '2026-08-13T10:00:00.000Z' }],
           },
           {
             api_key_id: 10,
@@ -283,7 +288,7 @@ describe('ModelDistributionChart', () => {
     expect(wrapper.text()).toContain('sales-key')
     expect(wrapper.text()).not.toContain('owner@example.com')
     expect(wrapper.text()).toContain('1.50s')
-		expect(wrapper.text()).toContain('2 IP')
+    expect(wrapper.text()).toContain('2 IP')
     const rankingChartData = JSON.parse(wrapper.find('.chart-data').text())
     expect(rankingChartData.labels).toEqual(['#1 sales-key', '#2 support-key'])
     expect(rankingChartData.datasets[0].data).toEqual([5, 2])
@@ -309,12 +314,18 @@ describe('ModelDistributionChart', () => {
     expect(wrapper.get('tbody button').attributes('aria-expanded')).toBe('true')
     expect(wrapper.find('#api-key-models-9').exists()).toBe(true)
     expect(wrapper.find('#api-key-models-9 table').exists()).toBe(true)
-		expect(wrapper.text()).toContain('203.0.113.8')
+    expect(wrapper.text()).not.toContain('203.0.113.8')
+
+    const ipButton = wrapper.findAll('tbody button').find((button) => button.text() === '2 IP')
+    expect(ipButton).toBeTruthy()
+    await ipButton!.trigger('click')
+    expect(document.body.textContent).toContain('Access sources for sales-key')
+    expect(document.body.textContent).toContain('203.0.113.8')
 
     await wrapper.findAll('tbody button')[0].trigger('click')
     expect(wrapper.find('#api-key-models-9').exists()).toBe(false)
 
-    await wrapper.findAll('tbody button')[1].trigger('click')
+    await wrapper.get('[aria-controls="api-key-models-10"]').trigger('click')
     await flushPromises()
 
     expect(getModelStats).toHaveBeenLastCalledWith(expect.objectContaining({ api_key_id: 10 }))
