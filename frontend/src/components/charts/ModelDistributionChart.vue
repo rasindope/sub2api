@@ -246,6 +246,9 @@
                       <span class="block max-w-[180px] truncate" :title="getRankingRowLabel(item)">
                         {{ getRankingRowLabel(item) }}
                       </span>
+                      <span v-if="item.distinct_ip_count" class="shrink-0 text-[10px] text-gray-400 dark:text-gray-500">
+                        {{ t('admin.dashboard.ipCountShort', { count: item.distinct_ip_count }) }}
+                      </span>
                     </button>
                     <span
                       v-else
@@ -309,6 +312,28 @@
                         </tr>
                       </tbody>
                     </table>
+                    <div v-if="item.ip_usages?.length" class="mt-3 border-t border-gray-200 pt-2 dark:border-dark-600">
+                      <div class="mb-1 flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500 sm:text-xs">
+                        <span>{{ t('admin.dashboard.ipLocation') }}</span>
+                        <span>{{ t('admin.dashboard.ipTopOnly') }}</span>
+                      </div>
+                      <table class="w-full table-fixed text-[10px] sm:text-xs">
+                        <thead>
+                          <tr class="text-gray-400 dark:text-gray-500">
+                            <th class="w-[48%] pb-1 text-left">IP</th>
+                            <th class="w-[20%] pb-1 text-right">{{ t('admin.dashboard.spendingRankingRequests') }}</th>
+                            <th class="w-[32%] pb-1 text-right">{{ t('admin.dashboard.ipLastSeen') }}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="ipUsage in item.ip_usages" :key="ipUsage.ip_address" class="border-t border-gray-200/70 dark:border-dark-600/70">
+                            <td class="truncate py-1 text-gray-600 dark:text-gray-300" :title="ipUsage.ip_address">{{ ipUsage.ip_address }}</td>
+                            <td class="py-1 text-right text-gray-500 dark:text-gray-400">{{ formatNumber(ipUsage.requests) }}</td>
+                            <td class="truncate py-1 text-right text-gray-500 dark:text-gray-400" :title="formatIPLastSeen(ipUsage.last_seen_at)">{{ formatIPLastSeen(ipUsage.last_seen_at) }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -757,6 +782,11 @@ const formatAverageDuration = (value: number | null | undefined): string => {
   return milliseconds >= 1000
     ? `${(milliseconds / 1000).toFixed(2)}s`
     : `${Math.round(milliseconds)}ms`
+}
+
+const formatIPLastSeen = (value: string): string => {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString()
 }
 
 const formatPercentage = (value: number, total: number): string => {

@@ -1983,6 +1983,14 @@ export interface ApiKeySpendingRankingItem {
   requests: number
   tokens: number
   average_duration_ms?: number
+  distinct_ip_count?: number
+  ip_usages?: ApiKeyIPUsage[]
+}
+
+export interface ApiKeyIPUsage {
+  ip_address: string
+  requests: number
+  last_seen_at: string
 }
 
 export interface ApiKeySpendingRankingResponse {

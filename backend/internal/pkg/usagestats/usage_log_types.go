@@ -184,15 +184,23 @@ type AccountSpendingRankingResponse struct {
 }
 
 // APIKeySpendingRankingItem represents an API key spending ranking row.
+type APIKeyIPUsage struct {
+	IPAddress  string    `json:"ip_address"`
+	Requests   int64     `json:"requests"`
+	LastSeenAt time.Time `json:"last_seen_at"`
+}
+
 type APIKeySpendingRankingItem struct {
-	APIKeyID          int64   `json:"api_key_id"`
-	KeyName           string  `json:"key_name"`
-	UserID            int64   `json:"user_id"`
-	Email             string  `json:"email"`
-	ActualCost        float64 `json:"actual_cost"` // 实际扣除
-	Requests          int64   `json:"requests"`
-	Tokens            int64   `json:"tokens"`
-	AverageDurationMs float64 `json:"average_duration_ms"`
+	APIKeyID          int64           `json:"api_key_id"`
+	KeyName           string          `json:"key_name"`
+	UserID            int64           `json:"user_id"`
+	Email             string          `json:"email"`
+	ActualCost        float64         `json:"actual_cost"` // 实际扣除
+	Requests          int64           `json:"requests"`
+	Tokens            int64           `json:"tokens"`
+	AverageDurationMs float64         `json:"average_duration_ms"`
+	DistinctIPCount   int64           `json:"distinct_ip_count"`
+	IPUsages          []APIKeyIPUsage `json:"ip_usages"`
 }
 
 // APIKeySpendingRankingResponse represents API key ranking rows plus total spend for the time range.

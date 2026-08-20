@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -352,21 +353,55 @@ func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, start
 			FROM key_spend
 			ORDER BY actual_cost DESC, tokens DESC, api_key_id ASC
 			LIMIT $3
+		),
+		key_ip_rows AS (
+			SELECT
+				u.api_key_id,
+				BTRIM(u.ip_address) AS ip_address,
+				COUNT(*) AS requests,
+				MAX(u.created_at) AS last_seen_at,
+				ROW_NUMBER() OVER (
+					PARTITION BY u.api_key_id
+					ORDER BY COUNT(*) DESC, MAX(u.created_at) DESC, BTRIM(u.ip_address) ASC
+				) AS ip_rank
+			FROM usage_logs u
+			INNER JOIN ranked r ON r.api_key_id = u.api_key_id
+			WHERE u.created_at >= $1 AND u.created_at < $2
+				AND u.ip_address IS NOT NULL AND BTRIM(u.ip_address) <> ''
+			GROUP BY u.api_key_id, BTRIM(u.ip_address)
+		),
+		key_ip_stats AS (
+			SELECT
+				api_key_id,
+				COUNT(*) AS distinct_ip_count,
+				jsonb_agg(
+					jsonb_build_object(
+						'ip_address', ip_address,
+						'requests', requests,
+						'last_seen_at', last_seen_at
+					)
+					ORDER BY requests DESC, last_seen_at DESC, ip_address ASC
+				) FILTER (WHERE ip_rank <= 20) AS ip_usages
+			FROM key_ip_rows
+			GROUP BY api_key_id
 		)
 		SELECT
-			api_key_id,
-			key_name,
-			user_id,
-			email,
-			actual_cost,
-			requests,
-			tokens,
-			average_duration_ms,
-			total_actual_cost,
-			total_requests,
-			total_tokens
-		FROM ranked
-		ORDER BY actual_cost DESC, tokens DESC, api_key_id ASC
+			r.api_key_id,
+			r.key_name,
+			r.user_id,
+			r.email,
+			r.actual_cost,
+			r.requests,
+			r.tokens,
+			r.average_duration_ms,
+			COALESCE(i.distinct_ip_count, 0) AS distinct_ip_count,
+			COALESCE(i.ip_usages, '[]'::jsonb)::text AS ip_usages,
+			r.total_actual_cost,
+			r.total_requests,
+			r.total_tokens
+		FROM ranked r
+		LEFT JOIN key_ip_stats i ON i.api_key_id = r.api_key_id
+		ORDER BY r.actual_cost DESC, r.tokens DESC, r.api_key_id ASC
 	`
 
 	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit)
@@ -386,7 +421,11 @@ func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, start
 	totalTokens := int64(0)
 	for rows.Next() {
 		var row APIKeySpendingRankingItem
-		if err = rows.Scan(&row.APIKeyID, &row.KeyName, &row.UserID, &row.Email, &row.ActualCost, &row.Requests, &row.Tokens, &row.AverageDurationMs, &totalActualCost, &totalRequests, &totalTokens); err != nil {
+		var ipUsagesRaw []byte
+		if err = rows.Scan(&row.APIKeyID, &row.KeyName, &row.UserID, &row.Email, &row.ActualCost, &row.Requests, &row.Tokens, &row.AverageDurationMs, &row.DistinctIPCount, &ipUsagesRaw, &totalActualCost, &totalRequests, &totalTokens); err != nil {
+			return nil, err
+		}
+		if err = json.Unmarshal(ipUsagesRaw, &row.IPUsages); err != nil {
 			return nil, err
 		}
 		ranking = append(ranking, row)
