@@ -25,6 +25,10 @@ const messages: Record<string, string> = {
   'admin.dashboard.spendingRankingTokens': 'Tokens',
   'admin.dashboard.spendingRankingSpend': 'Spend',
   'admin.dashboard.spendingRankingShare': 'Spend Share',
+  'admin.dashboard.ipLocation': 'IP sources',
+  'admin.dashboard.ipTopOnly': 'Top 20 only',
+  'admin.dashboard.ipCountShort': '{count} IP',
+  'admin.dashboard.ipLastSeen': 'Last request',
   'admin.dashboard.spendingRankingOther': 'Others',
   'admin.dashboard.model': 'Model',
   'admin.dashboard.requests': 'Requests',
@@ -250,6 +254,8 @@ describe('ModelDistributionChart', () => {
             requests: 4,
             tokens: 500,
             average_duration_ms: 1500,
+			distinct_ip_count: 2,
+			ip_usages: [{ ip_address: '203.0.113.8', requests: 3, last_seen_at: '2026-08-13T10:00:00Z' }],
           },
           {
             api_key_id: 10,
@@ -277,6 +283,7 @@ describe('ModelDistributionChart', () => {
     expect(wrapper.text()).toContain('sales-key')
     expect(wrapper.text()).not.toContain('owner@example.com')
     expect(wrapper.text()).toContain('1.50s')
+		expect(wrapper.text()).toContain('2 IP')
     const rankingChartData = JSON.parse(wrapper.find('.chart-data').text())
     expect(rankingChartData.labels).toEqual(['#1 sales-key', '#2 support-key'])
     expect(rankingChartData.datasets[0].data).toEqual([5, 2])
@@ -302,6 +309,7 @@ describe('ModelDistributionChart', () => {
     expect(wrapper.get('tbody button').attributes('aria-expanded')).toBe('true')
     expect(wrapper.find('#api-key-models-9').exists()).toBe(true)
     expect(wrapper.find('#api-key-models-9 table').exists()).toBe(true)
+		expect(wrapper.text()).toContain('203.0.113.8')
 
     await wrapper.findAll('tbody button')[0].trigger('click')
     expect(wrapper.find('#api-key-models-9').exists()).toBe(false)
