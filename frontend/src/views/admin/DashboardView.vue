@@ -177,25 +177,25 @@
             </div>
           </div>
 
-          <!-- Avg Response Time -->
-          <div class="card p-4">
+          <!-- Key IP Activity -->
+          <button type="button" class="card p-4 text-left transition-colors hover:bg-gray-50 dark:hover:bg-dark-800" @click="showIPActivity = true">
             <div class="flex items-center gap-3">
               <div class="rounded-lg bg-rose-100 p-2 dark:bg-rose-900/30">
-                <Icon name="clock" size="md" class="text-rose-600 dark:text-rose-400" :stroke-width="2" />
+                <Icon name="globe" size="md" class="text-rose-600 dark:text-rose-400" :stroke-width="2" />
               </div>
               <div>
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.avgResponse') }}
+                  {{ t('admin.proxies.ipActivity.title') }}
                 </p>
                 <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ formatDuration(stats.average_duration_ms) }}
+                  {{ ipActivity.active_keys }}
                 </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                  {{ stats.active_users }} {{ t('admin.dashboard.activeUsers') }}
+                <p class="text-xs" :class="ipActivity.high_risk_keys ? 'text-red-500' : ipActivity.watch_keys ? 'text-amber-500' : 'text-gray-500 dark:text-gray-400'">
+                  {{ ipActivity.watch_keys }} {{ t('admin.proxies.ipActivity.watch') }} · {{ ipActivity.high_risk_keys }} {{ t('admin.proxies.ipActivity.high') }}
                 </p>
               </div>
             </div>
-          </div>
+          </button>
         </div>
 
         <!-- Charts Section -->
@@ -307,6 +307,7 @@
         </div>
       </template>
     </div>
+    <KeyIPActivityPanel :show="showIPActivity" @close="showIPActivity = false" @updated="ipActivity = $event" />
   </AppLayout>
 </template>
 
@@ -324,7 +325,8 @@ import type {
   ModelStat,
   ApiKeyUsageTrendPoint,
   AccountSpendingRankingItem,
-  ApiKeySpendingRankingItem
+  ApiKeySpendingRankingItem,
+  ApiKeyIPActivityResponse
 } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
@@ -334,6 +336,7 @@ import Select from '@/components/common/Select.vue'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
 import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
 import AccountUsageOverviewCard from '@/components/admin/dashboard/AccountUsageOverviewCard.vue'
+import KeyIPActivityPanel from '@/components/admin/proxy/KeyIPActivityPanel.vue'
 import type { SimpleApiKey } from '@/api/admin/usage'
 
 import {
@@ -369,6 +372,8 @@ const rankingLoading = ref(false)
 const rankingError = ref(false)
 const apiKeyRankingLoading = ref(false)
 const apiKeyRankingError = ref(false)
+const showIPActivity = ref(false)
+const ipActivity = ref<ApiKeyIPActivityResponse>({ items: [], active_keys: 0, watch_keys: 0, high_risk_keys: 0, generated_at: '' })
 
 // Chart data
 const trendData = ref<TrendDataPoint[]>([])
@@ -579,13 +584,6 @@ const formatCost = (value: number | null | undefined): string => {
     return safeValue.toFixed(3)
   }
   return safeValue.toFixed(4)
-}
-
-const formatDuration = (ms: number): string => {
-  if (ms >= 1000) {
-    return `${(ms / 1000).toFixed(2)}s`
-  }
-  return `${Math.round(ms)}ms`
 }
 
 const goToAccountUsage = (item: AccountSpendingRankingItem) => {

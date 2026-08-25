@@ -2060,6 +2060,35 @@ export interface ApiKeyIPUsage {
   requests: number
   first_seen_at: string
   last_seen_at: string
+  active_15m?: boolean
+  overlap_count_15m?: number
+  max_overlap_seconds_15m?: number
+  last_overlap_at?: string
+}
+
+export type ApiKeyIPRiskLevel = 'normal' | 'watch' | 'high'
+
+export interface ApiKeyIPActivityItem {
+  api_key_id: number
+  key_name: string
+  requests: number
+  distinct_ip_count: number
+  active_ip_count_15m: number
+  overlap_ip_count_15m: number
+  overlap_count_15m: number
+  total_overlap_seconds_15m: number
+  max_overlap_seconds_15m: number
+  last_overlap_at: string
+  risk_level: ApiKeyIPRiskLevel
+  ip_usages: ApiKeyIPUsage[]
+}
+
+export interface ApiKeyIPActivityResponse {
+  items: ApiKeyIPActivityItem[]
+  active_keys: number
+  watch_keys: number
+  high_risk_keys: number
+  generated_at: string
 }
 
 export interface ApiKeySpendingRankingResponse {

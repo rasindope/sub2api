@@ -2660,6 +2660,10 @@ func (r *stubUsageLogRepo) GetAPIKeySpendingRanking(ctx context.Context, startTi
 	return nil, errors.New("not implemented")
 }
 
+func (r *stubUsageLogRepo) GetAPIKeyIPActivity(ctx context.Context, now time.Time, limit int) (*usagestats.APIKeyIPActivityResponse, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (r *stubUsageLogRepo) GetUserStatsAggregated(ctx context.Context, userID int64, startTime, endTime time.Time) (*usagestats.UsageStats, error) {
 	logs := r.userLogs[userID]
 	if len(logs) == 0 {

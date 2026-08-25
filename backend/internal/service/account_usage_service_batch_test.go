@@ -88,6 +88,9 @@ func (r *usageBatchLogRepoStub) GetAccountSpendingRanking(context.Context, time.
 func (r *usageBatchLogRepoStub) GetAPIKeySpendingRanking(context.Context, time.Time, time.Time, int) (*usagestats.APIKeySpendingRankingResponse, error) {
 	return nil, nil
 }
+func (r *usageBatchLogRepoStub) GetAPIKeyIPActivity(context.Context, time.Time, int) (*usagestats.APIKeyIPActivityResponse, error) {
+	return nil, nil
+}
 func (r *usageBatchLogRepoStub) GetBatchUserUsageStats(context.Context, []int64, time.Time, time.Time) (map[int64]*usagestats.BatchUserUsageStats, error) {
 	return nil, nil
 }

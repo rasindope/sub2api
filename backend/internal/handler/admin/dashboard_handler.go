@@ -664,6 +664,17 @@ func (h *DashboardHandler) GetAPIKeySpendingRanking(c *gin.Context) {
 	response.Success(c, payload)
 }
 
+// GetAPIKeyIPActivity reports overlapping requests from different IPs per API key.
+func (h *DashboardHandler) GetAPIKeyIPActivity(c *gin.Context) {
+	limit := parseRankingLimit(c.DefaultQuery("limit", "100"))
+	activity, err := h.dashboardService.GetAPIKeyIPActivity(c.Request.Context(), time.Now().UTC(), limit)
+	if err != nil {
+		response.Error(c, 500, "Failed to get API key IP activity")
+		return
+	}
+	response.Success(c, activity)
+}
+
 // GetBatchUsersUsage handles getting usage stats for multiple users
 // POST /api/v1/admin/dashboard/users-usage
 func (h *DashboardHandler) GetBatchUsersUsage(c *gin.Context) {
