@@ -295,6 +295,7 @@ func registerDashboardRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		dashboard.GET("/accounts-ranking", h.Admin.Dashboard.GetAccountSpendingRanking)
 		dashboard.GET("/api-keys-ranking", h.Admin.Dashboard.GetAPIKeySpendingRanking)
 		dashboard.GET("/api-keys-ip-activity", h.Admin.Dashboard.GetAPIKeyIPActivity)
+		dashboard.GET("/api-keys/:id/ip-overlaps", h.Admin.Dashboard.GetAPIKeyIPOverlaps)
 		dashboard.POST("/users-usage", h.Admin.Dashboard.GetBatchUsersUsage)
 		dashboard.POST("/api-keys-usage", h.Admin.Dashboard.GetBatchAPIKeysUsage)
 		dashboard.GET("/user-breakdown", h.Admin.Dashboard.GetUserBreakdown)

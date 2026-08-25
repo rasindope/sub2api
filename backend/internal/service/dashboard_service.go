@@ -424,12 +424,20 @@ func (s *DashboardService) GetAPIKeySpendingRanking(ctx context.Context, startTi
 	return ranking, nil
 }
 
-func (s *DashboardService) GetAPIKeyIPActivity(ctx context.Context, now time.Time, limit int) (*usagestats.APIKeyIPActivityResponse, error) {
-	activity, err := s.usageRepo.GetAPIKeyIPActivity(ctx, now, limit)
+func (s *DashboardService) GetAPIKeyIPActivity(ctx context.Context, startTime, endTime, now time.Time, limit int) (*usagestats.APIKeyIPActivityResponse, error) {
+	activity, err := s.usageRepo.GetAPIKeyIPActivity(ctx, startTime, endTime, now, limit)
 	if err != nil {
 		return nil, fmt.Errorf("get api key IP activity: %w", err)
 	}
 	return activity, nil
+}
+
+func (s *DashboardService) GetAPIKeyIPOverlaps(ctx context.Context, apiKeyID int64, startTime, endTime time.Time, limit int) (*usagestats.APIKeyIPOverlapResponse, error) {
+	overlaps, err := s.usageRepo.GetAPIKeyIPOverlaps(ctx, apiKeyID, startTime, endTime, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get api key IP overlaps: %w", err)
+	}
+	return overlaps, nil
 }
 
 func (s *DashboardService) GetUserBreakdownStats(ctx context.Context, startTime, endTime time.Time, dim usagestats.UserBreakdownDimension, limit int) ([]usagestats.UserBreakdownItem, error) {

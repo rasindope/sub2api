@@ -46,11 +46,12 @@ export default {
       description: 'Manage proxy servers for accounts',
       ipActivity: {
         title: 'Key IP Activity',
-        description: 'Detect concurrent multi-IP use from request overlaps in the last 15 minutes. Refreshes every 30 seconds.',
+        description: 'The selected range controls IP stats and overlap details; activity and risk always use the last 15 minutes.',
         onlyIssues: 'Issues only',
         activeKeys: 'Active keys',
         active15m: '15m active IPs',
         ip24h: '24h IPs',
+        rangeIPs: 'IPs in range',
         overlaps: 'Overlaps',
         maxOverlap: 'Max overlap',
         status: 'Status',
@@ -60,7 +61,13 @@ export default {
         watch: 'Watch',
         high: 'High risk',
         empty: 'No matching keys',
-        loadFailed: 'Failed to load key IP activity'
+        loadFailed: 'Failed to load key IP activity',
+        overlapDetails: 'Overlap records',
+        overlapDetailsHint: 'Shows the latest 50 request overlaps in the selected range with full IP addresses.',
+        overlapTime: 'Overlap interval',
+        duration: 'Duration',
+        noOverlapDetails: 'No cross-IP request overlap longer than 5 seconds in this range',
+        overlapLoadFailed: 'Failed to load overlap records'
       },
       createProxy: 'Create Proxy',
       editProxy: 'Edit Proxy',

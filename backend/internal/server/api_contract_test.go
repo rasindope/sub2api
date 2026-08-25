@@ -2660,7 +2660,11 @@ func (r *stubUsageLogRepo) GetAPIKeySpendingRanking(ctx context.Context, startTi
 	return nil, errors.New("not implemented")
 }
 
-func (r *stubUsageLogRepo) GetAPIKeyIPActivity(ctx context.Context, now time.Time, limit int) (*usagestats.APIKeyIPActivityResponse, error) {
+func (r *stubUsageLogRepo) GetAPIKeyIPActivity(ctx context.Context, startTime, endTime, now time.Time, limit int) (*usagestats.APIKeyIPActivityResponse, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (r *stubUsageLogRepo) GetAPIKeyIPOverlaps(ctx context.Context, apiKeyID int64, startTime, endTime time.Time, limit int) (*usagestats.APIKeyIPOverlapResponse, error) {
 	return nil, errors.New("not implemented")
 }
 

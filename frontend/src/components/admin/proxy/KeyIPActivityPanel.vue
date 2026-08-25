@@ -3,6 +3,7 @@
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
       <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('admin.proxies.ipActivity.description') }}</p>
       <div class="flex items-center gap-2">
+        <DateRangePicker v-model:start-date="startDate" v-model:end-date="endDate" @change="onRangeChange" />
         <button type="button" class="btn btn-secondary" :class="onlyIssues ? 'ring-2 ring-amber-400/40' : ''" @click="onlyIssues = !onlyIssues">
           {{ t('admin.proxies.ipActivity.onlyIssues') }}
         </button>
@@ -33,7 +34,7 @@
           <tr>
             <th class="px-4 py-3 font-medium">Key</th><th class="px-4 py-3 font-medium">{{ t('admin.proxies.ipActivity.status') }}</th>
             <th class="px-4 py-3 text-right font-medium">{{ t('admin.proxies.ipActivity.active15m') }}</th>
-            <th class="px-4 py-3 text-right font-medium">{{ t('admin.proxies.ipActivity.ip24h') }}</th>
+            <th class="px-4 py-3 text-right font-medium">{{ t('admin.proxies.ipActivity.rangeIPs') }}</th>
             <th class="px-4 py-3 text-right font-medium">{{ t('admin.proxies.ipActivity.overlaps') }}</th>
             <th class="px-4 py-3 text-right font-medium">{{ t('admin.proxies.ipActivity.maxOverlap') }}</th>
             <th class="px-4 py-3 text-right font-medium">{{ t('common.actions') }}</th>
@@ -58,41 +59,47 @@
         <div class="flex items-center justify-between gap-2"><span class="truncate font-medium text-gray-900 dark:text-white">{{ label(item) }}</span><span class="rounded-full px-2 py-1 text-xs" :class="riskClass(item.risk_level)">{{ riskLabel(item.risk_level) }}</span></div>
         <div class="mt-3 grid grid-cols-3 gap-2 text-center text-xs text-gray-500 dark:text-gray-400">
           <div><strong class="block text-base text-gray-900 dark:text-white">{{ item.active_ip_count_15m }}</strong>{{ t('admin.proxies.ipActivity.active15m') }}</div>
-          <div><strong class="block text-base text-gray-900 dark:text-white">{{ item.distinct_ip_count }}</strong>{{ t('admin.proxies.ipActivity.ip24h') }}</div>
+          <div><strong class="block text-base text-gray-900 dark:text-white">{{ item.distinct_ip_count }}</strong>{{ t('admin.proxies.ipActivity.rangeIPs') }}</div>
           <div><strong class="block text-base text-gray-900 dark:text-white">{{ item.overlap_count_15m }}</strong>{{ t('admin.proxies.ipActivity.overlaps') }}</div>
         </div>
       </button>
     </div>
 
     <div v-if="!loading && !visibleItems.length" class="py-12 text-center text-sm text-gray-400">{{ t('admin.proxies.ipActivity.empty') }}</div>
-    <ApiKeyIpDetailsDialog :show="Boolean(selected)" :item="selected" @close="selected = null" @geo-failed="appStore.showError(t('admin.dashboard.ipGeoFailed'))" />
+    <ApiKeyIpDetailsDialog :show="Boolean(selected)" :item="selected" :start-date="startDate" :end-date="endDate" @close="selected = null" @geo-failed="appStore.showError(t('admin.dashboard.ipGeoFailed'))" />
   </BaseDialog>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import ApiKeyIpDetailsDialog from '@/components/charts/ApiKeyIpDetailsDialog.vue'
 import type { ApiKeyIPActivityItem, ApiKeyIPActivityResponse, ApiKeyIPRiskLevel } from '@/types'
 
 const { t } = useI18n()
-defineProps<{ show: boolean }>()
+const props = defineProps<{ show: boolean }>()
 const emit = defineEmits<{ close: []; updated: [value: ApiKeyIPActivityResponse] }>()
 const appStore = useAppStore()
 const loading = ref(false)
 const onlyIssues = ref(false)
 const selected = ref<ApiKeyIPActivityItem | null>(null)
 const data = ref<ApiKeyIPActivityResponse>({ items: [], active_keys: 0, watch_keys: 0, high_risk_keys: 0, generated_at: '' })
+const formatDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+const today = formatDate(new Date())
+const startDate = ref(today)
+const endDate = ref(today)
+const liveAutoRefresh = ref(true)
 const visibleItems = computed(() => onlyIssues.value ? data.value.items.filter((item) => item.risk_level !== 'normal') : data.value.items)
 let timer: ReturnType<typeof setInterval> | undefined
 
 const load = async () => {
   loading.value = true
   try {
-    data.value = await adminAPI.dashboard.getApiKeyIPActivity({ limit: 50 })
+    data.value = await adminAPI.dashboard.getApiKeyIPActivity({ limit: 50, start_date: startDate.value, end_date: endDate.value })
     emit('updated', data.value)
   }
   catch { appStore.showError(t('admin.proxies.ipActivity.loadFailed')) }
@@ -107,6 +114,23 @@ const riskClass = (risk: ApiKeyIPRiskLevel) => ({
   high: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300'
 })[risk]
 
-onMounted(() => { load(); timer = setInterval(load, 30_000) })
-onUnmounted(() => { if (timer) clearInterval(timer) })
+const stopPolling = () => { if (timer) clearInterval(timer); timer = undefined }
+const syncPolling = () => {
+  stopPolling()
+  if (props.show && liveAutoRefresh.value) timer = setInterval(load, 30_000)
+}
+const onRangeChange = (range: { preset: string | null }) => {
+  liveAutoRefresh.value = range.preset === 'today' || range.preset === 'last24Hours'
+  selected.value = null
+  load()
+  syncPolling()
+}
+
+watch(() => props.show, (show) => {
+  if (show) load()
+  else selected.value = null
+  syncPolling()
+})
+onMounted(() => { load(); syncPolling() })
+onUnmounted(stopPolling)
 </script>

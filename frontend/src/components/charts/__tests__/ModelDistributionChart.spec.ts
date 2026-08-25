@@ -3,12 +3,13 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import ModelDistributionChart from '../ModelDistributionChart.vue'
 
-const { getModelStats, getUserBreakdown } = vi.hoisted(() => ({
+const { getModelStats, getUserBreakdown, getApiKeyIPOverlaps } = vi.hoisted(() => ({
   getModelStats: vi.fn(),
-  getUserBreakdown: vi.fn()
+  getUserBreakdown: vi.fn(),
+  getApiKeyIPOverlaps: vi.fn()
 }))
 
-vi.mock('@/api/admin/dashboard', () => ({ getModelStats, getUserBreakdown }))
+vi.mock('@/api/admin/dashboard', () => ({ getModelStats, getUserBreakdown, getApiKeyIPOverlaps }))
 
 const messages: Record<string, string> = {
   'admin.dashboard.modelDistribution': 'Model Distribution',

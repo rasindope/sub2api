@@ -77,21 +77,53 @@
       <p v-if="(item.distinct_ip_count ?? 0) > (item.ip_usages?.length ?? 0)" class="mt-3 text-xs text-gray-400 dark:text-gray-500">
         {{ t('admin.dashboard.ipTopOnly', { shown: item.ip_usages?.length ?? 0, total: item.distinct_ip_count }) }}
       </p>
+
+      <section v-if="getActivity(item)" class="mt-6 border-t border-gray-200 pt-5 dark:border-dark-700">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h3 class="font-medium text-gray-900 dark:text-white">{{ t('admin.proxies.ipActivity.overlapDetails') }}</h3>
+            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.ipActivity.overlapDetailsHint') }}</p>
+          </div>
+          <span class="text-xs tabular-nums text-gray-400">{{ overlaps.length }}</span>
+        </div>
+        <div v-if="overlapsLoading" class="py-6 text-center text-sm text-gray-400">{{ t('common.loading') }}</div>
+        <div v-else-if="overlapsError" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-300">{{ t('admin.proxies.ipActivity.overlapLoadFailed') }}</div>
+        <div v-else-if="overlaps.length">
+          <div class="space-y-2 sm:hidden">
+            <div v-for="overlap in overlaps" :key="`${overlap.overlap_end_at}-${overlap.ip_a}-${overlap.ip_b}`" class="rounded-xl border border-amber-200/70 bg-amber-50/30 p-3 dark:border-amber-500/20 dark:bg-amber-500/5">
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ formatDateTime(overlap.overlap_start_at) }} → {{ formatDateTime(overlap.overlap_end_at) }}</div>
+              <div class="mt-2 flex items-center justify-between gap-3"><span class="font-mono text-xs text-gray-900 dark:text-white">{{ overlap.ip_a }}</span><span class="text-gray-400">↔</span><span class="font-mono text-xs text-gray-900 dark:text-white">{{ overlap.ip_b }}</span></div>
+              <div class="mt-2 text-right text-sm font-medium tabular-nums text-amber-600 dark:text-amber-400">{{ formatSeconds(overlap.overlap_seconds) }}</div>
+            </div>
+          </div>
+          <div class="hidden overflow-x-auto rounded-xl border border-gray-200 dark:border-dark-700 sm:block">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-gray-50 text-gray-500 dark:bg-dark-800 dark:text-gray-400"><tr><th class="px-3 py-2 font-medium">{{ t('admin.proxies.ipActivity.overlapTime') }}</th><th class="px-3 py-2 font-medium">IP A</th><th class="px-3 py-2 font-medium">IP B</th><th class="px-3 py-2 text-right font-medium">{{ t('admin.proxies.ipActivity.duration') }}</th></tr></thead>
+              <tbody><tr v-for="overlap in overlaps" :key="`${overlap.overlap_end_at}-${overlap.ip_a}-${overlap.ip_b}`" class="border-t border-gray-100 dark:border-dark-700"><td class="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-400">{{ formatDateTime(overlap.overlap_start_at) }} → {{ formatDateTime(overlap.overlap_end_at) }}</td><td class="whitespace-nowrap px-3 py-2 font-mono text-gray-900 dark:text-white">{{ overlap.ip_a }}</td><td class="whitespace-nowrap px-3 py-2 font-mono text-gray-900 dark:text-white">{{ overlap.ip_b }}</td><td class="px-3 py-2 text-right font-medium tabular-nums text-amber-600 dark:text-amber-400">{{ formatSeconds(overlap.overlap_seconds) }}</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div v-else class="py-6 text-center text-sm text-gray-400">{{ t('admin.proxies.ipActivity.noOverlapDetails') }}</div>
+      </section>
     </template>
   </BaseDialog>
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getApiKeyIPOverlaps } from '@/api/admin/dashboard'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import IpGeoBatchToolbar from '@/components/common/IpGeoBatchToolbar.vue'
 import IpGeoCell from '@/components/common/IpGeoCell.vue'
-import type { ApiKeyIPActivityItem, ApiKeySpendingRankingItem } from '@/types'
+import type { ApiKeyIPActivityItem, ApiKeyIPOverlap, ApiKeySpendingRankingItem } from '@/types'
 import { formatDateTime } from '@/utils/format'
 
-defineProps<{
+const props = defineProps<{
   show: boolean
   item: ApiKeySpendingRankingItem | ApiKeyIPActivityItem | null
+  startDate?: string
+  endDate?: string
 }>()
 
 const emit = defineEmits<{
@@ -106,4 +138,31 @@ const getKeyLabel = (item: IPDetailsItem) => item.key_name || `Key #${item.api_k
 const getActivity = (item: IPDetailsItem) => 'risk_level' in item ? item : null
 const formatNumber = (value: number) => Number(value || 0).toLocaleString()
 const formatSeconds = (value?: number) => `${Number(value || 0).toFixed(1)}s`
+const overlaps = ref<ApiKeyIPOverlap[]>([])
+const overlapsLoading = ref(false)
+const overlapsError = ref(false)
+let overlapLoadSeq = 0
+
+watch(
+  () => [props.show, props.item?.api_key_id, props.startDate, props.endDate] as const,
+  async ([show, apiKeyId]) => {
+    const seq = ++overlapLoadSeq
+    overlaps.value = []
+    overlapsError.value = false
+    overlapsLoading.value = false
+    if (!show || !apiKeyId || !props.item || !getActivity(props.item)) return
+    overlapsLoading.value = true
+    try {
+      const response = await getApiKeyIPOverlaps(apiKeyId, { limit: 50, start_date: props.startDate, end_date: props.endDate })
+      if (seq === overlapLoadSeq) overlaps.value = response.items
+    }
+    catch {
+      if (seq === overlapLoadSeq) overlapsError.value = true
+    }
+    finally {
+      if (seq === overlapLoadSeq) overlapsLoading.value = false
+    }
+  },
+  { immediate: true }
+)
 </script>

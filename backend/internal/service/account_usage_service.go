@@ -57,7 +57,8 @@ type UsageLogRepository interface {
 	GetUserSpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (*usagestats.UserSpendingRankingResponse, error)
 	GetAccountSpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (*usagestats.AccountSpendingRankingResponse, error)
 	GetAPIKeySpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (*usagestats.APIKeySpendingRankingResponse, error)
-	GetAPIKeyIPActivity(ctx context.Context, now time.Time, limit int) (*usagestats.APIKeyIPActivityResponse, error)
+	GetAPIKeyIPActivity(ctx context.Context, startTime, endTime, now time.Time, limit int) (*usagestats.APIKeyIPActivityResponse, error)
+	GetAPIKeyIPOverlaps(ctx context.Context, apiKeyID int64, startTime, endTime time.Time, limit int) (*usagestats.APIKeyIPOverlapResponse, error)
 	GetBatchUserUsageStats(ctx context.Context, userIDs []int64, startTime, endTime time.Time) (map[int64]*usagestats.BatchUserUsageStats, error)
 	GetBatchAPIKeyUsageStats(ctx context.Context, apiKeyIDs []int64, startTime, endTime time.Time) (map[int64]*usagestats.BatchAPIKeyUsageStats, error)
 

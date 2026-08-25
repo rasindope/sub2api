@@ -37,6 +37,10 @@ type dashboardUsageRepoCapture struct {
 	keyRankingTotal       float64
 	ipActivityLimit       int
 	ipActivity            *usagestats.APIKeyIPActivityResponse
+	ipActivityStart       time.Time
+	ipActivityEnd         time.Time
+	ipOverlapsKeyID       int64
+	ipOverlaps            *usagestats.APIKeyIPOverlapResponse
 }
 
 func (s *dashboardUsageRepoCapture) GetUsageTrendWithUsageFilters(
@@ -148,11 +152,27 @@ func (s *dashboardUsageRepoCapture) GetAPIKeySpendingRanking(
 
 func (s *dashboardUsageRepoCapture) GetAPIKeyIPActivity(
 	ctx context.Context,
+	startTime, endTime time.Time,
 	now time.Time,
 	limit int,
 ) (*usagestats.APIKeyIPActivityResponse, error) {
+	s.ipActivityStart = startTime
+	s.ipActivityEnd = endTime
 	s.ipActivityLimit = limit
 	return s.ipActivity, nil
+}
+
+func (s *dashboardUsageRepoCapture) GetAPIKeyIPOverlaps(
+	ctx context.Context,
+	apiKeyID int64,
+	startTime, endTime time.Time,
+	limit int,
+) (*usagestats.APIKeyIPOverlapResponse, error) {
+	s.ipOverlapsKeyID = apiKeyID
+	s.ipActivityStart = startTime
+	s.ipActivityEnd = endTime
+	s.ipActivityLimit = limit
+	return s.ipOverlaps, nil
 }
 
 func newDashboardRequestTypeTestRouter(repo *dashboardUsageRepoCapture) *gin.Engine {
@@ -167,6 +187,7 @@ func newDashboardRequestTypeTestRouter(repo *dashboardUsageRepoCapture) *gin.Eng
 	router.GET("/admin/dashboard/accounts-ranking", handler.GetAccountSpendingRanking)
 	router.GET("/admin/dashboard/api-keys-ranking", handler.GetAPIKeySpendingRanking)
 	router.GET("/admin/dashboard/api-keys-ip-activity", handler.GetAPIKeyIPActivity)
+	router.GET("/admin/dashboard/api-keys/:id/ip-overlaps", handler.GetAPIKeyIPOverlaps)
 	return router
 }
 
@@ -425,12 +446,37 @@ func TestDashboardAPIKeyIPActivity(t *testing.T) {
 	}}
 	router := newDashboardRequestTypeTestRouter(repo)
 	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/dashboard/api-keys-ip-activity?limit=100", nil))
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/dashboard/api-keys-ip-activity?limit=100&start_date=2025-01-01&end_date=2025-01-02&timezone=UTC", nil))
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, 50, repo.ipActivityLimit)
+	require.Equal(t, "2025-01-01", repo.ipActivityStart.Format("2006-01-02"))
+	require.Equal(t, "2025-01-03", repo.ipActivityEnd.Format("2006-01-02"))
 	require.Contains(t, rec.Body.String(), `"risk_level":"watch"`)
 	require.Contains(t, rec.Body.String(), `"overlap_count_15m":2`)
+}
+
+func TestDashboardAPIKeyIPOverlaps(t *testing.T) {
+	repo := &dashboardUsageRepoCapture{ipOverlaps: &usagestats.APIKeyIPOverlapResponse{Items: []usagestats.APIKeyIPOverlap{{
+		IPA: "203.0.113.8", IPB: "198.51.100.2", OverlapStartAt: "2025-01-01T00:00:00Z", OverlapEndAt: "2025-01-01T00:00:08Z", OverlapSeconds: 8,
+	}}}}
+	router := newDashboardRequestTypeTestRouter(repo)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/dashboard/api-keys/9/ip-overlaps?start_date=2025-01-01&end_date=2025-01-01&timezone=UTC", nil))
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, int64(9), repo.ipOverlapsKeyID)
+	require.Contains(t, rec.Body.String(), `"ip_a":"203.0.113.8"`)
+	require.Contains(t, rec.Body.String(), `"overlap_seconds":8`)
+}
+
+func TestDashboardAPIKeyIPActivityRejectsRangesOver31Days(t *testing.T) {
+	router := newDashboardRequestTypeTestRouter(&dashboardUsageRepoCapture{})
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/dashboard/api-keys-ip-activity?start_date=2025-01-01&end_date=2025-02-01&timezone=UTC", nil))
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Contains(t, rec.Body.String(), "date range must not exceed 31 days")
 }
 
 func TestDashboardAccountsRankingLimitAndCache(t *testing.T) {

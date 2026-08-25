@@ -46,11 +46,12 @@ export default {
       description: '管理代理服务器配置',
       ipActivity: {
         title: 'Key IP 活跃监控',
-        description: '根据近 15 分钟请求重叠识别同一 Key 的多 IP 并行使用，数据每 30 秒刷新。',
+        description: '筛选范围用于 IP 统计和重叠明细；活跃与风险始终按近 15 分钟计算。',
         onlyIssues: '只看异常',
         activeKeys: '活跃 Key',
         active15m: '15 分钟活跃 IP',
         ip24h: '24 小时 IP',
+        rangeIPs: '范围内 IP',
         overlaps: '重叠次数',
         maxOverlap: '最长重叠',
         status: '状态',
@@ -60,7 +61,13 @@ export default {
         watch: '需关注',
         high: '高风险',
         empty: '当前没有符合条件的 Key',
-        loadFailed: '加载 Key IP 活跃数据失败'
+        loadFailed: '加载 Key IP 活跃数据失败',
+        overlapDetails: '重叠记录',
+        overlapDetailsHint: '显示筛选范围内最近 50 条请求重叠，IP 不脱敏。',
+        overlapTime: '重叠区间',
+        duration: '持续时间',
+        noOverlapDetails: '筛选范围内没有超过 5 秒的跨 IP 请求重叠',
+        overlapLoadFailed: '加载重叠记录失败'
       },
       createProxy: '添加代理',
       editProxy: '编辑代理',

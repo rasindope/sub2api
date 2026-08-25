@@ -2091,6 +2091,18 @@ export interface ApiKeyIPActivityResponse {
   generated_at: string
 }
 
+export interface ApiKeyIPOverlap {
+  ip_a: string
+  ip_b: string
+  overlap_start_at: string
+  overlap_end_at: string
+  overlap_seconds: number
+}
+
+export interface ApiKeyIPOverlapResponse {
+  items: ApiKeyIPOverlap[]
+}
+
 export interface ApiKeySpendingRankingResponse {
   ranking: ApiKeySpendingRankingItem[]
   total_actual_cost: number

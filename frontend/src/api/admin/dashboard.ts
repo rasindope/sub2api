@@ -15,6 +15,7 @@ import type {
   AccountSpendingRankingResponse,
   ApiKeySpendingRankingResponse,
   ApiKeyIPActivityResponse,
+  ApiKeyIPOverlapResponse,
   UserBreakdownItem,
   UsageRequestType
 } from '@/types'
@@ -311,8 +312,13 @@ export async function getApiKeySpendingRanking(
   return data
 }
 
-export async function getApiKeyIPActivity(params?: { limit?: number }): Promise<ApiKeyIPActivityResponse> {
+export async function getApiKeyIPActivity(params?: { limit?: number; start_date?: string; end_date?: string }): Promise<ApiKeyIPActivityResponse> {
   const { data } = await apiClient.get<ApiKeyIPActivityResponse>('/admin/dashboard/api-keys-ip-activity', { params })
+  return data
+}
+
+export async function getApiKeyIPOverlaps(apiKeyId: number, params?: { limit?: number; start_date?: string; end_date?: string }): Promise<ApiKeyIPOverlapResponse> {
+  const { data } = await apiClient.get<ApiKeyIPOverlapResponse>(`/admin/dashboard/api-keys/${apiKeyId}/ip-overlaps`, { params })
   return data
 }
 
@@ -385,6 +391,7 @@ export const dashboardAPI = {
   getAccountSpendingRanking,
   getApiKeySpendingRanking,
   getApiKeyIPActivity,
+  getApiKeyIPOverlaps,
   getBatchUsersUsage,
   getBatchApiKeysUsage
 }
