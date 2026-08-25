@@ -17,12 +17,12 @@ func (r *usageLogRepository) GetAPIKeyIPActivity(ctx context.Context, now time.T
 		WITH history AS (
 			SELECT id, api_key_id, BTRIM(ip_address) AS ip_address, created_at, duration_ms
 			FROM usage_logs
-			WHERE created_at >= $1 - INTERVAL '24 hours' AND created_at <= $1
+			WHERE created_at >= $1::timestamptz - INTERVAL '24 hours' AND created_at <= $1::timestamptz
 				AND ip_address IS NOT NULL AND BTRIM(ip_address) <> ''
 		), active AS (
 			SELECT *, created_at - duration_ms * INTERVAL '1 millisecond' AS started_at
 			FROM history
-			WHERE created_at >= $1 - INTERVAL '15 minutes' AND duration_ms > 0
+			WHERE created_at >= $1::timestamptz - INTERVAL '15 minutes' AND duration_ms > 0
 		), overlap_pairs AS (
 			SELECT a.api_key_id, a.ip_address AS ip_a, b.ip_address AS ip_b,
 				EXTRACT(EPOCH FROM LEAST(a.created_at, b.created_at) - GREATEST(a.started_at, b.started_at)) AS overlap_seconds,

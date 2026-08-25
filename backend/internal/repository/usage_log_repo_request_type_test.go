@@ -914,7 +914,7 @@ func TestUsageLogRepositoryGetAPIKeyIPActivity(t *testing.T) {
 		`[{"ip_address":"203.0.113.8","requests":80,"first_seen_at":"2025-01-01T00:30:00.000Z","last_seen_at":"2025-01-01T11:59:00.000Z","active_15m":true,"overlap_count_15m":4,"max_overlap_seconds_15m":12,"last_overlap_at":"2025-01-01T11:59:00.000Z"}]`,
 		int64(1), int64(0), int64(1))
 
-	mock.ExpectQuery(`(?s)INTERVAL '15 minutes'.*overlap_seconds >= 5.*CASE WHEN.*risk_level`).
+	mock.ExpectQuery(`(?s)\$1::timestamptz.*INTERVAL '15 minutes'.*overlap_seconds >= 5.*CASE WHEN.*risk_level`).
 		WithArgs(now, 50).
 		WillReturnRows(rows)
 
