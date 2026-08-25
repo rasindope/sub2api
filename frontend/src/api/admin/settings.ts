@@ -1348,6 +1348,30 @@ export async function updatePanelRateLimitSettings(
   return data;
 }
 
+export interface APIKeyIPRiskSettings {
+  minimum_overlap_seconds: number;
+  high_single_overlap_seconds: number;
+  high_overlap_count: number;
+  high_total_overlap_seconds: number;
+}
+
+export async function getAPIKeyIPRiskSettings(): Promise<APIKeyIPRiskSettings> {
+  const { data } = await apiClient.get<APIKeyIPRiskSettings>(
+    "/admin/settings/key-ip-risk",
+  );
+  return data;
+}
+
+export async function updateAPIKeyIPRiskSettings(
+  settings: APIKeyIPRiskSettings,
+): Promise<APIKeyIPRiskSettings> {
+  const { data } = await apiClient.put<APIKeyIPRiskSettings>(
+    "/admin/settings/key-ip-risk",
+    settings,
+  );
+  return data;
+}
+
 // ==================== Stream Timeout Settings ====================
 
 /**
@@ -1577,6 +1601,8 @@ export const settingsAPI = {
   updateRateLimit429CooldownSettings,
   getPanelRateLimitSettings,
   updatePanelRateLimitSettings,
+  getAPIKeyIPRiskSettings,
+  updateAPIKeyIPRiskSettings,
   getStreamTimeoutSettings,
   updateStreamTimeoutSettings,
   getRectifierSettings,

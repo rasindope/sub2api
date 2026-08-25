@@ -906,6 +906,9 @@ func TestUsageLogRepositoryGetAPIKeyIPActivity(t *testing.T) {
 	now := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 	start := now.Add(-24 * time.Hour)
 	end := now
+	mock.ExpectQuery(`SELECT COALESCE\(\(SELECT value FROM settings WHERE key = \$1\), ''\)`).
+		WithArgs(service.SettingKeyAPIKeyIPRiskSettings).
+		WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(`{"minimum_overlap_seconds":5,"high_single_overlap_seconds":60,"high_overlap_count":2,"high_total_overlap_seconds":20}`))
 	rows := sqlmock.NewRows([]string{"api_key_id", "key_name", "requests", "distinct_ip_count", "ip_usages"}).
 		AddRow(int64(9), "client-a", int64(120), int64(3),
 			`[{"ip_address":"203.0.113.8","requests":80,"first_seen_at":"2025-01-01T00:30:00.000Z","last_seen_at":"2025-01-01T11:59:00.000Z"}]`)
@@ -915,7 +918,8 @@ func TestUsageLogRepositoryGetAPIKeyIPActivity(t *testing.T) {
 
 	overlaps := sqlmock.NewRows([]string{"id", "api_key_id", "ip_address", "created_at", "duration_ms"}).
 		AddRow(int64(1), int64(9), "203.0.113.8", start.Add(20*time.Second), int64(20_000)).
-		AddRow(int64(2), int64(9), "198.51.100.2", start.Add(30*time.Second), int64(20_000))
+		AddRow(int64(2), int64(9), "198.51.100.2", start.Add(30*time.Second), int64(20_000)).
+		AddRow(int64(3), int64(9), "203.0.113.8", start.Add(35*time.Second), int64(20_000))
 	mock.ExpectQuery(`(?s)SELECT id, api_key_id, BTRIM\(ip_address\), created_at, duration_ms.*ORDER BY api_key_id, created_at - duration_ms`).
 		WithArgs(start, end).
 		WillReturnRows(overlaps)
@@ -923,11 +927,11 @@ func TestUsageLogRepositoryGetAPIKeyIPActivity(t *testing.T) {
 	got, err := repo.GetAPIKeyIPActivity(context.Background(), start, end, now, 50)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), got.ActiveKeys)
-	require.Equal(t, int64(1), got.WatchKeys)
-	require.Equal(t, "watch", got.Items[0].RiskLevel)
-	require.Equal(t, int64(1), got.Items[0].OverlapCount15m)
-	require.Equal(t, 10.0, got.Items[0].MaxOverlapSeconds15m)
-	require.Equal(t, int64(1), got.Items[0].IPUsages[0].OverlapCount15m)
+	require.Equal(t, int64(1), got.HighRiskKeys)
+	require.Equal(t, "high", got.Items[0].RiskLevel)
+	require.Equal(t, int64(2), got.Items[0].OverlapCount15m)
+	require.Equal(t, 15.0, got.Items[0].MaxOverlapSeconds15m)
+	require.Equal(t, int64(2), got.Items[0].IPUsages[0].OverlapCount15m)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -936,6 +940,9 @@ func TestUsageLogRepositoryGetAPIKeyIPOverlaps(t *testing.T) {
 	repo := &usageLogRepository{sql: db}
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := start.Add(24 * time.Hour)
+	mock.ExpectQuery(`SELECT COALESCE\(\(SELECT value FROM settings WHERE key = \$1\), ''\)`).
+		WithArgs(service.SettingKeyAPIKeyIPRiskSettings).
+		WillReturnRows(sqlmock.NewRows([]string{"value"}).AddRow(""))
 	rows := sqlmock.NewRows([]string{"id", "ip_address", "created_at", "duration_ms"}).
 		AddRow(int64(1), "203.0.113.8", start.Add(20*time.Second), int64(20_000)).
 		AddRow(int64(2), "198.51.100.2", start.Add(30*time.Second), int64(20_000)).
