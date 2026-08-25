@@ -664,15 +664,67 @@ func (h *DashboardHandler) GetAPIKeySpendingRanking(c *gin.Context) {
 	response.Success(c, payload)
 }
 
+func parseIPActivityTimeRange(c *gin.Context, now time.Time) (time.Time, time.Time, error) {
+	startDate, endDate := strings.TrimSpace(c.Query("start_date")), strings.TrimSpace(c.Query("end_date"))
+	if startDate == "" && endDate == "" {
+		return now.Add(-24 * time.Hour), now, nil
+	}
+	if startDate == "" || endDate == "" {
+		return time.Time{}, time.Time{}, errors.New("start_date and end_date must be provided together")
+	}
+	userTZ := c.Query("timezone")
+	startTime, err := timezone.ParseInUserLocation("2006-01-02", startDate, userTZ)
+	if err != nil {
+		return time.Time{}, time.Time{}, errors.New("invalid start_date, use YYYY-MM-DD")
+	}
+	endDay, err := timezone.ParseInUserLocation("2006-01-02", endDate, userTZ)
+	if err != nil {
+		return time.Time{}, time.Time{}, errors.New("invalid end_date, use YYYY-MM-DD")
+	}
+	endTime := endDay.AddDate(0, 0, 1)
+	if !startTime.Before(endTime) {
+		return time.Time{}, time.Time{}, errors.New("start_date must not be after end_date")
+	}
+	if endTime.After(startTime.AddDate(0, 0, 31)) {
+		return time.Time{}, time.Time{}, errors.New("date range must not exceed 31 days")
+	}
+	return startTime, endTime, nil
+}
+
 // GetAPIKeyIPActivity reports overlapping requests from different IPs per API key.
 func (h *DashboardHandler) GetAPIKeyIPActivity(c *gin.Context) {
 	limit := parseRankingLimit(c.DefaultQuery("limit", "100"))
-	activity, err := h.dashboardService.GetAPIKeyIPActivity(c.Request.Context(), time.Now().UTC(), limit)
+	now := time.Now().UTC()
+	startTime, endTime, err := parseIPActivityTimeRange(c, now)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	activity, err := h.dashboardService.GetAPIKeyIPActivity(c.Request.Context(), startTime, endTime, now, limit)
 	if err != nil {
 		response.Error(c, 500, "Failed to get API key IP activity")
 		return
 	}
 	response.Success(c, activity)
+}
+
+func (h *DashboardHandler) GetAPIKeyIPOverlaps(c *gin.Context) {
+	apiKeyID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || apiKeyID <= 0 {
+		response.BadRequest(c, "Invalid API key ID")
+		return
+	}
+	startTime, endTime, err := parseIPActivityTimeRange(c, time.Now().UTC())
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	overlaps, err := h.dashboardService.GetAPIKeyIPOverlaps(c.Request.Context(), apiKeyID, startTime, endTime, parseRankingLimit(c.DefaultQuery("limit", "50")))
+	if err != nil {
+		response.Error(c, 500, "Failed to get API key IP overlaps")
+		return
+	}
+	response.Success(c, overlaps)
 }
 
 // GetBatchUsersUsage handles getting usage stats for multiple users

@@ -239,6 +239,18 @@ type APIKeyIPActivityResponse struct {
 	GeneratedAt  string                 `json:"generated_at"`
 }
 
+type APIKeyIPOverlap struct {
+	IPA            string  `json:"ip_a"`
+	IPB            string  `json:"ip_b"`
+	OverlapStartAt string  `json:"overlap_start_at"`
+	OverlapEndAt   string  `json:"overlap_end_at"`
+	OverlapSeconds float64 `json:"overlap_seconds"`
+}
+
+type APIKeyIPOverlapResponse struct {
+	Items []APIKeyIPOverlap `json:"items"`
+}
+
 // UserBreakdownItem represents per-user usage breakdown within a dimension (group, model, endpoint).
 type UserBreakdownItem struct {
 	UserID       int64   `json:"user_id"`
