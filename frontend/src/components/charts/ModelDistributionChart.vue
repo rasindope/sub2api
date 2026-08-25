@@ -334,13 +334,13 @@
     >
       {{ t('admin.dashboard.noDataAvailable') }}
     </div>
+    <ApiKeyIpDetailsDialog
+      :show="selectedApiKeyIPItem !== null"
+      :item="selectedApiKeyIPItem"
+      @close="selectedApiKeyIPItem = null"
+      @geo-failed="emit('ip-geo-batch-failed')"
+    />
   </div>
-  <ApiKeyIpDetailsDialog
-    :show="selectedApiKeyIPItem !== null"
-    :item="selectedApiKeyIPItem"
-    @close="selectedApiKeyIPItem = null"
-    @geo-failed="emit('ip-geo-batch-failed')"
-  />
 </template>
 
 <script setup lang="ts">

@@ -131,6 +131,16 @@ describe('ModelDistributionChart', () => {
     expect(label).toBe('model-a: 1.00K (66.7%)')
   })
 
+  it('forwards the dashboard two-column class to its single card root', () => {
+    const wrapper = mount(ModelDistributionChart, {
+      attrs: { class: 'lg:col-span-2' },
+      props: { modelStats },
+      global: { stubs: { LoadingSpinner: true } },
+    })
+
+    expect(wrapper.classes()).toContain('lg:col-span-2')
+  })
+
   it('uses actual_cost and reorders rows in actual cost mode', () => {
     const wrapper = mount(ModelDistributionChart, {
       props: {
