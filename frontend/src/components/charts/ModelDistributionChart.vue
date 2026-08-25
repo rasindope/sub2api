@@ -204,15 +204,15 @@
         <div class="h-48 w-48 shrink-0">
           <Doughnut :data="rankingChartData" :options="rankingDoughnutOptions" />
         </div>
-        <div class="max-h-48 w-full min-w-0 flex-1 overflow-auto">
-          <table class="w-full table-fixed text-[11px] sm:text-xs" :class="showApiKeyExtendedColumns ? 'lg:min-w-[640px]' : ''">
+        <div class="max-h-48 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+          <table class="w-full table-fixed text-[11px] sm:text-xs">
           <thead>
             <tr class="text-gray-500 dark:text-gray-400">
-              <th :class="showApiKeyExtendedColumns ? 'w-[28%]' : isApiKeyRankingView ? 'w-[32%]' : 'w-[40%]'" class="pb-2 text-left">{{ activeRankingNameHeader }}</th>
-              <th :class="showApiKeyExtendedColumns ? 'w-[14%]' : isApiKeyRankingView ? 'w-[16%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingRequests') }}</th>
-              <th v-if="isApiKeyRankingView" :class="showApiKeyExtendedColumns ? 'w-[16%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingAverageDuration') }}</th>
-              <th :class="showApiKeyExtendedColumns ? 'w-[14%]' : isApiKeyRankingView ? 'w-[16%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingTokens') }}</th>
-              <th :class="showApiKeyExtendedColumns ? 'w-[14%]' : isApiKeyRankingView ? 'w-[16%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingSpend') }}</th>
+              <th :class="showApiKeyExtendedColumns ? 'w-[28%]' : isApiKeyRankingView ? 'w-[38%]' : 'w-[40%]'" class="pb-2 text-left">{{ activeRankingNameHeader }}</th>
+              <th :class="showApiKeyExtendedColumns ? 'w-[14%]' : isApiKeyRankingView ? 'w-[14%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingRequests') }}</th>
+              <th v-if="isApiKeyRankingView" :class="showApiKeyExtendedColumns ? 'w-[16%]' : 'w-[18%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingAverageDuration') }}</th>
+              <th :class="showApiKeyExtendedColumns ? 'w-[14%]' : isApiKeyRankingView ? 'w-[15%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingTokens') }}</th>
+              <th :class="showApiKeyExtendedColumns ? 'w-[14%]' : isApiKeyRankingView ? 'w-[15%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingSpend') }}</th>
               <th v-if="showApiKeyExtendedColumns" class="w-[14%] pb-2 text-right">{{ t('admin.dashboard.spendingRankingShare') }}</th>
             </tr>
           </thead>
@@ -220,8 +220,11 @@
             <template v-for="(item, index) in activeRankingDisplayItems" :key="getRankingRowKey(item, index)">
               <tr
                 class="border-t border-gray-100 transition-colors dark:border-dark-700"
+                :data-testid="item.isOther ? 'other-ranking-row' : undefined"
                 :class="item.isOther
-                  ? 'bg-gray-50/70 dark:bg-dark-700/20'
+                  ? canExpandOtherRanking
+                    ? 'cursor-pointer bg-gray-50/70 hover:bg-gray-100 dark:bg-dark-700/20 dark:hover:bg-dark-700/40'
+                    : 'bg-gray-50/70 dark:bg-dark-700/20'
                   : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-700/40'"
                 @click="handleRankingClick(item)"
               >
@@ -233,6 +236,7 @@
                     <button
                       v-if="isApiKeyRankingItem(item) && !item.isOther"
                       type="button"
+                      data-testid="api-key-model-toggle"
                       class="flex min-w-0 items-center gap-1 text-left font-medium text-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                       :aria-expanded="expandedApiKeyID === item.api_key_id"
                       :aria-controls="`api-key-models-${item.api_key_id}`"
@@ -243,25 +247,33 @@
                         size="xs"
                         class="shrink-0 text-gray-400"
                       />
-                      <span class="block max-w-[180px] truncate" :title="getRankingRowLabel(item)">
+                      <span class="min-w-0 truncate" :title="getRankingRowLabel(item)">
                         {{ getRankingRowLabel(item) }}
                       </span>
                     </button>
                     <button
                       v-if="isApiKeyRankingItem(item) && !item.isOther"
                       type="button"
-                      class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors"
+                      data-testid="api-key-ip-source"
+                      class="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors"
                       :class="getIPCountClass(item.distinct_ip_count ?? 0)"
                       :title="t('admin.dashboard.ipDetailsOpen')"
                       @click.stop="openApiKeyIPDetails(item)"
                     >
+                      <Icon name="globe" size="xs" />
                       {{ t('admin.dashboard.ipCountShort', { count: item.distinct_ip_count ?? 0 }) }}
                     </button>
                     <span
                       v-else
-                      class="block max-w-[180px] truncate font-medium text-gray-900 dark:text-white"
+                      class="flex min-w-0 flex-1 items-center gap-1 truncate font-medium text-gray-900 dark:text-white"
                       :title="getRankingRowLabel(item)"
                     >
+                      <Icon
+                        v-if="item.isOther && canExpandOtherRanking"
+                        :name="otherRankingExpanded ? 'chevronDown' : 'chevronRight'"
+                        size="xs"
+                        class="shrink-0 text-gray-400"
+                      />
                       {{ getRankingRowLabel(item) }}
                     </span>
                   </div>
@@ -316,6 +328,47 @@
                           <td class="py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatTokens(model.total_tokens) }}</td>
                           <td class="py-1.5 text-right text-green-600 dark:text-green-400">${{ formatCost(model.actual_cost) }}</td>
                           <td class="py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatApiKeyModelShare(model.actual_cost) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </td>
+              </tr>
+              <tr
+                v-if="item.isOther && otherRankingExpanded && canExpandOtherRanking"
+                data-testid="api-key-overflow-ranking"
+              >
+                <td :colspan="apiKeyRankingColspan" class="p-0">
+                  <div class="max-h-72 overflow-y-auto overflow-x-hidden bg-gray-50/70 px-2 py-2 dark:bg-dark-700/30 sm:px-6">
+                    <table class="w-full table-fixed text-[10px] sm:text-xs">
+                      <tbody>
+                        <tr
+                          v-for="(overflowItem, overflowIndex) in apiKeyOverflowItems"
+                          :key="`overflow-api-key-${overflowItem.api_key_id}`"
+                          class="border-t border-gray-200/70 first:border-t-0 dark:border-dark-600/70"
+                        >
+                          <td class="w-[38%] py-1.5">
+                            <div class="flex min-w-0 items-center gap-2">
+                              <span class="shrink-0 font-semibold text-gray-400">#{{ rankingDisplayLimit + overflowIndex + 1 }}</span>
+                              <span class="min-w-0 truncate font-medium text-gray-700 dark:text-gray-200" :title="getRankingApiKeyLabel(overflowItem)">
+                                {{ getRankingApiKeyLabel(overflowItem) }}
+                              </span>
+                              <button
+                                type="button"
+                                class="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors"
+                                :class="getIPCountClass(overflowItem.distinct_ip_count ?? 0)"
+                                :title="t('admin.dashboard.ipDetailsOpen')"
+                                @click.stop="openApiKeyIPDetails(overflowItem)"
+                              >
+                                <Icon name="globe" size="xs" />
+                                {{ t('admin.dashboard.ipCountShort', { count: overflowItem.distinct_ip_count ?? 0 }) }}
+                              </button>
+                            </div>
+                          </td>
+                          <td class="w-[14%] py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatNumber(overflowItem.requests) }}</td>
+                          <td class="w-[18%] py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatAverageDuration(overflowItem.average_duration_ms) }}</td>
+                          <td class="w-[15%] py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatTokens(overflowItem.tokens) }}</td>
+                          <td class="w-[15%] py-1.5 text-right text-green-600 dark:text-green-400">${{ formatCost(overflowItem.actual_cost) }}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -426,7 +479,9 @@ const props = withDefaults(defineProps<{
   wideRankingLayout: false
 })
 
+const rankingDisplayLimit = 12
 const expandedKey = ref<string | null>(null)
+const otherRankingExpanded = ref(false)
 const breakdownItems = ref<UserBreakdownItem[]>([])
 const breakdownLoading = ref(false)
 const expandedApiKeyID = ref<number | null>(null)
@@ -545,8 +600,11 @@ const rankingChartData = computed(() => {
 })
 
 const activeRankingItems = computed<RankingDisplayItem[]>(() => activeView.value === 'api_key_spending_ranking'
-  ? props.apiKeyRankingItems
+  ? props.apiKeyRankingItems.slice(0, rankingDisplayLimit)
   : props.rankingItems)
+
+const apiKeyOverflowItems = computed(() => props.apiKeyRankingItems.slice(rankingDisplayLimit))
+const canExpandOtherRanking = computed(() => isApiKeyRankingView.value && apiKeyOverflowItems.value.length > 0)
 
 const activeRankingTotals = computed(() => activeView.value === 'api_key_spending_ranking'
   ? {
@@ -749,7 +807,10 @@ const openApiKeyIPDetails = (item: ApiKeySpendingRankingItem) => {
 }
 
 const handleRankingClick = (item: RankingDisplayItem) => {
-  if (item.isOther) return
+  if (item.isOther) {
+    if (canExpandOtherRanking.value) otherRankingExpanded.value = !otherRankingExpanded.value
+    return
+  }
   if (isApiKeyRankingItem(item)) {
     void selectApiKeyModels(item)
     return
@@ -806,6 +867,7 @@ const getRankingAverageDuration = (item: RankingDisplayItem): number | undefined
 }
 
 watch(() => props.apiKeyRankingItems, (items) => {
+  otherRankingExpanded.value = false
   if (!items.some((item) => item.api_key_id === expandedApiKeyID.value)) {
     expandedApiKeyID.value = null
     apiKeyModelStats.value = []
