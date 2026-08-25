@@ -8,11 +8,16 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 func (r *usageLogRepository) GetAPIKeyIPActivity(ctx context.Context, startTime, endTime, now time.Time, limit int) (result *usagestats.APIKeyIPActivityResponse, err error) {
 	if limit <= 0 {
 		limit = 100
+	}
+	settings, err := r.getAPIKeyIPRiskSettings(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	rows, err := r.sql.QueryContext(ctx, `
@@ -74,7 +79,7 @@ func (r *usageLogRepository) GetAPIKeyIPActivity(ctx context.Context, startTime,
 	if err = rows.Close(); err != nil {
 		return nil, err
 	}
-	if err = r.applyAPIKeyIPRangeOverlaps(ctx, startTime, endTime, result); err != nil {
+	if err = r.applyAPIKeyIPRangeOverlaps(ctx, startTime, endTime, result, settings); err != nil {
 		return nil, err
 	}
 	sort.SliceStable(result.Items, func(i, j int) bool {
@@ -116,7 +121,25 @@ func apiKeyIPRiskRank(risk string) int {
 	}
 }
 
-func (r *usageLogRepository) applyAPIKeyIPRangeOverlaps(ctx context.Context, startTime, endTime time.Time, result *usagestats.APIKeyIPActivityResponse) (err error) {
+func (r *usageLogRepository) getAPIKeyIPRiskSettings(ctx context.Context) (service.APIKeyIPRiskSettings, error) {
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT COALESCE((SELECT value FROM settings WHERE key = $1), '')
+	`, service.SettingKeyAPIKeyIPRiskSettings)
+	if err != nil {
+		return service.APIKeyIPRiskSettings{}, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return service.DefaultAPIKeyIPRiskSettings(), rows.Err()
+	}
+	var raw string
+	if err := rows.Scan(&raw); err != nil {
+		return service.APIKeyIPRiskSettings{}, err
+	}
+	return service.ParseAPIKeyIPRiskSettings(raw), nil
+}
+
+func (r *usageLogRepository) applyAPIKeyIPRangeOverlaps(ctx context.Context, startTime, endTime time.Time, result *usagestats.APIKeyIPActivityResponse, settings service.APIKeyIPRiskSettings) (err error) {
 	if result == nil || len(result.Items) == 0 {
 		return nil
 	}
@@ -151,7 +174,7 @@ func (r *usageLogRepository) applyAPIKeyIPRangeOverlaps(ctx context.Context, sta
 		overlapIPs := make(map[string]struct{})
 		perIP := make(map[string]*apiKeyIPOverlapStat)
 		var lastOverlap time.Time
-		forEachAPIKeyIPOverlap(requests, func(event apiKeyIPOverlapEvent) {
+		forEachAPIKeyIPOverlap(requests, time.Duration(settings.MinimumOverlapSeconds)*time.Second, func(event apiKeyIPOverlapEvent) {
 			seconds := event.endAt.Sub(event.startAt).Seconds()
 			item.OverlapCount15m++
 			item.TotalOverlapSeconds15m += seconds
@@ -188,7 +211,8 @@ func (r *usageLogRepository) applyAPIKeyIPRangeOverlaps(ctx context.Context, sta
 				item.IPUsages[i].LastOverlapAt = stat.last.UTC().Format(time.RFC3339Nano)
 			}
 		}
-		if item.OverlapIPCount15m >= 3 || (item.OverlapCount15m >= 3 && item.TotalOverlapSeconds15m >= 30) {
+		if item.MaxOverlapSeconds15m >= float64(settings.HighSingleOverlapSecs) ||
+			(item.OverlapCount15m >= int64(settings.HighOverlapCount) && item.TotalOverlapSeconds15m >= float64(settings.HighTotalOverlapSecs)) {
 			item.RiskLevel = "high"
 		} else if item.OverlapCount15m > 0 {
 			item.RiskLevel = "watch"
@@ -260,7 +284,7 @@ func (h *apiKeyIPOverlapHeap) Pop() any {
 	return last
 }
 
-func forEachAPIKeyIPOverlap(requests []apiKeyIPRequestInterval, visit func(apiKeyIPOverlapEvent)) {
+func forEachAPIKeyIPOverlap(requests []apiKeyIPRequestInterval, minimumOverlap time.Duration, visit func(apiKeyIPOverlapEvent)) {
 	active := &apiKeyIPActiveHeap{}
 	heap.Init(active)
 	for _, request := range requests {
@@ -275,7 +299,7 @@ func forEachAPIKeyIPOverlap(requests []apiKeyIPRequestInterval, visit func(apiKe
 			if previous.endAt.Before(endAt) {
 				endAt = previous.endAt
 			}
-			if endAt.Sub(request.startAt) >= 5*time.Second {
+			if endAt.Sub(request.startAt) >= minimumOverlap {
 				visit(apiKeyIPOverlapEvent{ipA: previous.ip, ipB: request.ip, startAt: request.startAt, endAt: endAt})
 			}
 		}
@@ -286,6 +310,10 @@ func forEachAPIKeyIPOverlap(requests []apiKeyIPRequestInterval, visit func(apiKe
 func (r *usageLogRepository) GetAPIKeyIPOverlaps(ctx context.Context, apiKeyID int64, startTime, endTime time.Time, limit int) (result *usagestats.APIKeyIPOverlapResponse, err error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
+	}
+	settings, err := r.getAPIKeyIPRiskSettings(ctx)
+	if err != nil {
+		return nil, err
 	}
 	rows, err := r.sql.QueryContext(ctx, `
 		SELECT id, BTRIM(ip_address), created_at, duration_ms
@@ -326,7 +354,7 @@ func (r *usageLogRepository) GetAPIKeyIPOverlaps(ctx context.Context, apiKeyID i
 	})
 	recent := &apiKeyIPOverlapHeap{}
 	heap.Init(recent)
-	forEachAPIKeyIPOverlap(requests, func(event apiKeyIPOverlapEvent) {
+	forEachAPIKeyIPOverlap(requests, time.Duration(settings.MinimumOverlapSeconds)*time.Second, func(event apiKeyIPOverlapEvent) {
 		if recent.Len() < limit {
 			heap.Push(recent, event)
 		} else if oldest := (*recent)[0]; event.endAt.After(oldest.endAt) ||

@@ -7,10 +7,43 @@
         <button type="button" class="btn btn-secondary" :class="onlyIssues ? 'ring-2 ring-amber-400/40' : ''" @click="onlyIssues = !onlyIssues">
           {{ t('admin.proxies.ipActivity.onlyIssues') }}
         </button>
+        <button type="button" class="btn btn-secondary" :class="thresholdsOpen ? 'ring-2 ring-primary-400/40' : ''" @click="toggleThresholds">
+          {{ t('admin.proxies.ipActivity.thresholds') }}
+        </button>
         <button type="button" class="btn btn-secondary" :disabled="loading" @click="load">
           {{ loading ? t('common.loading') : t('common.refresh') }}
         </button>
       </div>
+    </div>
+
+    <div v-if="thresholdsOpen" class="mb-4 rounded-xl border border-primary-200 bg-primary-50/40 p-4 dark:border-primary-500/20 dark:bg-primary-500/5">
+      <div v-if="thresholdsLoading" class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">{{ t('common.loading') }}</div>
+      <form v-else @submit.prevent="saveThresholds">
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <label class="block">
+            <span class="input-label">{{ t('admin.proxies.ipActivity.minimumOverlap') }}</span>
+            <input v-model.number="thresholds.minimum_overlap_seconds" type="number" min="1" max="3600" required class="input" />
+          </label>
+          <label class="block">
+            <span class="input-label">{{ t('admin.proxies.ipActivity.highSingleOverlap') }}</span>
+            <input v-model.number="thresholds.high_single_overlap_seconds" type="number" :min="thresholds.minimum_overlap_seconds" max="86400" required class="input" />
+          </label>
+          <label class="block">
+            <span class="input-label">{{ t('admin.proxies.ipActivity.highOverlapCount') }}</span>
+            <input v-model.number="thresholds.high_overlap_count" type="number" min="1" max="100000" required class="input" />
+          </label>
+          <label class="block">
+            <span class="input-label">{{ t('admin.proxies.ipActivity.highTotalOverlap') }}</span>
+            <input v-model.number="thresholds.high_total_overlap_seconds" type="number" :min="thresholds.minimum_overlap_seconds" max="10000000" required class="input" />
+          </label>
+        </div>
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.ipActivity.thresholdDescription') }}</p>
+          <button type="submit" class="btn btn-primary btn-sm" :disabled="thresholdsSaving">
+            {{ thresholdsSaving ? t('common.saving') : t('common.save') }}
+          </button>
+        </div>
+      </form>
     </div>
 
     <div class="mb-4 grid grid-cols-3 gap-2 sm:gap-4">
@@ -68,14 +101,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import ApiKeyIpDetailsDialog from '@/components/charts/ApiKeyIpDetailsDialog.vue'
+import { extractApiErrorMessage } from '@/utils/apiError'
 import type { ApiKeyIPActivityItem, ApiKeyIPActivityResponse, ApiKeyIPRiskLevel } from '@/types'
+import type { APIKeyIPRiskSettings } from '@/api/admin/settings'
 
 const { t } = useI18n()
 const props = defineProps<{ show: boolean }>()
@@ -83,6 +118,11 @@ const emit = defineEmits<{ close: []; updated: [value: ApiKeyIPActivityResponse]
 const appStore = useAppStore()
 const loading = ref(false)
 const onlyIssues = ref(false)
+const thresholdsOpen = ref(false)
+const thresholdsLoading = ref(false)
+const thresholdsSaving = ref(false)
+const thresholdsLoaded = ref(false)
+const thresholds = reactive<APIKeyIPRiskSettings>({ minimum_overlap_seconds: 5, high_single_overlap_seconds: 60, high_overlap_count: 10, high_total_overlap_seconds: 120 })
 const selected = ref<ApiKeyIPActivityItem | null>(null)
 const data = ref<ApiKeyIPActivityResponse>({ items: [], active_keys: 0, watch_keys: 0, high_risk_keys: 0, generated_at: '' })
 const formatDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -110,6 +150,32 @@ const riskClass = (risk: ApiKeyIPRiskLevel) => ({
   watch: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
   high: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300'
 })[risk]
+
+const toggleThresholds = async () => {
+  thresholdsOpen.value = !thresholdsOpen.value
+  if (!thresholdsOpen.value || thresholdsLoaded.value) return
+  thresholdsLoading.value = true
+  try {
+    Object.assign(thresholds, await adminAPI.settings.getAPIKeyIPRiskSettings())
+    thresholdsLoaded.value = true
+  }
+  catch (error: unknown) {
+    thresholdsOpen.value = false
+    appStore.showError(extractApiErrorMessage(error, t('admin.proxies.ipActivity.thresholdLoadFailed')))
+  }
+  finally { thresholdsLoading.value = false }
+}
+
+const saveThresholds = async () => {
+  thresholdsSaving.value = true
+  try {
+    Object.assign(thresholds, await adminAPI.settings.updateAPIKeyIPRiskSettings({ ...thresholds }))
+    appStore.showSuccess(t('admin.proxies.ipActivity.thresholdSaved'))
+    load()
+  }
+  catch (error: unknown) { appStore.showError(extractApiErrorMessage(error, t('admin.proxies.ipActivity.thresholdSaveFailed'))) }
+  finally { thresholdsSaving.value = false }
+}
 
 const stopPolling = () => { if (timer) clearInterval(timer); timer = undefined }
 const syncPolling = () => {

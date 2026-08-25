@@ -245,6 +245,28 @@ func (h *SettingHandler) UpdatePanelRateLimitSettings(c *gin.Context) {
 	})
 }
 
+func (h *SettingHandler) GetAPIKeyIPRiskSettings(c *gin.Context) {
+	settings, err := h.settingService.GetAPIKeyIPRiskSettings(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, settings)
+}
+
+func (h *SettingHandler) UpdateAPIKeyIPRiskSettings(c *gin.Context) {
+	var settings service.APIKeyIPRiskSettings
+	if err := c.ShouldBindJSON(&settings); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if err := h.settingService.SetAPIKeyIPRiskSettings(c.Request.Context(), settings); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.Success(c, settings)
+}
+
 // GetStreamTimeoutSettings 获取流超时处理配置
 // GET /api/v1/admin/settings/stream-timeout
 func (h *SettingHandler) GetStreamTimeoutSettings(c *gin.Context) {
