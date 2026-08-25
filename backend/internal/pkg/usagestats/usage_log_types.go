@@ -185,10 +185,14 @@ type AccountSpendingRankingResponse struct {
 
 // APIKeySpendingRankingItem represents an API key spending ranking row.
 type APIKeyIPUsage struct {
-	IPAddress   string `json:"ip_address"`
-	Requests    int64  `json:"requests"`
-	FirstSeenAt string `json:"first_seen_at"`
-	LastSeenAt  string `json:"last_seen_at"`
+	IPAddress            string  `json:"ip_address"`
+	Requests             int64   `json:"requests"`
+	FirstSeenAt          string  `json:"first_seen_at"`
+	LastSeenAt           string  `json:"last_seen_at"`
+	Active15m            bool    `json:"active_15m,omitempty"`
+	OverlapCount15m      int64   `json:"overlap_count_15m,omitempty"`
+	MaxOverlapSeconds15m float64 `json:"max_overlap_seconds_15m,omitempty"`
+	LastOverlapAt        string  `json:"last_overlap_at,omitempty"`
 }
 
 type APIKeySpendingRankingItem struct {
@@ -210,6 +214,29 @@ type APIKeySpendingRankingResponse struct {
 	TotalActualCost float64                     `json:"total_actual_cost"`
 	TotalRequests   int64                       `json:"total_requests"`
 	TotalTokens     int64                       `json:"total_tokens"`
+}
+
+type APIKeyIPActivityItem struct {
+	APIKeyID               int64           `json:"api_key_id"`
+	KeyName                string          `json:"key_name"`
+	Requests               int64           `json:"requests"`
+	DistinctIPCount        int64           `json:"distinct_ip_count"`
+	ActiveIPCount15m       int64           `json:"active_ip_count_15m"`
+	OverlapIPCount15m      int64           `json:"overlap_ip_count_15m"`
+	OverlapCount15m        int64           `json:"overlap_count_15m"`
+	TotalOverlapSeconds15m float64         `json:"total_overlap_seconds_15m"`
+	MaxOverlapSeconds15m   float64         `json:"max_overlap_seconds_15m"`
+	LastOverlapAt          string          `json:"last_overlap_at"`
+	RiskLevel              string          `json:"risk_level"`
+	IPUsages               []APIKeyIPUsage `json:"ip_usages"`
+}
+
+type APIKeyIPActivityResponse struct {
+	Items        []APIKeyIPActivityItem `json:"items"`
+	ActiveKeys   int64                  `json:"active_keys"`
+	WatchKeys    int64                  `json:"watch_keys"`
+	HighRiskKeys int64                  `json:"high_risk_keys"`
+	GeneratedAt  string                 `json:"generated_at"`
 }
 
 // UserBreakdownItem represents per-user usage breakdown within a dimension (group, model, endpoint).

@@ -35,6 +35,8 @@ type dashboardUsageRepoCapture struct {
 	keyRankingLimit       int
 	keyRanking            []usagestats.APIKeySpendingRankingItem
 	keyRankingTotal       float64
+	ipActivityLimit       int
+	ipActivity            *usagestats.APIKeyIPActivityResponse
 }
 
 func (s *dashboardUsageRepoCapture) GetUsageTrendWithUsageFilters(
@@ -144,6 +146,15 @@ func (s *dashboardUsageRepoCapture) GetAPIKeySpendingRanking(
 	}, nil
 }
 
+func (s *dashboardUsageRepoCapture) GetAPIKeyIPActivity(
+	ctx context.Context,
+	now time.Time,
+	limit int,
+) (*usagestats.APIKeyIPActivityResponse, error) {
+	s.ipActivityLimit = limit
+	return s.ipActivity, nil
+}
+
 func newDashboardRequestTypeTestRouter(repo *dashboardUsageRepoCapture) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	dashboardSvc := service.NewDashboardService(repo, nil, nil, nil)
@@ -155,6 +166,7 @@ func newDashboardRequestTypeTestRouter(repo *dashboardUsageRepoCapture) *gin.Eng
 	router.GET("/admin/dashboard/users-ranking", handler.GetUserSpendingRanking)
 	router.GET("/admin/dashboard/accounts-ranking", handler.GetAccountSpendingRanking)
 	router.GET("/admin/dashboard/api-keys-ranking", handler.GetAPIKeySpendingRanking)
+	router.GET("/admin/dashboard/api-keys-ip-activity", handler.GetAPIKeyIPActivity)
 	return router
 }
 
@@ -404,6 +416,21 @@ func TestDashboardAPIKeysRankingLimitAndCache(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec2.Code)
 	require.Equal(t, "hit", rec2.Header().Get("X-Snapshot-Cache"))
+}
+
+func TestDashboardAPIKeyIPActivity(t *testing.T) {
+	repo := &dashboardUsageRepoCapture{ipActivity: &usagestats.APIKeyIPActivityResponse{
+		Items:      []usagestats.APIKeyIPActivityItem{{APIKeyID: 9, KeyName: "client-a", RiskLevel: "watch", OverlapCount15m: 2}},
+		ActiveKeys: 1, WatchKeys: 1, GeneratedAt: "2025-01-01T00:00:00Z",
+	}}
+	router := newDashboardRequestTypeTestRouter(repo)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/dashboard/api-keys-ip-activity?limit=100", nil))
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, 50, repo.ipActivityLimit)
+	require.Contains(t, rec.Body.String(), `"risk_level":"watch"`)
+	require.Contains(t, rec.Body.String(), `"overlap_count_15m":2`)
 }
 
 func TestDashboardAccountsRankingLimitAndCache(t *testing.T) {

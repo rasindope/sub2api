@@ -424,6 +424,14 @@ func (s *DashboardService) GetAPIKeySpendingRanking(ctx context.Context, startTi
 	return ranking, nil
 }
 
+func (s *DashboardService) GetAPIKeyIPActivity(ctx context.Context, now time.Time, limit int) (*usagestats.APIKeyIPActivityResponse, error) {
+	activity, err := s.usageRepo.GetAPIKeyIPActivity(ctx, now, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get api key IP activity: %w", err)
+	}
+	return activity, nil
+}
+
 func (s *DashboardService) GetUserBreakdownStats(ctx context.Context, startTime, endTime time.Time, dim usagestats.UserBreakdownDimension, limit int) ([]usagestats.UserBreakdownItem, error) {
 	stats, err := s.usageRepo.GetUserBreakdownStats(ctx, startTime, endTime, dim, limit)
 	if err != nil {

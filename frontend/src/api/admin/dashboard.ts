@@ -14,6 +14,7 @@ import type {
   UserSpendingRankingResponse,
   AccountSpendingRankingResponse,
   ApiKeySpendingRankingResponse,
+  ApiKeyIPActivityResponse,
   UserBreakdownItem,
   UsageRequestType
 } from '@/types'
@@ -310,6 +311,11 @@ export async function getApiKeySpendingRanking(
   return data
 }
 
+export async function getApiKeyIPActivity(params?: { limit?: number }): Promise<ApiKeyIPActivityResponse> {
+  const { data } = await apiClient.get<ApiKeyIPActivityResponse>('/admin/dashboard/api-keys-ip-activity', { params })
+  return data
+}
+
 export interface PlatformUsage {
   platform: string
   today_actual_cost: number
@@ -378,6 +384,7 @@ export const dashboardAPI = {
   getUserSpendingRanking,
   getAccountSpendingRanking,
   getApiKeySpendingRanking,
+  getApiKeyIPActivity,
   getBatchUsersUsage,
   getBatchApiKeysUsage
 }

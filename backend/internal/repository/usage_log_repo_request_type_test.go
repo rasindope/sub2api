@@ -900,6 +900,33 @@ func TestUsageLogRepositoryGetAPIKeySpendingRankingIncludesIPUsage(t *testing.T)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUsageLogRepositoryGetAPIKeyIPActivity(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+	now := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	rows := sqlmock.NewRows([]string{
+		"api_key_id", "key_name", "requests", "distinct_ip_count", "active_ip_count_15m",
+		"overlap_ip_count_15m", "overlap_count_15m", "total_overlap_seconds_15m",
+		"max_overlap_seconds_15m", "last_overlap_at", "risk_level", "ip_usages",
+		"active_keys", "watch_keys", "high_risk_keys",
+	}).AddRow(int64(9), "client-a", int64(120), int64(3), int64(2), int64(2), int64(4), 34.5, 12.0,
+		"2025-01-01T11:59:00.000Z", "high",
+		`[{"ip_address":"203.0.113.8","requests":80,"first_seen_at":"2025-01-01T00:30:00.000Z","last_seen_at":"2025-01-01T11:59:00.000Z","active_15m":true,"overlap_count_15m":4,"max_overlap_seconds_15m":12,"last_overlap_at":"2025-01-01T11:59:00.000Z"}]`,
+		int64(1), int64(0), int64(1))
+
+	mock.ExpectQuery(`(?s)INTERVAL '15 minutes'.*overlap_seconds >= 5.*CASE WHEN.*risk_level`).
+		WithArgs(now, 50).
+		WillReturnRows(rows)
+
+	got, err := repo.GetAPIKeyIPActivity(context.Background(), now, 50)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), got.HighRiskKeys)
+	require.Equal(t, "high", got.Items[0].RiskLevel)
+	require.Equal(t, int64(4), got.Items[0].IPUsages[0].OverlapCount15m)
+	require.True(t, got.Items[0].IPUsages[0].Active15m)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestBuildRequestTypeFilterConditionLegacyFallback(t *testing.T) {
 	tests := []struct {
 		name      string
