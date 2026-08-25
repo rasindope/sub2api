@@ -906,26 +906,28 @@ func TestUsageLogRepositoryGetAPIKeyIPActivity(t *testing.T) {
 	now := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
 	start := now.Add(-24 * time.Hour)
 	end := now
-	rows := sqlmock.NewRows([]string{
-		"api_key_id", "key_name", "requests", "distinct_ip_count", "active_ip_count_15m",
-		"overlap_ip_count_15m", "overlap_count_15m", "total_overlap_seconds_15m",
-		"max_overlap_seconds_15m", "last_overlap_at", "risk_level", "ip_usages",
-		"active_keys", "watch_keys", "high_risk_keys",
-	}).AddRow(int64(9), "client-a", int64(120), int64(3), int64(2), int64(2), int64(4), 34.5, 12.0,
-		"2025-01-01T11:59:00.000Z", "high",
-		`[{"ip_address":"203.0.113.8","requests":80,"first_seen_at":"2025-01-01T00:30:00.000Z","last_seen_at":"2025-01-01T11:59:00.000Z","active_15m":true,"overlap_count_15m":4,"max_overlap_seconds_15m":12,"last_overlap_at":"2025-01-01T11:59:00.000Z"}]`,
-		int64(1), int64(0), int64(1))
-
-	mock.ExpectQuery(`(?s)created_at >= \$1::timestamptz.*created_at < \$2::timestamptz.*\$3::timestamptz.*INTERVAL '15 minutes'.*overlap_seconds >= 5.*CASE WHEN.*risk_level`).
-		WithArgs(start, end, now, 50).
+	rows := sqlmock.NewRows([]string{"api_key_id", "key_name", "requests", "distinct_ip_count", "ip_usages"}).
+		AddRow(int64(9), "client-a", int64(120), int64(3),
+			`[{"ip_address":"203.0.113.8","requests":80,"first_seen_at":"2025-01-01T00:30:00.000Z","last_seen_at":"2025-01-01T11:59:00.000Z"}]`)
+	mock.ExpectQuery(`(?s)WITH history AS \(.*created_at >= \$1::timestamptz.*created_at < \$2::timestamptz.*ORDER BY kh.requests DESC`).
+		WithArgs(start, end).
 		WillReturnRows(rows)
+
+	overlaps := sqlmock.NewRows([]string{"id", "api_key_id", "ip_address", "created_at", "duration_ms"}).
+		AddRow(int64(1), int64(9), "203.0.113.8", start.Add(20*time.Second), int64(20_000)).
+		AddRow(int64(2), int64(9), "198.51.100.2", start.Add(30*time.Second), int64(20_000))
+	mock.ExpectQuery(`(?s)SELECT id, api_key_id, BTRIM\(ip_address\), created_at, duration_ms.*ORDER BY api_key_id, created_at - duration_ms`).
+		WithArgs(start, end).
+		WillReturnRows(overlaps)
 
 	got, err := repo.GetAPIKeyIPActivity(context.Background(), start, end, now, 50)
 	require.NoError(t, err)
-	require.Equal(t, int64(1), got.HighRiskKeys)
-	require.Equal(t, "high", got.Items[0].RiskLevel)
-	require.Equal(t, int64(4), got.Items[0].IPUsages[0].OverlapCount15m)
-	require.True(t, got.Items[0].IPUsages[0].Active15m)
+	require.Equal(t, int64(1), got.ActiveKeys)
+	require.Equal(t, int64(1), got.WatchKeys)
+	require.Equal(t, "watch", got.Items[0].RiskLevel)
+	require.Equal(t, int64(1), got.Items[0].OverlapCount15m)
+	require.Equal(t, 10.0, got.Items[0].MaxOverlapSeconds15m)
+	require.Equal(t, int64(1), got.Items[0].IPUsages[0].OverlapCount15m)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

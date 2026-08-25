@@ -33,7 +33,6 @@
         <thead class="bg-gray-50 text-xs text-gray-500 dark:bg-dark-800 dark:text-gray-400">
           <tr>
             <th class="px-4 py-3 font-medium">Key</th><th class="px-4 py-3 font-medium">{{ t('admin.proxies.ipActivity.status') }}</th>
-            <th class="px-4 py-3 text-right font-medium">{{ t('admin.proxies.ipActivity.active15m') }}</th>
             <th class="px-4 py-3 text-right font-medium">{{ t('admin.proxies.ipActivity.rangeIPs') }}</th>
             <th class="px-4 py-3 text-right font-medium">{{ t('admin.proxies.ipActivity.overlaps') }}</th>
             <th class="px-4 py-3 text-right font-medium">{{ t('admin.proxies.ipActivity.maxOverlap') }}</th>
@@ -44,7 +43,6 @@
           <tr v-for="item in visibleItems" :key="item.api_key_id" class="hover:bg-gray-50 dark:hover:bg-dark-800/60">
             <td class="px-4 py-3 font-medium text-gray-900 dark:text-white">{{ label(item) }}</td>
             <td class="px-4 py-3"><span class="rounded-full px-2 py-1 text-xs font-medium" :class="riskClass(item.risk_level)">{{ riskLabel(item.risk_level) }}</span></td>
-            <td class="px-4 py-3 text-right tabular-nums">{{ item.active_ip_count_15m }}</td>
             <td class="px-4 py-3 text-right tabular-nums">{{ item.distinct_ip_count }}</td>
             <td class="px-4 py-3 text-right tabular-nums">{{ item.overlap_count_15m }}</td>
             <td class="px-4 py-3 text-right tabular-nums">{{ seconds(item.max_overlap_seconds_15m) }}</td>
@@ -57,8 +55,7 @@
     <div class="space-y-3 sm:hidden">
       <button v-for="item in visibleItems" :key="item.api_key_id" type="button" class="w-full rounded-xl border border-gray-200 bg-white p-4 text-left dark:border-dark-700 dark:bg-dark-900" @click="selected = item">
         <div class="flex items-center justify-between gap-2"><span class="truncate font-medium text-gray-900 dark:text-white">{{ label(item) }}</span><span class="rounded-full px-2 py-1 text-xs" :class="riskClass(item.risk_level)">{{ riskLabel(item.risk_level) }}</span></div>
-        <div class="mt-3 grid grid-cols-3 gap-2 text-center text-xs text-gray-500 dark:text-gray-400">
-          <div><strong class="block text-base text-gray-900 dark:text-white">{{ item.active_ip_count_15m }}</strong>{{ t('admin.proxies.ipActivity.active15m') }}</div>
+        <div class="mt-3 grid grid-cols-2 gap-2 text-center text-xs text-gray-500 dark:text-gray-400">
           <div><strong class="block text-base text-gray-900 dark:text-white">{{ item.distinct_ip_count }}</strong>{{ t('admin.proxies.ipActivity.rangeIPs') }}</div>
           <div><strong class="block text-base text-gray-900 dark:text-white">{{ item.overlap_count_15m }}</strong>{{ t('admin.proxies.ipActivity.overlaps') }}</div>
         </div>

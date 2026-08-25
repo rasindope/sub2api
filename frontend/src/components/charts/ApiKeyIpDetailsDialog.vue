@@ -17,10 +17,6 @@
         </div>
         <template v-if="getActivity(item)">
           <div>
-            <span class="text-gray-500 dark:text-gray-400">{{ t('admin.proxies.ipActivity.active15m') }}</span>
-            <span class="ml-2 font-semibold tabular-nums text-gray-900 dark:text-white">{{ getActivity(item)?.active_ip_count_15m }}</span>
-          </div>
-          <div>
             <span class="text-gray-500 dark:text-gray-400">{{ t('admin.proxies.ipActivity.overlaps') }}</span>
             <span class="ml-2 font-semibold tabular-nums text-amber-600 dark:text-amber-400">{{ getActivity(item)?.overlap_count_15m }}</span>
           </div>
@@ -37,7 +33,6 @@
         <div v-for="usage in item.ip_usages" :key="usage.ip_address" class="rounded-xl border border-gray-200 p-3 dark:border-dark-700">
           <div class="flex items-start justify-between gap-3">
             <div class="font-mono text-sm text-gray-900 dark:text-white">{{ usage.ip_address }}</div>
-            <span v-if="usage.active_15m" class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">{{ t('admin.proxies.ipActivity.active') }}</span>
           </div>
           <div class="mt-2"><IpGeoCell :ip="usage.ip_address" /></div>
           <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400">

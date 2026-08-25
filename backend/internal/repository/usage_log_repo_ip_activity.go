@@ -16,109 +16,36 @@ func (r *usageLogRepository) GetAPIKeyIPActivity(ctx context.Context, startTime,
 	}
 
 	rows, err := r.sql.QueryContext(ctx, `
-		WITH history AS (
-			SELECT id, api_key_id, BTRIM(ip_address) AS ip_address, created_at, duration_ms
-			FROM usage_logs
-			WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz
-				AND ip_address IS NOT NULL AND BTRIM(ip_address) <> ''
-		), active AS (
-			SELECT id, api_key_id, BTRIM(ip_address) AS ip_address, created_at, duration_ms,
-				created_at - duration_ms * INTERVAL '1 millisecond' AS started_at
-			FROM usage_logs
-			WHERE created_at >= $3::timestamptz - INTERVAL '15 minutes' AND created_at <= $3::timestamptz
-				AND duration_ms > 0 AND ip_address IS NOT NULL AND BTRIM(ip_address) <> ''
-		), overlap_pairs AS (
-			SELECT a.api_key_id, a.ip_address AS ip_a, b.ip_address AS ip_b,
-				EXTRACT(EPOCH FROM LEAST(a.created_at, b.created_at) - GREATEST(a.started_at, b.started_at)) AS overlap_seconds,
-				LEAST(a.created_at, b.created_at) AS overlap_at
-			FROM active a
-			JOIN active b ON b.api_key_id = a.api_key_id AND b.id > a.id AND b.ip_address <> a.ip_address
-				AND a.started_at < b.created_at AND b.started_at < a.created_at
-		), significant AS (
-			SELECT * FROM overlap_pairs WHERE overlap_seconds >= 5
-		), overlap_ips AS (
-			SELECT api_key_id, ip_a AS ip_address, overlap_seconds, overlap_at FROM significant
-			UNION ALL
-			SELECT api_key_id, ip_b AS ip_address, overlap_seconds, overlap_at FROM significant
-		), per_ip_history AS (
-			SELECT api_key_id, ip_address, COUNT(*) AS requests, MIN(created_at) AS first_seen_at,
-				MAX(created_at) AS last_seen_at
-			FROM history GROUP BY api_key_id, ip_address
-		), per_ip_overlap AS (
-			SELECT api_key_id, ip_address, COUNT(*) AS overlap_count_15m,
-				MAX(overlap_seconds) AS max_overlap_seconds_15m, MAX(overlap_at) AS last_overlap_at
-			FROM overlap_ips GROUP BY api_key_id, ip_address
-		), per_ip AS (
-			SELECT h.*, EXISTS (SELECT 1 FROM active a WHERE a.api_key_id = h.api_key_id AND a.ip_address = h.ip_address) AS active_15m,
-				COALESCE(o.overlap_count_15m, 0) AS overlap_count_15m,
-				COALESCE(o.max_overlap_seconds_15m, 0) AS max_overlap_seconds_15m,
-				o.last_overlap_at
-			FROM per_ip_history h
-			LEFT JOIN per_ip_overlap o ON o.api_key_id = h.api_key_id AND o.ip_address = h.ip_address
-		), ranked_ips AS (
-			SELECT *, ROW_NUMBER() OVER (PARTITION BY api_key_id ORDER BY requests DESC, last_seen_at DESC) AS ip_rank
-			FROM per_ip
-		), ip_json AS (
-			SELECT api_key_id, JSONB_AGG(JSONB_BUILD_OBJECT(
-				'ip_address', ip_address, 'requests', requests,
-				'first_seen_at', TO_CHAR(first_seen_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-				'last_seen_at', TO_CHAR(last_seen_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-				'active_15m', active_15m, 'overlap_count_15m', overlap_count_15m,
-				'max_overlap_seconds_15m', max_overlap_seconds_15m,
-				'last_overlap_at', COALESCE(TO_CHAR(last_overlap_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), '')
-			) ORDER BY requests DESC, last_seen_at DESC) FILTER (WHERE ip_rank <= 20) AS ip_usages
-			FROM ranked_ips GROUP BY api_key_id
-		), key_history AS (
-			SELECT api_key_id, COUNT(*) AS requests, COUNT(DISTINCT ip_address) AS distinct_ip_count
-			FROM history GROUP BY api_key_id
-		), key_active AS (
-			SELECT api_key_id, COUNT(DISTINCT ip_address) AS active_ip_count_15m FROM active GROUP BY api_key_id
-		), overlap_ip_counts AS (
-			SELECT api_key_id, COUNT(DISTINCT ip_address) AS overlap_ip_count_15m
-			FROM overlap_ips GROUP BY api_key_id
-		), key_overlap AS (
-			SELECT s.api_key_id, COUNT(*) AS overlap_count_15m, MAX(oi.overlap_ip_count_15m) AS overlap_ip_count_15m,
-				SUM(s.overlap_seconds) AS total_overlap_seconds_15m,
-				MAX(s.overlap_seconds) AS max_overlap_seconds_15m, MAX(s.overlap_at) AS last_overlap_at
-			FROM significant s
-			JOIN overlap_ip_counts oi ON oi.api_key_id = s.api_key_id
-			GROUP BY s.api_key_id
-		), key_ids AS (
-			SELECT api_key_id FROM key_history
-			UNION SELECT api_key_id FROM key_active
-		), activity AS (
-			SELECT ids.api_key_id, COALESCE(k.name, '') AS key_name, COALESCE(kh.requests, 0) AS requests,
-				COALESCE(kh.distinct_ip_count, 0) AS distinct_ip_count,
-				COALESCE(ka.active_ip_count_15m, 0) AS active_ip_count_15m,
-				COALESCE(ko.overlap_ip_count_15m, 0) AS overlap_ip_count_15m,
-				COALESCE(ko.overlap_count_15m, 0) AS overlap_count_15m,
-				COALESCE(ko.total_overlap_seconds_15m, 0) AS total_overlap_seconds_15m,
-				COALESCE(ko.max_overlap_seconds_15m, 0) AS max_overlap_seconds_15m,
-				ko.last_overlap_at, COALESCE(ij.ip_usages, '[]'::jsonb) AS ip_usages,
-				CASE WHEN COALESCE(ko.overlap_ip_count_15m, 0) >= 3
-					OR (COALESCE(ko.overlap_count_15m, 0) >= 3 AND COALESCE(ko.total_overlap_seconds_15m, 0) >= 30) THEN 'high'
-					WHEN COALESCE(ko.overlap_count_15m, 0) > 0 THEN 'watch' ELSE 'normal' END AS risk_level
-			FROM key_ids ids
-			LEFT JOIN key_history kh ON kh.api_key_id = ids.api_key_id
-			LEFT JOIN api_keys k ON k.id = ids.api_key_id
-			LEFT JOIN key_active ka ON ka.api_key_id = ids.api_key_id
-			LEFT JOIN key_overlap ko ON ko.api_key_id = ids.api_key_id
-			LEFT JOIN ip_json ij ON ij.api_key_id = ids.api_key_id
-		), limited AS (
-			SELECT * FROM activity ORDER BY CASE risk_level WHEN 'high' THEN 0 WHEN 'watch' THEN 1 ELSE 2 END,
-				active_ip_count_15m DESC, requests DESC LIMIT $4
-		)
-		SELECT api_key_id, key_name, requests, distinct_ip_count, active_ip_count_15m,
-			overlap_ip_count_15m, overlap_count_15m, total_overlap_seconds_15m,
-			max_overlap_seconds_15m,
-			COALESCE(TO_CHAR(last_overlap_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), ''),
-			risk_level, ip_usages,
-			COUNT(*) FILTER (WHERE active_ip_count_15m > 0) OVER (),
-			COUNT(*) FILTER (WHERE risk_level = 'watch') OVER (),
-			COUNT(*) FILTER (WHERE risk_level = 'high') OVER ()
-		FROM limited
-		ORDER BY CASE risk_level WHEN 'high' THEN 0 WHEN 'watch' THEN 1 ELSE 2 END, active_ip_count_15m DESC, requests DESC
-	`, startTime, endTime, now, limit)
+			WITH history AS (
+				SELECT api_key_id, BTRIM(ip_address) AS ip_address, created_at
+				FROM usage_logs
+				WHERE created_at >= $1::timestamptz AND created_at < $2::timestamptz
+					AND ip_address IS NOT NULL AND BTRIM(ip_address) <> ''
+			), per_ip_history AS (
+				SELECT api_key_id, ip_address, COUNT(*) AS requests, MIN(created_at) AS first_seen_at,
+					MAX(created_at) AS last_seen_at
+				FROM history GROUP BY api_key_id, ip_address
+			), ranked_ips AS (
+				SELECT *, ROW_NUMBER() OVER (PARTITION BY api_key_id ORDER BY requests DESC, last_seen_at DESC) AS ip_rank
+				FROM per_ip_history
+			), ip_json AS (
+				SELECT api_key_id, JSONB_AGG(JSONB_BUILD_OBJECT(
+					'ip_address', ip_address, 'requests', requests,
+					'first_seen_at', TO_CHAR(first_seen_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+					'last_seen_at', TO_CHAR(last_seen_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+				) ORDER BY requests DESC, last_seen_at DESC) FILTER (WHERE ip_rank <= 20) AS ip_usages
+				FROM ranked_ips GROUP BY api_key_id
+			), key_history AS (
+				SELECT api_key_id, COUNT(*) AS requests, COUNT(DISTINCT ip_address) AS distinct_ip_count
+				FROM history GROUP BY api_key_id
+			)
+			SELECT kh.api_key_id, COALESCE(k.name, ''), kh.requests, kh.distinct_ip_count,
+				COALESCE(ij.ip_usages, '[]'::jsonb)
+			FROM key_history kh
+			LEFT JOIN api_keys k ON k.id = kh.api_key_id
+			LEFT JOIN ip_json ij ON ij.api_key_id = kh.api_key_id
+			ORDER BY kh.requests DESC
+		`, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
@@ -133,10 +60,7 @@ func (r *usageLogRepository) GetAPIKeyIPActivity(ctx context.Context, startTime,
 	for rows.Next() {
 		var item usagestats.APIKeyIPActivityItem
 		var ipUsages []byte
-		if err = rows.Scan(&item.APIKeyID, &item.KeyName, &item.Requests, &item.DistinctIPCount,
-			&item.ActiveIPCount15m, &item.OverlapIPCount15m, &item.OverlapCount15m,
-			&item.TotalOverlapSeconds15m, &item.MaxOverlapSeconds15m, &item.LastOverlapAt,
-			&item.RiskLevel, &ipUsages, &result.ActiveKeys, &result.WatchKeys, &result.HighRiskKeys); err != nil {
+		if err = rows.Scan(&item.APIKeyID, &item.KeyName, &item.Requests, &item.DistinctIPCount, &ipUsages); err != nil {
 			return nil, err
 		}
 		if err = json.Unmarshal(ipUsages, &item.IPUsages); err != nil {
@@ -147,7 +71,150 @@ func (r *usageLogRepository) GetAPIKeyIPActivity(ctx context.Context, startTime,
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
+	if err = rows.Close(); err != nil {
+		return nil, err
+	}
+	if err = r.applyAPIKeyIPRangeOverlaps(ctx, startTime, endTime, result); err != nil {
+		return nil, err
+	}
+	sort.SliceStable(result.Items, func(i, j int) bool {
+		left, right := apiKeyIPRiskRank(result.Items[i].RiskLevel), apiKeyIPRiskRank(result.Items[j].RiskLevel)
+		if left != right {
+			return left < right
+		}
+		return result.Items[i].Requests > result.Items[j].Requests
+	})
+	result.ActiveKeys = int64(len(result.Items))
+	for _, item := range result.Items {
+		switch item.RiskLevel {
+		case "watch":
+			result.WatchKeys++
+		case "high":
+			result.HighRiskKeys++
+		}
+	}
+	if len(result.Items) > limit {
+		result.Items = result.Items[:limit]
+	}
 	return result, nil
+}
+
+type apiKeyIPOverlapStat struct {
+	count int64
+	max   float64
+	last  time.Time
+}
+
+func apiKeyIPRiskRank(risk string) int {
+	switch risk {
+	case "high":
+		return 0
+	case "watch":
+		return 1
+	default:
+		return 2
+	}
+}
+
+func (r *usageLogRepository) applyAPIKeyIPRangeOverlaps(ctx context.Context, startTime, endTime time.Time, result *usagestats.APIKeyIPActivityResponse) (err error) {
+	if result == nil || len(result.Items) == 0 {
+		return nil
+	}
+	items := make(map[int64]*usagestats.APIKeyIPActivityItem, len(result.Items))
+	for i := range result.Items {
+		items[result.Items[i].APIKeyID] = &result.Items[i]
+	}
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT id, api_key_id, BTRIM(ip_address), created_at, duration_ms
+		FROM usage_logs
+		WHERE created_at >= $1 AND created_at < $2
+			AND duration_ms > 0 AND ip_address IS NOT NULL AND BTRIM(ip_address) <> ''
+		ORDER BY api_key_id, created_at - duration_ms * INTERVAL '1 millisecond', id
+	`, startTime, endTime)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	var currentKeyID int64
+	requests := make([]apiKeyIPRequestInterval, 0)
+	flush := func() {
+		item := items[currentKeyID]
+		if item == nil || len(requests) == 0 {
+			requests = requests[:0]
+			return
+		}
+		overlapIPs := make(map[string]struct{})
+		perIP := make(map[string]*apiKeyIPOverlapStat)
+		var lastOverlap time.Time
+		forEachAPIKeyIPOverlap(requests, func(event apiKeyIPOverlapEvent) {
+			seconds := event.endAt.Sub(event.startAt).Seconds()
+			item.OverlapCount15m++
+			item.TotalOverlapSeconds15m += seconds
+			if seconds > item.MaxOverlapSeconds15m {
+				item.MaxOverlapSeconds15m = seconds
+			}
+			if event.endAt.After(lastOverlap) {
+				lastOverlap = event.endAt
+			}
+			for _, ip := range []string{event.ipA, event.ipB} {
+				overlapIPs[ip] = struct{}{}
+				stat := perIP[ip]
+				if stat == nil {
+					stat = &apiKeyIPOverlapStat{}
+					perIP[ip] = stat
+				}
+				stat.count++
+				if seconds > stat.max {
+					stat.max = seconds
+				}
+				if event.endAt.After(stat.last) {
+					stat.last = event.endAt
+				}
+			}
+		})
+		if !lastOverlap.IsZero() {
+			item.LastOverlapAt = lastOverlap.UTC().Format(time.RFC3339Nano)
+		}
+		item.OverlapIPCount15m = int64(len(overlapIPs))
+		for i := range item.IPUsages {
+			if stat := perIP[item.IPUsages[i].IPAddress]; stat != nil {
+				item.IPUsages[i].OverlapCount15m = stat.count
+				item.IPUsages[i].MaxOverlapSeconds15m = stat.max
+				item.IPUsages[i].LastOverlapAt = stat.last.UTC().Format(time.RFC3339Nano)
+			}
+		}
+		if item.OverlapIPCount15m >= 3 || (item.OverlapCount15m >= 3 && item.TotalOverlapSeconds15m >= 30) {
+			item.RiskLevel = "high"
+		} else if item.OverlapCount15m > 0 {
+			item.RiskLevel = "watch"
+		} else {
+			item.RiskLevel = "normal"
+		}
+		requests = requests[:0]
+	}
+	for rows.Next() {
+		var request apiKeyIPRequestInterval
+		var apiKeyID, durationMS int64
+		if err = rows.Scan(&request.id, &apiKeyID, &request.ip, &request.endAt, &durationMS); err != nil {
+			return err
+		}
+		if currentKeyID != 0 && apiKeyID != currentKeyID {
+			flush()
+		}
+		currentKeyID = apiKeyID
+		request.startAt = request.endAt.Add(-time.Duration(durationMS) * time.Millisecond)
+		requests = append(requests, request)
+	}
+	if err = rows.Err(); err != nil {
+		return err
+	}
+	flush()
+	return nil
 }
 
 type apiKeyIPRequestInterval struct {
@@ -193,6 +260,29 @@ func (h *apiKeyIPOverlapHeap) Pop() any {
 	return last
 }
 
+func forEachAPIKeyIPOverlap(requests []apiKeyIPRequestInterval, visit func(apiKeyIPOverlapEvent)) {
+	active := &apiKeyIPActiveHeap{}
+	heap.Init(active)
+	for _, request := range requests {
+		for active.Len() > 0 && !(*active)[0].endAt.After(request.startAt) {
+			heap.Pop(active)
+		}
+		for _, previous := range *active {
+			if previous.ip == request.ip {
+				continue
+			}
+			endAt := request.endAt
+			if previous.endAt.Before(endAt) {
+				endAt = previous.endAt
+			}
+			if endAt.Sub(request.startAt) >= 5*time.Second {
+				visit(apiKeyIPOverlapEvent{ipA: previous.ip, ipB: request.ip, startAt: request.startAt, endAt: endAt})
+			}
+		}
+		heap.Push(active, request)
+	}
+}
+
 func (r *usageLogRepository) GetAPIKeyIPOverlaps(ctx context.Context, apiKeyID int64, startTime, endTime time.Time, limit int) (result *usagestats.APIKeyIPOverlapResponse, err error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
@@ -234,36 +324,17 @@ func (r *usageLogRepository) GetAPIKeyIPOverlaps(ctx context.Context, apiKeyID i
 		}
 		return requests[i].startAt.Before(requests[j].startAt)
 	})
-	active := &apiKeyIPActiveHeap{}
 	recent := &apiKeyIPOverlapHeap{}
-	heap.Init(active)
 	heap.Init(recent)
-	for _, request := range requests {
-		for active.Len() > 0 && !(*active)[0].endAt.After(request.startAt) {
-			heap.Pop(active)
+	forEachAPIKeyIPOverlap(requests, func(event apiKeyIPOverlapEvent) {
+		if recent.Len() < limit {
+			heap.Push(recent, event)
+		} else if oldest := (*recent)[0]; event.endAt.After(oldest.endAt) ||
+			(event.endAt.Equal(oldest.endAt) && event.startAt.After(oldest.startAt)) {
+			heap.Pop(recent)
+			heap.Push(recent, event)
 		}
-		for _, previous := range *active {
-			if previous.ip == request.ip {
-				continue
-			}
-			endAt := request.endAt
-			if previous.endAt.Before(endAt) {
-				endAt = previous.endAt
-			}
-			if endAt.Sub(request.startAt) < 5*time.Second {
-				continue
-			}
-			event := apiKeyIPOverlapEvent{ipA: previous.ip, ipB: request.ip, startAt: request.startAt, endAt: endAt}
-			if recent.Len() < limit {
-				heap.Push(recent, event)
-			} else if oldest := (*recent)[0]; event.endAt.After(oldest.endAt) ||
-				(event.endAt.Equal(oldest.endAt) && event.startAt.After(oldest.startAt)) {
-				heap.Pop(recent)
-				heap.Push(recent, event)
-			}
-		}
-		heap.Push(active, request)
-	}
+	})
 
 	events := make([]apiKeyIPOverlapEvent, recent.Len())
 	for i := len(events) - 1; i >= 0; i-- {

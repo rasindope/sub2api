@@ -3,6 +3,7 @@
     <button
       type="button"
       @click="toggle"
+      :aria-expanded="isOpen"
       :class="['date-picker-trigger', isOpen && 'date-picker-trigger-open']"
     >
       <span class="date-picker-icon">
@@ -20,8 +21,9 @@
       </span>
     </button>
 
-    <Transition name="date-picker-dropdown">
-      <div v-if="isOpen" class="date-picker-dropdown">
+    <Teleport to="body">
+      <Transition name="date-picker-dropdown">
+        <div v-if="isOpen" ref="dropdownRef" class="date-picker-dropdown" :style="dropdownStyle">
         <!-- Quick presets -->
         <div class="date-picker-presets">
           <button
@@ -70,13 +72,14 @@
             {{ t('dates.apply') }}
           </button>
         </div>
-      </div>
-    </Transition>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 
@@ -104,6 +107,9 @@ const { t, locale } = useI18n()
 
 const isOpen = ref(false)
 const containerRef = ref<HTMLElement | null>(null)
+const dropdownRef = ref<HTMLElement | null>(null)
+const triggerRect = ref<DOMRect | null>(null)
+const dropdownPosition = ref<'bottom' | 'top'>('bottom')
 const localStartDate = ref(props.startDate)
 const localEndDate = ref(props.endDate)
 const activePreset = ref<string | null>('last24Hours')
@@ -234,6 +240,21 @@ const displayValue = computed(() => {
   return t('dates.selectDateRange')
 })
 
+const dropdownStyle = computed(() => {
+  if (!triggerRect.value) return {}
+  const width = Math.min(544, window.innerWidth - 16)
+  const left = Math.min(Math.max(8, triggerRect.value.left), window.innerWidth - width - 8)
+  const style: Record<string, string> = {
+    position: 'fixed',
+    left: `${left}px`,
+    width: `${width}px`,
+    zIndex: '100000020'
+  }
+  if (dropdownPosition.value === 'top') style.bottom = `${window.innerHeight - triggerRect.value.top + 8}px`
+  else style.top = `${triggerRect.value.bottom + 8}px`
+  return style
+})
+
 const formatDate = (dateStr: string): string => {
   const date = new Date(dateStr + 'T00:00:00')
   const dateLocale = locale.value === 'zh' ? 'zh-CN' : 'en-US'
@@ -267,6 +288,18 @@ const toggle = () => {
   isOpen.value = !isOpen.value
 }
 
+const calculateDropdownPosition = () => {
+  if (!containerRef.value) return
+  triggerRect.value = containerRef.value.getBoundingClientRect()
+  nextTick(() => {
+    if (!dropdownRef.value || !triggerRect.value) return
+    const height = dropdownRef.value.offsetHeight
+    const below = window.innerHeight - triggerRect.value.bottom
+    const above = triggerRect.value.top
+    dropdownPosition.value = below < height + 8 && above > below ? 'top' : 'bottom'
+  })
+}
+
 const apply = () => {
   emit('update:startDate', localStartDate.value)
   emit('update:endDate', localEndDate.value)
@@ -279,7 +312,8 @@ const apply = () => {
 }
 
 const handleClickOutside = (event: MouseEvent) => {
-  if (containerRef.value && !containerRef.value.contains(event.target as Node)) {
+  const target = event.target as Node
+  if (containerRef.value && !containerRef.value.contains(target) && !dropdownRef.value?.contains(target)) {
     isOpen.value = false
   }
 }
@@ -299,6 +333,17 @@ watch(
   }
 )
 
+watch(isOpen, (open) => {
+  if (open) {
+    calculateDropdownPosition()
+    window.addEventListener('scroll', calculateDropdownPosition, { capture: true, passive: true })
+    window.addEventListener('resize', calculateDropdownPosition)
+  } else {
+    window.removeEventListener('scroll', calculateDropdownPosition, { capture: true })
+    window.removeEventListener('resize', calculateDropdownPosition)
+  }
+})
+
 watch(
   () => props.endDate,
   (val) => {
@@ -317,6 +362,8 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleEscape)
+  window.removeEventListener('scroll', calculateDropdownPosition, { capture: true })
+  window.removeEventListener('resize', calculateDropdownPosition)
 })
 </script>
 
@@ -350,13 +397,11 @@ onUnmounted(() => {
 }
 
 .date-picker-dropdown {
-  @apply absolute left-0 z-[100] mt-2;
   @apply bg-white dark:bg-dark-800;
   @apply rounded-xl;
   @apply border border-gray-200 dark:border-dark-700;
   @apply shadow-lg shadow-black/10 dark:shadow-black/30;
-  @apply overflow-hidden;
-  @apply min-w-[320px];
+  @apply max-h-[calc(100vh-16px)] overflow-y-auto;
 }
 
 .date-picker-presets {
@@ -433,5 +478,15 @@ onUnmounted(() => {
 .date-picker-dropdown-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+@media (max-width: 480px) {
+  .date-picker-custom {
+    @apply flex-col items-stretch;
+  }
+
+  .date-picker-separator {
+    @apply hidden;
+  }
 }
 </style>
