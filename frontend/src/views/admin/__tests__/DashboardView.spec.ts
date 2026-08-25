@@ -173,6 +173,11 @@ describe('admin DashboardView', () => {
       end_date: formatLocalDate(now),
       limit: 12
     }))
+    expect(getApiKeySpendingRanking).toHaveBeenCalledWith(expect.objectContaining({
+      start_date: formatLocalDate(now),
+      end_date: formatLocalDate(now),
+      limit: 50
+    }))
     expect(searchApiKeys).toHaveBeenCalledWith(undefined, undefined, 100)
     expect(wrapper.get('[data-testid="active-key-concurrency-card"]').text()).toContain('3')
     expect(wrapper.get('[data-testid="active-key-concurrency-card"]').text()).toContain('busy-key')
