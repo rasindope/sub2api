@@ -45,7 +45,8 @@ describe('DateRangePicker', () => {
       },
       global: {
         stubs: {
-          Icon: true
+          Icon: true,
+          Teleport: true
         }
       }
     })
@@ -64,7 +65,8 @@ describe('DateRangePicker', () => {
       },
       global: {
         stubs: {
-          Icon: true
+          Icon: true,
+          Teleport: true
         }
       }
     })
@@ -92,5 +94,22 @@ describe('DateRangePicker', () => {
         preset: 'last24Hours'
       }
     ])
+  })
+
+  it('teleports the dropdown outside clipping containers', async () => {
+    const today = formatLocalDate(new Date())
+    const wrapper = mount(DateRangePicker, {
+      attachTo: document.body,
+      props: { startDate: today, endDate: today },
+      global: { stubs: { Icon: true } }
+    })
+
+    await wrapper.find('.date-picker-trigger').trigger('click')
+    const dropdown = document.body.querySelector<HTMLElement>('.date-picker-dropdown')
+
+    expect(dropdown).not.toBeNull()
+    expect(dropdown?.parentElement).toBe(document.body)
+    expect(dropdown?.style.position).toBe('fixed')
+    wrapper.unmount()
   })
 })
