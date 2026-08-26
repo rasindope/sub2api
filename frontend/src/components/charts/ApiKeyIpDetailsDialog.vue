@@ -83,20 +83,26 @@
         </div>
         <div v-if="overlapsLoading" class="py-6 text-center text-sm text-gray-400">{{ t('common.loading') }}</div>
         <div v-else-if="overlapsError" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-300">{{ t('admin.proxies.ipActivity.overlapLoadFailed') }}</div>
-        <div v-else-if="overlaps.length">
-          <div class="space-y-2 sm:hidden">
-            <div v-for="overlap in overlaps" :key="`${overlap.overlap_end_at}-${overlap.ip_a}-${overlap.ip_b}`" class="rounded-xl border border-amber-200/70 bg-amber-50/30 p-3 dark:border-amber-500/20 dark:bg-amber-500/5">
-              <div class="text-xs text-gray-500 dark:text-gray-400">{{ formatDateTime(overlap.overlap_start_at) }} → {{ formatDateTime(overlap.overlap_end_at) }}</div>
-              <div class="mt-2 flex items-center justify-between gap-3"><span class="font-mono text-xs text-gray-900 dark:text-white">{{ overlap.ip_a }}</span><span class="text-gray-400">↔</span><span class="font-mono text-xs text-gray-900 dark:text-white">{{ overlap.ip_b }}</span></div>
-              <div class="mt-2 text-right text-sm font-medium tabular-nums text-amber-600 dark:text-amber-400">{{ formatSeconds(overlap.overlap_seconds) }}</div>
+        <div v-else-if="overlaps.length" class="space-y-2">
+          <details v-for="group in overlapGroups" :key="group.key" :open="group.key === 'long' && group.items.length > 0" class="overflow-hidden rounded-xl border border-gray-200 dark:border-dark-700">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-3 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 dark:bg-dark-800 dark:text-gray-200">
+              <span>{{ t(`admin.proxies.ipActivity.${group.label}`) }}</span>
+              <span class="text-xs tabular-nums text-gray-400">{{ group.items.length }}</span>
+            </summary>
+            <div class="space-y-2 border-t border-gray-200 p-2 dark:border-dark-700 sm:hidden">
+              <div v-for="overlap in group.items" :key="`${overlap.overlap_end_at}-${overlap.ip_a}-${overlap.ip_b}`" class="rounded-lg border border-amber-200/70 bg-amber-50/30 p-3 dark:border-amber-500/20 dark:bg-amber-500/5">
+                <div class="text-xs text-gray-500 dark:text-gray-400">{{ formatDateTime(overlap.overlap_start_at) }} → {{ formatDateTime(overlap.overlap_end_at) }}</div>
+                <div class="mt-2 flex items-center justify-between gap-3"><span class="font-mono text-xs text-gray-900 dark:text-white">{{ overlap.ip_a }}</span><span class="text-gray-400">↔</span><span class="font-mono text-xs text-gray-900 dark:text-white">{{ overlap.ip_b }}</span></div>
+                <div class="mt-2 text-right text-sm font-medium tabular-nums text-amber-600 dark:text-amber-400">{{ formatSeconds(overlap.overlap_seconds) }}</div>
+              </div>
             </div>
-          </div>
-          <div class="hidden overflow-x-auto rounded-xl border border-gray-200 dark:border-dark-700 sm:block">
-            <table class="w-full text-left text-xs">
-              <thead class="bg-gray-50 text-gray-500 dark:bg-dark-800 dark:text-gray-400"><tr><th class="px-3 py-2 font-medium">{{ t('admin.proxies.ipActivity.overlapTime') }}</th><th class="px-3 py-2 font-medium">IP A</th><th class="px-3 py-2 font-medium">IP B</th><th class="px-3 py-2 text-right font-medium">{{ t('admin.proxies.ipActivity.duration') }}</th></tr></thead>
-              <tbody><tr v-for="overlap in overlaps" :key="`${overlap.overlap_end_at}-${overlap.ip_a}-${overlap.ip_b}`" class="border-t border-gray-100 dark:border-dark-700"><td class="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-400">{{ formatDateTime(overlap.overlap_start_at) }} → {{ formatDateTime(overlap.overlap_end_at) }}</td><td class="whitespace-nowrap px-3 py-2 font-mono text-gray-900 dark:text-white">{{ overlap.ip_a }}</td><td class="whitespace-nowrap px-3 py-2 font-mono text-gray-900 dark:text-white">{{ overlap.ip_b }}</td><td class="px-3 py-2 text-right font-medium tabular-nums text-amber-600 dark:text-amber-400">{{ formatSeconds(overlap.overlap_seconds) }}</td></tr></tbody>
-            </table>
-          </div>
+            <div class="hidden overflow-x-auto border-t border-gray-200 dark:border-dark-700 sm:block">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-gray-50 text-gray-500 dark:bg-dark-800 dark:text-gray-400"><tr><th class="px-3 py-2 font-medium">{{ t('admin.proxies.ipActivity.overlapTime') }}</th><th class="px-3 py-2 font-medium">IP A</th><th class="px-3 py-2 font-medium">IP B</th><th class="px-3 py-2 text-right font-medium">{{ t('admin.proxies.ipActivity.duration') }}</th></tr></thead>
+                <tbody><tr v-for="overlap in group.items" :key="`${overlap.overlap_end_at}-${overlap.ip_a}-${overlap.ip_b}`" class="border-t border-gray-100 dark:border-dark-700"><td class="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-400">{{ formatDateTime(overlap.overlap_start_at) }} → {{ formatDateTime(overlap.overlap_end_at) }}</td><td class="whitespace-nowrap px-3 py-2 font-mono text-gray-900 dark:text-white">{{ overlap.ip_a }}</td><td class="whitespace-nowrap px-3 py-2 font-mono text-gray-900 dark:text-white">{{ overlap.ip_b }}</td><td class="px-3 py-2 text-right font-medium tabular-nums text-amber-600 dark:text-amber-400">{{ formatSeconds(overlap.overlap_seconds) }}</td></tr></tbody>
+              </table>
+            </div>
+          </details>
         </div>
         <div v-else class="py-6 text-center text-sm text-gray-400">{{ t('admin.proxies.ipActivity.noOverlapDetails') }}</div>
       </section>
@@ -105,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getApiKeyIPOverlaps } from '@/api/admin/dashboard'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -134,6 +140,11 @@ const getActivity = (item: IPDetailsItem) => 'risk_level' in item ? item : null
 const formatNumber = (value: number) => Number(value || 0).toLocaleString()
 const formatSeconds = (value?: number) => `${Number(value || 0).toFixed(1)}s`
 const overlaps = ref<ApiKeyIPOverlap[]>([])
+const overlapGroups = computed(() => [
+  { key: 'long', label: 'overlapLong', items: overlaps.value.filter((item) => item.overlap_seconds >= 120) },
+  { key: 'medium', label: 'overlapMedium', items: overlaps.value.filter((item) => item.overlap_seconds >= 30 && item.overlap_seconds < 120) },
+  { key: 'short', label: 'overlapShort', items: overlaps.value.filter((item) => item.overlap_seconds < 30) }
+].filter((group) => group.items.length))
 const overlapsLoading = ref(false)
 const overlapsError = ref(false)
 let overlapLoadSeq = 0

@@ -927,11 +927,11 @@ func TestUsageLogRepositoryGetAPIKeyIPActivity(t *testing.T) {
 	got, err := repo.GetAPIKeyIPActivity(context.Background(), start, end, now, 50)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), got.ActiveKeys)
-	require.Equal(t, int64(1), got.HighRiskKeys)
-	require.Equal(t, "high", got.Items[0].RiskLevel)
-	require.Equal(t, int64(2), got.Items[0].OverlapCount15m)
-	require.Equal(t, 15.0, got.Items[0].MaxOverlapSeconds15m)
-	require.Equal(t, int64(2), got.Items[0].IPUsages[0].OverlapCount15m)
+	require.Equal(t, int64(1), got.WatchKeys)
+	require.Equal(t, "watch", got.Items[0].RiskLevel)
+	require.Equal(t, int64(1), got.Items[0].OverlapCount15m)
+	require.Equal(t, 20.0, got.Items[0].MaxOverlapSeconds15m)
+	require.Equal(t, int64(1), got.Items[0].IPUsages[0].OverlapCount15m)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -946,7 +946,8 @@ func TestUsageLogRepositoryGetAPIKeyIPOverlaps(t *testing.T) {
 	rows := sqlmock.NewRows([]string{"id", "ip_address", "created_at", "duration_ms"}).
 		AddRow(int64(1), "203.0.113.8", start.Add(20*time.Second), int64(20_000)).
 		AddRow(int64(2), "198.51.100.2", start.Add(30*time.Second), int64(20_000)).
-		AddRow(int64(3), "192.0.2.4", start.Add(32*time.Second), int64(2_000))
+		AddRow(int64(3), "198.51.100.2", start.Add(25*time.Second), int64(10_000)).
+		AddRow(int64(4), "192.0.2.4", start.Add(32*time.Second), int64(2_000))
 
 	mock.ExpectQuery(`(?s)SELECT id, BTRIM\(ip_address\), created_at, duration_ms.*api_key_id = \$1.*ORDER BY created_at ASC, id ASC`).
 		WithArgs(int64(9), start, end).
@@ -955,7 +956,7 @@ func TestUsageLogRepositoryGetAPIKeyIPOverlaps(t *testing.T) {
 	got, err := repo.GetAPIKeyIPOverlaps(context.Background(), 9, start, end, 50)
 	require.NoError(t, err)
 	require.Equal(t, []usagestats.APIKeyIPOverlap{{
-		IPA: "203.0.113.8", IPB: "198.51.100.2",
+		IPA: "198.51.100.2", IPB: "203.0.113.8",
 		OverlapStartAt: start.Add(10 * time.Second).Format(time.RFC3339Nano),
 		OverlapEndAt:   start.Add(20 * time.Second).Format(time.RFC3339Nano),
 		OverlapSeconds: 10,

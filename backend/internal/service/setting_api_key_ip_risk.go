@@ -17,10 +17,10 @@ type APIKeyIPRiskSettings struct {
 
 func DefaultAPIKeyIPRiskSettings() APIKeyIPRiskSettings {
 	return APIKeyIPRiskSettings{
-		MinimumOverlapSeconds: 5,
-		HighSingleOverlapSecs: 60,
-		HighOverlapCount:      10,
-		HighTotalOverlapSecs:  120,
+		MinimumOverlapSeconds: 10,
+		HighSingleOverlapSecs: 120,
+		HighOverlapCount:      5,
+		HighTotalOverlapSecs:  180,
 	}
 }
 
