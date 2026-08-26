@@ -13,13 +13,22 @@ vi.mock('vue-i18n', async () => {
 
 describe('ApiKeyIpDetailsDialog', () => {
   it('shows full IP addresses and exact overlap interval', async () => {
-    getApiKeyIPOverlaps.mockResolvedValue({ items: [{
-      ip_a: '203.0.113.8',
-      ip_b: '198.51.100.2',
-      overlap_start_at: '2025-01-01T00:00:10Z',
-      overlap_end_at: '2025-01-01T00:00:20Z',
-      overlap_seconds: 10
-    }] })
+    getApiKeyIPOverlaps.mockResolvedValue({ items: [
+      {
+        ip_a: '203.0.113.8',
+        ip_b: '198.51.100.2',
+        overlap_start_at: '2025-01-01T00:00:10Z',
+        overlap_end_at: '2025-01-01T00:00:20Z',
+        overlap_seconds: 10
+      },
+      {
+        ip_a: '203.0.113.8',
+        ip_b: '192.0.2.4',
+        overlap_start_at: '2025-01-01T00:02:00Z',
+        overlap_end_at: '2025-01-01T00:04:00Z',
+        overlap_seconds: 120
+      }
+    ] })
     const wrapper = mount(ApiKeyIpDetailsDialog, {
       props: {
         show: true,
@@ -54,5 +63,9 @@ describe('ApiKeyIpDetailsDialog', () => {
     expect(wrapper.text()).toContain('203.0.113.8')
     expect(wrapper.text()).toContain('198.51.100.2')
     expect(wrapper.text()).toContain('10.0s')
+    expect(wrapper.text()).toContain('admin.proxies.ipActivity.overlapShort')
+    expect(wrapper.text()).toContain('admin.proxies.ipActivity.overlapLong')
+    expect(wrapper.findAll('details')).toHaveLength(2)
+    expect(wrapper.find('details[open]').text()).toContain('192.0.2.4')
   })
 })

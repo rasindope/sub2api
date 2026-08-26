@@ -122,7 +122,7 @@ const thresholdsOpen = ref(false)
 const thresholdsLoading = ref(false)
 const thresholdsSaving = ref(false)
 const thresholdsLoaded = ref(false)
-const thresholds = reactive<APIKeyIPRiskSettings>({ minimum_overlap_seconds: 5, high_single_overlap_seconds: 60, high_overlap_count: 10, high_total_overlap_seconds: 120 })
+const thresholds = reactive<APIKeyIPRiskSettings>({ minimum_overlap_seconds: 10, high_single_overlap_seconds: 120, high_overlap_count: 5, high_total_overlap_seconds: 180 })
 const selected = ref<ApiKeyIPActivityItem | null>(null)
 const data = ref<ApiKeyIPActivityResponse>({ items: [], active_keys: 0, watch_keys: 0, high_risk_keys: 0, generated_at: '' })
 const formatDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`

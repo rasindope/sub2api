@@ -45,7 +45,7 @@ export default {
       title: 'Proxy Management',
       description: 'Manage proxy servers for accounts',
       ipActivity: {
-        title: 'Key IP Usage',
+        title: 'IP Usage',
         description: 'IP counts and cross-IP request overlaps for the selected range. Defaults to today.',
         onlyIssues: 'Issues only',
         thresholds: 'Thresholds',
@@ -73,6 +73,9 @@ export default {
         loadFailed: 'Failed to load key IP activity',
         overlapDetails: 'Overlap records',
         overlapDetailsHint: 'Shows the latest 50 request overlaps meeting the current threshold, with full IP addresses.',
+        overlapShort: 'Short overlaps (under 30s)',
+        overlapMedium: 'Notable overlaps (30s to 2m)',
+        overlapLong: 'Long overlaps (2m or more)',
         overlapTime: 'Overlap interval',
         duration: 'Duration',
         noOverlapDetails: 'No cross-IP request overlap meets the current threshold in this range',

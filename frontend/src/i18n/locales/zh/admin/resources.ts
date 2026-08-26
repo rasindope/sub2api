@@ -45,7 +45,7 @@ export default {
       title: 'IP管理',
       description: '管理代理服务器配置',
       ipActivity: {
-        title: 'Key IP 使用情况',
+        title: 'IP 使用情况',
         description: '统计所选范围内的 IP 数与跨 IP 请求重叠，默认今天。',
         onlyIssues: '只看异常',
         thresholds: '判断门槛',
@@ -73,6 +73,9 @@ export default {
         loadFailed: '加载 Key IP 活跃数据失败',
         overlapDetails: '重叠记录',
         overlapDetailsHint: '显示筛选范围内最近 50 条达到当前门槛的请求重叠，IP 不脱敏。',
+        overlapShort: '短时重叠（少于 30 秒）',
+        overlapMedium: '明显重叠（30 秒至 2 分钟）',
+        overlapLong: '长时重叠（至少 2 分钟）',
         overlapTime: '重叠区间',
         duration: '持续时间',
         noOverlapDetails: '筛选范围内没有达到当前门槛的跨 IP 请求重叠',

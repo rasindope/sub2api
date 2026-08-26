@@ -178,7 +178,7 @@
           </div>
 
           <!-- Key IP Activity -->
-          <button type="button" class="card p-4 text-left transition-colors hover:bg-gray-50 dark:hover:bg-dark-800" @click="showIPActivity = true">
+          <button data-testid="ip-usage-card" type="button" class="card flex w-full items-start p-4 text-left transition-colors hover:bg-gray-50 dark:hover:bg-dark-800" @click="showIPActivity = true">
             <div class="flex items-center gap-3">
               <div class="rounded-lg bg-rose-100 p-2 dark:bg-rose-900/30">
                 <Icon name="globe" size="md" class="text-rose-600 dark:text-rose-400" :stroke-width="2" />

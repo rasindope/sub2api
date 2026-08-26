@@ -179,6 +179,7 @@ describe('admin DashboardView', () => {
       limit: 50
     }))
     expect(searchApiKeys).toHaveBeenCalledWith(undefined, undefined, 100)
+    expect(wrapper.get('[data-testid="ip-usage-card"]').classes()).toEqual(expect.arrayContaining(['flex', 'w-full', 'items-start']))
     expect(wrapper.get('[data-testid="active-key-concurrency-card"]').text()).toContain('3')
     expect(wrapper.get('[data-testid="active-key-concurrency-card"]').text()).toContain('busy-key')
     expect(wrapper.get('[data-testid="active-key-concurrency-card"]').text()).not.toContain('idle-key')

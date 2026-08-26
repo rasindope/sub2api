@@ -174,7 +174,7 @@ func (r *usageLogRepository) applyAPIKeyIPRangeOverlaps(ctx context.Context, sta
 		overlapIPs := make(map[string]struct{})
 		perIP := make(map[string]*apiKeyIPOverlapStat)
 		var lastOverlap time.Time
-		forEachAPIKeyIPOverlap(requests, time.Duration(settings.MinimumOverlapSeconds)*time.Second, func(event apiKeyIPOverlapEvent) {
+		for _, event := range mergeAPIKeyIPOverlaps(requests, time.Duration(settings.MinimumOverlapSeconds)*time.Second) {
 			seconds := event.endAt.Sub(event.startAt).Seconds()
 			item.OverlapCount15m++
 			item.TotalOverlapSeconds15m += seconds
@@ -199,7 +199,7 @@ func (r *usageLogRepository) applyAPIKeyIPRangeOverlaps(ctx context.Context, sta
 					stat.last = event.endAt
 				}
 			}
-		})
+		}
 		if !lastOverlap.IsZero() {
 			item.LastOverlapAt = lastOverlap.UTC().Format(time.RFC3339Nano)
 		}
@@ -307,6 +307,43 @@ func forEachAPIKeyIPOverlap(requests []apiKeyIPRequestInterval, minimumOverlap t
 	}
 }
 
+func mergeAPIKeyIPOverlaps(requests []apiKeyIPRequestInterval, minimumOverlap time.Duration) []apiKeyIPOverlapEvent {
+	byPair := make(map[string][]apiKeyIPOverlapEvent)
+	forEachAPIKeyIPOverlap(requests, 0, func(event apiKeyIPOverlapEvent) {
+		if event.ipA > event.ipB {
+			event.ipA, event.ipB = event.ipB, event.ipA
+		}
+		key := event.ipA + "\x00" + event.ipB
+		byPair[key] = append(byPair[key], event)
+	})
+	merged := make([]apiKeyIPOverlapEvent, 0)
+	for _, events := range byPair {
+		sort.Slice(events, func(i, j int) bool {
+			if events[i].startAt.Equal(events[j].startAt) {
+				return events[i].endAt.Before(events[j].endAt)
+			}
+			return events[i].startAt.Before(events[j].startAt)
+		})
+		pairMerged := make([]apiKeyIPOverlapEvent, 0, len(events))
+		for _, event := range events {
+			last := len(pairMerged) - 1
+			if last >= 0 && !event.startAt.After(pairMerged[last].endAt) {
+				if event.endAt.After(pairMerged[last].endAt) {
+					pairMerged[last].endAt = event.endAt
+				}
+				continue
+			}
+			pairMerged = append(pairMerged, event)
+		}
+		for _, event := range pairMerged {
+			if event.endAt.Sub(event.startAt) >= minimumOverlap {
+				merged = append(merged, event)
+			}
+		}
+	}
+	return merged
+}
+
 func (r *usageLogRepository) GetAPIKeyIPOverlaps(ctx context.Context, apiKeyID int64, startTime, endTime time.Time, limit int) (result *usagestats.APIKeyIPOverlapResponse, err error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
@@ -354,7 +391,7 @@ func (r *usageLogRepository) GetAPIKeyIPOverlaps(ctx context.Context, apiKeyID i
 	})
 	recent := &apiKeyIPOverlapHeap{}
 	heap.Init(recent)
-	forEachAPIKeyIPOverlap(requests, time.Duration(settings.MinimumOverlapSeconds)*time.Second, func(event apiKeyIPOverlapEvent) {
+	for _, event := range mergeAPIKeyIPOverlaps(requests, time.Duration(settings.MinimumOverlapSeconds)*time.Second) {
 		if recent.Len() < limit {
 			heap.Push(recent, event)
 		} else if oldest := (*recent)[0]; event.endAt.After(oldest.endAt) ||
@@ -362,7 +399,7 @@ func (r *usageLogRepository) GetAPIKeyIPOverlaps(ctx context.Context, apiKeyID i
 			heap.Pop(recent)
 			heap.Push(recent, event)
 		}
-	})
+	}
 
 	events := make([]apiKeyIPOverlapEvent, recent.Len())
 	for i := len(events) - 1; i >= 0; i-- {
