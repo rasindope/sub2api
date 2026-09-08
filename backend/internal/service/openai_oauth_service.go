@@ -302,9 +302,24 @@ func (s *OpenAIOAuthService) enrichTokenInfo(ctx context.Context, tokenInfo *Ope
 			tokenInfo.SubscriptionExpiresAt = expiresAt
 		}
 	}
+	if strings.TrimSpace(tokenInfo.SubscriptionExpiresAt) == "" {
+		tokenInfo.SubscriptionExpiresAt = subscriptionExpiresAtFromIDToken(tokenInfo.IDToken)
+	}
 
 	// 尝试设置隐私（关闭训练数据共享），best-effort
 	tokenInfo.PrivacyMode = disableOpenAITraining(ctx, s.privacyClientFactory, tokenInfo.AccessToken, proxyURL)
+}
+
+func subscriptionExpiresAtFromIDToken(idToken string) string {
+	claims, err := openai.DecodeIDToken(idToken)
+	if err != nil || claims.OpenAIAuth == nil {
+		return ""
+	}
+	expiresAt := strings.TrimSpace(claims.OpenAIAuth.ChatGPTSubscriptionActiveUntil)
+	if _, err := time.Parse(time.RFC3339, expiresAt); err != nil {
+		return ""
+	}
+	return expiresAt
 }
 
 func shouldApplyChatGPTAccountInfoPlanType(current, candidate string) bool {

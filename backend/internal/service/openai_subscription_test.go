@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -39,6 +41,29 @@ func TestFetchChatGPTSubscriptionExpiresAt(t *testing.T) {
 	}, "access-token", "", "acc_123")
 
 	require.Equal(t, wantExpiresAt, got)
+}
+
+func TestEnrichTokenInfo_FallsBackToIDTokenSubscription(t *testing.T) {
+	const wantExpiresAt = "2026-10-05T03:03:23+00:00"
+	payload, err := json.Marshal(map[string]any{
+		"https://api.openai.com/auth": map[string]any{
+			"chatgpt_subscription_active_until": wantExpiresAt,
+		},
+	})
+	require.NoError(t, err)
+
+	tokenInfo := &OpenAITokenInfo{
+		AccessToken:      "access-token",
+		IDToken:          "header." + base64.RawURLEncoding.EncodeToString(payload) + ".signature",
+		ChatGPTAccountID: "account-id",
+	}
+	svc := &OpenAIOAuthService{privacyClientFactory: func(string) (*req.Client, error) {
+		return nil, errors.New("cloudflare blocked")
+	}}
+
+	svc.enrichTokenInfo(context.Background(), tokenInfo, "")
+
+	require.Equal(t, wantExpiresAt, tokenInfo.SubscriptionExpiresAt)
 }
 
 func TestFetchChatGPTAccountInfo_SkipsExpiredWorkspaceCandidate(t *testing.T) {
