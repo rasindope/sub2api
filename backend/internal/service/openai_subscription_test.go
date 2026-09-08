@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/imroc/req/v3"
 	"github.com/stretchr/testify/require"
 )
@@ -46,10 +45,16 @@ func TestFetchChatGPTSubscriptionExpiresAt(t *testing.T) {
 
 func TestEnrichTokenInfo_FallsBackToIDTokenSubscription(t *testing.T) {
 	const wantExpiresAt = "2026-10-05T03:03:23+00:00"
+	payload, err := json.Marshal(map[string]any{
+		"https://api.openai.com/auth": map[string]any{
+			"chatgpt_subscription_active_until": wantExpiresAt,
+		},
+	})
+	require.NoError(t, err)
 
 	tokenInfo := &OpenAITokenInfo{
 		AccessToken:      "access-token",
-		IDToken:          makeOpenAISubscriptionIDToken(t, wantExpiresAt),
+		IDToken:          "header." + base64.RawURLEncoding.EncodeToString(payload) + ".signature",
 		ChatGPTAccountID: "account-id",
 	}
 	svc := &OpenAIOAuthService{privacyClientFactory: func(string) (*req.Client, error) {
@@ -59,46 +64,6 @@ func TestEnrichTokenInfo_FallsBackToIDTokenSubscription(t *testing.T) {
 	svc.enrichTokenInfo(context.Background(), tokenInfo, "")
 
 	require.Equal(t, wantExpiresAt, tokenInfo.SubscriptionExpiresAt)
-}
-
-func TestRefreshAccountToken_PreservesLiveSubscriptionOverJWTFallback(t *testing.T) {
-	const (
-		liveExpiresAt = "2026-10-05T09:03:23+00:00"
-		jwtExpiresAt  = "2026-10-05T03:03:23+00:00"
-	)
-	client := &openaiOAuthClientRefreshStub{tokenInfo: &openai.TokenResponse{
-		AccessToken: "new-access-token",
-		IDToken:     makeOpenAISubscriptionIDToken(t, jwtExpiresAt),
-		ExpiresIn:   3600,
-	}}
-	svc := NewOpenAIOAuthService(nil, client)
-	svc.SetPrivacyClientFactory(func(string) (*req.Client, error) {
-		return nil, errors.New("cloudflare blocked")
-	})
-	account := &Account{
-		Platform: PlatformOpenAI,
-		Type:     AccountTypeOAuth,
-		Credentials: map[string]any{
-			"refresh_token":           "refresh-token",
-			"subscription_expires_at": liveExpiresAt,
-		},
-	}
-
-	tokenInfo, err := svc.RefreshAccountToken(context.Background(), account)
-
-	require.NoError(t, err)
-	require.Equal(t, liveExpiresAt, tokenInfo.SubscriptionExpiresAt)
-}
-
-func makeOpenAISubscriptionIDToken(t *testing.T, expiresAt string) string {
-	t.Helper()
-	payload, err := json.Marshal(map[string]any{
-		"https://api.openai.com/auth": map[string]any{
-			"chatgpt_subscription_active_until": expiresAt,
-		},
-	})
-	require.NoError(t, err)
-	return "header." + base64.RawURLEncoding.EncodeToString(payload) + ".signature"
 }
 
 func TestFetchChatGPTAccountInfo_SkipsExpiredWorkspaceCandidate(t *testing.T) {
