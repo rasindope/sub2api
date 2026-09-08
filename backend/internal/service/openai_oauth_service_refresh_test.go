@@ -16,6 +16,7 @@ import (
 
 type openaiOAuthClientRefreshStub struct {
 	refreshCalls int32
+	tokenInfo    *openai.TokenResponse
 }
 
 func (s *openaiOAuthClientRefreshStub) ExchangeCode(ctx context.Context, code, codeVerifier, redirectURI, proxyURL, clientID string) (*openai.TokenResponse, error) {
@@ -29,6 +30,9 @@ func (s *openaiOAuthClientRefreshStub) RefreshToken(ctx context.Context, refresh
 
 func (s *openaiOAuthClientRefreshStub) RefreshTokenWithClientID(ctx context.Context, refreshToken, proxyURL string, clientID string) (*openai.TokenResponse, error) {
 	atomic.AddInt32(&s.refreshCalls, 1)
+	if s.tokenInfo != nil {
+		return s.tokenInfo, nil
+	}
 	return nil, errors.New("not implemented")
 }
 
