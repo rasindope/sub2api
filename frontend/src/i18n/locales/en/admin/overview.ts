@@ -85,6 +85,7 @@ export default {
       ipFirstSeen: 'First request',
       ipLastSeen: 'Last request',
       ipNoData: 'No access IPs were recorded in this time range',
+      ipGeoFailed: 'Failed to load IP location',
       ipTopOnly: 'Showing the top {shown} IPs by requests, {total} total',
       spendingRankingOther: 'Others',
       spendingRankingUsage: 'Usage',
