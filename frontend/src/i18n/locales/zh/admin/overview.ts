@@ -85,6 +85,7 @@ export default {
       ipFirstSeen: '首次访问',
       ipLastSeen: '最后访问',
       ipNoData: '当前时间范围内没有记录到访问 IP',
+      ipGeoFailed: '获取 IP 归属地失败',
       ipTopOnly: '显示请求最多的 {shown} 个 IP，共 {total} 个',
       spendingRankingOther: '其他',
       spendingRankingUsage: '用量',

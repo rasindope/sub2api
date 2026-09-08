@@ -690,7 +690,6 @@ export default {
           lockTtlRange: 'Distributed lock TTL must be between 1 and 86400 seconds',
           slaMinPercentRange: 'SLA minimum percentage must be between 0 and 100',
           ttftP99MaxRange: 'TTFT P99 maximum must be a number ≥ 0',
-          nginxClientOverheadMaxRange: 'Client overhead red threshold must be a number ≥ 0',
           requestErrorRateMaxRange: 'Request error rate maximum must be between 0 and 100',
           upstreamErrorRateMaxRange: 'Upstream error rate maximum must be between 0 and 100'
         }
@@ -809,6 +808,7 @@ export default {
           retentionDaysRange: 'Retention days must be between 0 and 365 (0 = wipe all on every cleanup)',
           slaMinPercentRange: 'SLA minimum percentage must be between 0 and 100',
           ttftP99MaxRange: 'TTFT P99 maximum must be a number ≥ 0',
+          nginxClientOverheadMaxRange: 'Client overhead red threshold must be a number ≥ 0',
           requestErrorRateMaxRange: 'Request error rate maximum must be between 0 and 100',
           upstreamErrorRateMaxRange: 'Upstream error rate maximum must be between 0 and 100',
           openaiQuotaAutoPauseRange: 'OpenAI quota auto-pause threshold must be between 0 and 100'
