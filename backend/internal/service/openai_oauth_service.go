@@ -127,6 +127,8 @@ type OpenAITokenInfo struct {
 	PlanType              string `json:"plan_type,omitempty"`
 	SubscriptionExpiresAt string `json:"subscription_expires_at,omitempty"`
 	PrivacyMode           string `json:"privacy_mode,omitempty"`
+
+	subscriptionExpiresAtFromIDToken bool
 }
 
 // ExchangeCode exchanges authorization code for tokens
@@ -303,7 +305,10 @@ func (s *OpenAIOAuthService) enrichTokenInfo(ctx context.Context, tokenInfo *Ope
 		}
 	}
 	if strings.TrimSpace(tokenInfo.SubscriptionExpiresAt) == "" {
-		tokenInfo.SubscriptionExpiresAt = subscriptionExpiresAtFromIDToken(tokenInfo.IDToken)
+		if expiresAt := subscriptionExpiresAtFromIDToken(tokenInfo.IDToken); expiresAt != "" {
+			tokenInfo.SubscriptionExpiresAt = expiresAt
+			tokenInfo.subscriptionExpiresAtFromIDToken = true
+		}
 	}
 
 	// 尝试设置隐私（关闭训练数据共享），best-effort
@@ -401,7 +406,16 @@ func (s *OpenAIOAuthService) RefreshAccountToken(ctx context.Context, account *A
 	}
 
 	clientID := account.GetCredential("client_id")
-	return s.RefreshTokenWithClientID(ctx, refreshToken, proxyURL, clientID)
+	tokenInfo, err := s.RefreshTokenWithClientID(ctx, refreshToken, proxyURL, clientID)
+	if err != nil {
+		return nil, err
+	}
+	if tokenInfo.subscriptionExpiresAtFromIDToken {
+		if existing := strings.TrimSpace(account.GetCredential("subscription_expires_at")); existing != "" {
+			tokenInfo.SubscriptionExpiresAt = existing
+		}
+	}
+	return tokenInfo, nil
 }
 
 // BuildAccountCredentials builds credentials map from token info
