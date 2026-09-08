@@ -641,11 +641,11 @@
           ref="createReasoningEffortPolicyRef"
           id-prefix="create-group-reasoning"
           :platform="createForm.platform"
-          :models="createModelsListState.items.map((item) => item.id)"
+          :models="createModelAllowlistState.items.map((item) => item.id)"
           v-model:max-effort="createForm.max_reasoning_effort"
           v-model:over-limit="createForm.max_reasoning_effort_over_limit"
           v-model:mappings="createForm.reasoning_effort_mappings"
-		  v-model:model-policies="createForm.reasoning_effort_model_policies"
+          v-model:model-policies="createForm.reasoning_effort_model_policies"
         />
         <div
           v-if="createForm.subscription_type !== 'subscription'"
@@ -2281,11 +2281,11 @@
           ref="editReasoningEffortPolicyRef"
           id-prefix="edit-group-reasoning"
           :platform="editForm.platform"
-          :models="editModelsListState.items.map((item) => item.id)"
+          :models="editModelAllowlistState.items.map((item) => item.id)"
           v-model:max-effort="editForm.max_reasoning_effort"
           v-model:over-limit="editForm.max_reasoning_effort_over_limit"
           v-model:mappings="editForm.reasoning_effort_mappings"
-		  v-model:model-policies="editForm.reasoning_effort_model_policies"
+          v-model:model-policies="editForm.reasoning_effort_model_policies"
         />
         <div v-if="editForm.subscription_type !== 'subscription'">
           <div class="mb-1.5 flex items-center gap-1">
