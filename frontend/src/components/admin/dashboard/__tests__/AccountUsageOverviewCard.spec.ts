@@ -35,7 +35,8 @@ const accounts = [
     platform: 'openai',
     type: 'oauth',
     status: 'active',
-    schedulable: true
+    schedulable: true,
+    credentials: { subscription_expires_at: '2026-09-18T06:15:39Z' }
   },
   {
     id: 2,
@@ -105,6 +106,9 @@ describe('AccountUsageOverviewCard', () => {
     await wrapper.get('[data-testid="account-usage-card"]').trigger('click')
     expect(wrapper.get('[data-testid="usage-dialog"]').text()).toContain('primary@example.com')
     expect(wrapper.get('[data-testid="usage-dialog"]').text()).toContain('backup@example.com')
+    expect(wrapper.get('[data-testid="usage-dialog"]').text()).toContain(
+      'admin.accounts.subscriptionExpires 2026-09-18 14:15:39'
+    )
 
     await wrapper.get('[data-testid="refresh-account-usage"]').trigger('click')
     await flushPromises()

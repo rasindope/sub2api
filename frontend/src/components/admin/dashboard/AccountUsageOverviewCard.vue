@@ -105,6 +105,9 @@
               {{ account.platform }}
             </span>
           </div>
+          <p v-if="subscriptionExpiresLabel(account)" class="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
+            {{ subscriptionExpiresLabel(account) }}
+          </p>
           <p v-if="!account.schedulable" class="mt-1 text-[11px] text-gray-400 dark:text-gray-500">
             {{ t('admin.dashboard.accountUsageNotScheduled') }}
           </p>
@@ -140,6 +143,7 @@ import UsageProgressBar from '@/components/account/UsageProgressBar.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { formatBeijingDateTime } from '@/utils/format'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -152,6 +156,14 @@ const usageByAccountId = ref<Record<string, AccountUsageInfo | null>>({})
 const usageErrorByAccountId = ref<Record<string, string | null>>({})
 const usageLoadingByAccountId = ref<Record<string, boolean>>({})
 let loadSequence = 0
+
+const subscriptionExpiresLabel = (account: Account): string => {
+  const expiresAt = formatBeijingDateTime(
+    account.credentials?.subscription_expires_at as string | undefined
+      || account.parent_subscription_expires_at
+  )
+  return expiresAt ? `${t('admin.accounts.subscriptionExpires')} ${expiresAt}` : ''
+}
 
 const supportsUsageWindows = (account: Account): boolean => {
   if (account.platform === 'gemini') return true

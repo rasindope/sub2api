@@ -149,6 +149,27 @@ export function formatDateTime(
   return formatDate(date, options, localeOverride)
 }
 
+/** 格式化为东八区日期时间（YYYY-MM-DD HH:mm:ss） */
+export function formatBeijingDateTime(date: string | Date | null | undefined): string {
+  if (!date) return ''
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return ''
+
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).formatToParts(d).map(({ type, value }) => [type, value])
+  )
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`
+}
+
 /**
  * 格式化日期时间（精确到分钟）
  */

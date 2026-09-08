@@ -73,6 +73,7 @@ import { normalizePlanType, openAIPlanTypeLabel } from '@/utils/planType'
 import GrokFreeIcon from './GrokFreeIcon.vue'
 import PlatformIcon from './PlatformIcon.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { formatBeijingDateTime } from '@/utils/format'
 
 const { t } = useI18n()
 
@@ -280,16 +281,8 @@ const expiresLabel = computed(() => {
     normalizedPlanType.value === 'basic' ||
     normalizedPlanType.value === 'xbasic'
   ) return ''
-  try {
-    const d = new Date(props.subscriptionExpiresAt)
-    if (isNaN(d.getTime())) return ''
-    const yyyy = d.getFullYear()
-    const mm = String(d.getMonth() + 1).padStart(2, '0')
-    const dd = String(d.getDate()).padStart(2, '0')
-    return `${t('admin.accounts.subscriptionExpires')} ${yyyy}-${mm}-${dd}`
-  } catch {
-    return ''
-  }
+  const expiresAt = formatBeijingDateTime(props.subscriptionExpiresAt)
+  return expiresAt ? `${t('admin.accounts.subscriptionExpires')} ${expiresAt}` : ''
 })
 
 // Privacy badge — shows different states for OpenAI/Antigravity OAuth privacy setting

@@ -94,6 +94,21 @@ describe('PlatformTypeBadge Grok plans', () => {
   })
 })
 
+describe('PlatformTypeBadge OpenAI subscription expiry', () => {
+  it('shows the full UTC+8 date and time', () => {
+    const wrapper = mount(PlatformTypeBadge, {
+      props: {
+        platform: 'openai',
+        type: 'oauth',
+        planType: 'Pro',
+        subscriptionExpiresAt: '2026-09-18T06:15:39Z',
+      },
+    })
+
+    expect(wrapper.text()).toContain('admin.accounts.subscriptionExpires 2026-09-18 14:15:39')
+  })
+})
+
 describe('PlatformTypeBadge OpenAI authentication modes', () => {
   it('distinguishes Agent Identity, PAT, and OAuth accounts', async () => {
     const wrapper = mount(PlatformTypeBadge, {
