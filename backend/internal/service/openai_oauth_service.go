@@ -302,8 +302,8 @@ func (s *OpenAIOAuthService) enrichTokenInfo(ctx context.Context, tokenInfo *Ope
 			tokenInfo.SubscriptionExpiresAt = expiresAt
 		}
 	}
-	if strings.TrimSpace(tokenInfo.SubscriptionExpiresAt) == "" {
-		tokenInfo.SubscriptionExpiresAt = subscriptionExpiresAtFromIDToken(tokenInfo.IDToken)
+	if expiresAt := subscriptionExpiresAtFromIDToken(tokenInfo.IDToken); expiresAt != "" {
+		tokenInfo.SubscriptionExpiresAt = expiresAt
 	}
 
 	// 尝试设置隐私（关闭训练数据共享），best-effort

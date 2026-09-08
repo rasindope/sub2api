@@ -43,7 +43,7 @@ func TestFetchChatGPTSubscriptionExpiresAt(t *testing.T) {
 	require.Equal(t, wantExpiresAt, got)
 }
 
-func TestEnrichTokenInfo_FallsBackToIDTokenSubscription(t *testing.T) {
+func TestEnrichTokenInfo_UsesIDTokenSubscription(t *testing.T) {
 	const wantExpiresAt = "2026-10-05T03:03:23+00:00"
 	payload, err := json.Marshal(map[string]any{
 		"https://api.openai.com/auth": map[string]any{
@@ -53,9 +53,10 @@ func TestEnrichTokenInfo_FallsBackToIDTokenSubscription(t *testing.T) {
 	require.NoError(t, err)
 
 	tokenInfo := &OpenAITokenInfo{
-		AccessToken:      "access-token",
-		IDToken:          "header." + base64.RawURLEncoding.EncodeToString(payload) + ".signature",
-		ChatGPTAccountID: "account-id",
+		AccessToken:           "access-token",
+		IDToken:               "header." + base64.RawURLEncoding.EncodeToString(payload) + ".signature",
+		ChatGPTAccountID:      "account-id",
+		SubscriptionExpiresAt: "2026-10-05T09:03:23+00:00",
 	}
 	svc := &OpenAIOAuthService{privacyClientFactory: func(string) (*req.Client, error) {
 		return nil, errors.New("cloudflare blocked")
