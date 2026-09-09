@@ -1064,7 +1064,7 @@ func ensureOpenAIResponsesImageGenerationTool(reqBody map[string]any) bool {
 
 	tool := map[string]any{
 		"type":          "image_generation",
-		"model":         "gpt-image-2.5-sunburst",
+		"model":         "gpt-image-2.5-flare",
 		"output_format": "png",
 	}
 
