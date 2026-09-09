@@ -852,6 +852,7 @@ func TestEnsureOpenAIResponsesImageGenerationTool_NoTools(t *testing.T) {
 	tool, ok := tools[0].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "image_generation", tool["type"])
+	require.Equal(t, "gpt-image-2.5-sunburst", tool["model"])
 	require.Equal(t, "png", tool["output_format"])
 }
 
