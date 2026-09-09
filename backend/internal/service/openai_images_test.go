@@ -827,6 +827,7 @@ func TestOpenAIGatewayServiceForwardImages_OAuthPassesNAndReturnsAllImages(t *te
 		Credentials: map[string]any{
 			"access_token":       "token-123",
 			"chatgpt_account_id": "acct-123",
+			"model_mapping":      map[string]any{"gpt-image-2": "gpt-image-2.5-sunburst"},
 		},
 	}
 
