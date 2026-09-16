@@ -21,7 +21,6 @@
         :loading="loading"
         :last-updated="lastUpdated"
         :thresholds="metricThresholds"
-        :nginx-timing="nginxTiming"
         :auto-refresh-enabled="autoRefreshEnabled"
         :auto-refresh-countdown="autoRefreshCountdown"
         :fullscreen="isFullscreen"
@@ -207,7 +206,6 @@ import {
   type OpsErrorDistributionResponse,
   type OpsErrorTrendResponse,
   type OpsLatencyHistogramResponse,
-  type OpsNginxTimingOverview,
   type OpsThroughputTrendResponse,
   type OpsMetricThresholds
 } from '@/api/admin/ops'
@@ -456,8 +454,6 @@ const loadingSwitchTrend = ref(false)
 
 const latencyHistogram = ref<OpsLatencyHistogramResponse | null>(null)
 const loadingLatency = ref(false)
-
-const nginxTiming = ref<OpsNginxTimingOverview | null>(null)
 
 const errorTrend = ref<OpsErrorTrendResponse | null>(null)
 const loadingErrorTrend = ref(false)
@@ -743,30 +739,6 @@ function buildSwitchTrendParams() {
   return params
 }
 
-function buildNginxTimingParams() {
-  const params: {
-    time_range?: '5m' | '30m' | '1h' | '6h' | '24h'
-    start_time?: string
-    end_time?: string
-    api_key_ids?: string
-  } = {
-    api_key_ids: selectedApiKeyIds.value.length ? selectedApiKeyIds.value.join(',') : undefined
-  }
-
-  if (timeRange.value === 'custom') {
-    if (customStartTime.value && customEndTime.value) {
-      params.start_time = customStartTime.value
-      params.end_time = customEndTime.value
-    } else {
-      params.time_range = '1h'
-    }
-  } else {
-    params.time_range = timeRange.value
-  }
-
-  return params
-}
-
 async function refreshOverviewWithCancel(fetchSeq: number, signal: AbortSignal) {
   if (!opsEnabled.value) return
   try {
@@ -860,19 +832,6 @@ async function refreshLatencyHistogramWithCancel(fetchSeq: number, signal: Abort
   }
 }
 
-async function refreshNginxTimingWithCancel(fetchSeq: number, signal: AbortSignal) {
-  if (!opsEnabled.value) return
-  try {
-    const data = await opsAPI.getNginxTimingOverview(buildNginxTimingParams(), { signal })
-    if (fetchSeq !== dashboardFetchSeq) return
-    nginxTiming.value = data
-  } catch (err: any) {
-    if (fetchSeq !== dashboardFetchSeq || isCanceledRequest(err)) return
-    nginxTiming.value = null
-    appStore.showError(err?.message || t('admin.ops.failedToLoadNginxTiming'))
-  }
-}
-
 async function refreshErrorTrendWithCancel(fetchSeq: number, signal: AbortSignal) {
   if (!opsEnabled.value) return
   loadingErrorTrend.value = true
@@ -914,7 +873,6 @@ async function refreshDeferredPanels(fetchSeq: number, signal: AbortSignal) {
   await Promise.all([
     refreshLatencyHistogramWithCancel(fetchSeq, signal),
     refreshErrorDistributionWithCancel(fetchSeq, signal),
-    refreshNginxTimingWithCancel(fetchSeq, signal)
   ])
 }
 

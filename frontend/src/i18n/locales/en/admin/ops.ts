@@ -38,47 +38,6 @@ export default {
         clear: 'Clear',
         apply: 'Apply filter'
       },
-      nginxTiming: {
-        requests: 'HTTP Requests',
-        requestsUnit: 'requests',
-        success: 'Success',
-        requestTime: 'Per-request completion time',
-        gatewayHeader: 'Gateway header P90: {value} ms',
-        clientOverhead: 'Per-request client overhead',
-        websocketSessions: 'WS sessions {count}',
-        p50: 'P50: {value} ms',
-        allGatewayTraffic: 'All gateway traffic',
-        matchedKeys: 'Matched Keys {count}',
-        logUnavailable: 'Waiting for Nginx log',
-        metricTitles: {
-          requests: 'HTTP Requests',
-          request_time: 'Per-request completion time',
-          client_overhead: 'Per-request client overhead'
-        },
-        details: {
-          title: '{metric}: per-Key details',
-          description: 'Each row is one Key. HTTP timing covers correlated HTTP requests; WebSocket traffic is counted only by sessions.',
-          meaning: 'Meaning: {value}',
-          currentP99: 'Current P99',
-          redThreshold: 'Red threshold',
-          matchedRequests: '{count} correlated gateway records',
-          clientTotal: 'Total time',
-          clientUpload: 'Upload time',
-          clientResponseReceive: 'Response receive time',
-          samples: 'Samples',
-          validSamples: '{count} valid timing samples',
-          success: 'Success',
-          empty: 'No Nginx requests in this range could be correlated to a Key.',
-          clientTimingEmpty: 'No correlated HTTP timing samples exist in this range. WebSocket sessions cannot be split.'
-        },
-        tooltips: {
-          requests: 'Counts HTTP gateway requests only. WebSocket connections are counted separately as sessions, not as HTTP requests.',
-          requestTime: 'For each HTTP request, time from Nginx receiving it until the response completes, including client upload, server work, and client download.',
-          clientOverhead: 'Completion time minus server time. It includes client upload and response drain, not pure network latency.',
-          clientUpload: 'Time from Nginx receiving the request until Sub2API receives the full request, including client upload and ingress forwarding.',
-          clientResponseReceive: 'Observable response-delivery tail while Nginx completes delivery to the client. Streaming overlaps upstream work; requests without an observed tail are recorded as 0.'
-        }
-      },
       systemLogs: {
         title: 'System Logs',
         description: 'Newest logs are shown first. Filter, search, and clean up by condition.',
@@ -174,7 +133,6 @@ export default {
       failedToLoadLatencyHistogram: 'Failed to load request duration histogram',
       failedToLoadErrorTrend: 'Failed to load error trend',
       failedToLoadErrorDistribution: 'Failed to load error distribution',
-      failedToLoadNginxTiming: 'Failed to load Nginx request-path data',
       failedToLoadErrorDetail: 'Failed to load error detail',
       retryFailed: 'Retry failed',
       tpsK: 'TPS (K)',

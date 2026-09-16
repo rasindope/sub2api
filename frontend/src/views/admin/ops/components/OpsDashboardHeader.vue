@@ -7,11 +7,10 @@ import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api'
-import { opsAPI, type OpsDashboardOverview, type OpsMetricThresholds, type OpsNginxTimingMetric, type OpsNginxTimingOverview, type OpsPercentiles, type OpsRealtimeTrafficSummary } from '@/api/admin/ops'
+import { opsAPI, type OpsDashboardOverview, type OpsMetricThresholds, type OpsRealtimeTrafficSummary } from '@/api/admin/ops'
 import type { OpsRequestDetailsPreset } from './OpsRequestDetailsModal.vue'
-import OpsNginxTimingDetailsModal from './OpsNginxTimingDetailsModal.vue'
 import { useAdminSettingsStore } from '@/stores'
-import { formatNumber, formatNumberLocaleString } from '@/utils/format'
+import { formatNumber } from '@/utils/format'
 import { formatMemorySizeMB } from '../utils/opsFormatters'
 
 type RealtimeWindow = '1min' | '5min' | '30min' | '1h'
@@ -26,7 +25,6 @@ interface Props {
   loading: boolean
   lastUpdated: Date | null
   thresholds?: OpsMetricThresholds | null // 阈值配置
-  nginxTiming?: OpsNginxTimingOverview | null
   autoRefreshEnabled?: boolean
   autoRefreshCountdown?: number
   fullscreen?: boolean
@@ -50,7 +48,9 @@ interface Emits {
   (e: 'exitFullscreen'): void
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  apiKeyIds: () => [],
+})
 const emit = defineEmits<Emits>()
 
 const { t } = useI18n()
@@ -60,8 +60,6 @@ const realtimeWindow = ref<RealtimeWindow>('1min')
 
 const overview = computed(() => props.overview ?? null)
 const systemMetrics = computed(() => overview.value?.system_metrics ?? null)
-const nginxTiming = computed(() => props.nginxTiming ?? null)
-const showNginxTiming = computed(() => overview.value !== null)
 
 const REALTIME_WINDOW_MINUTES: Record<RealtimeWindow, number> = {
   '1min': 1,
@@ -655,52 +653,6 @@ function formatTimeShort(ts?: string | null): string {
   const d = new Date(ts)
   if (Number.isNaN(d.getTime())) return '-'
   return d.toLocaleTimeString()
-}
-
-function formatNginxMs(value?: number | null): string {
-  return typeof value === 'number' && Number.isFinite(value) ? formatNumberLocaleString(value) : '-'
-}
-
-function formatNginxCount(value?: number | null): string {
-  return typeof value === 'number' && Number.isFinite(value) ? formatNumberLocaleString(value) : '-'
-}
-
-const showNginxTimingDetails = ref(false)
-const nginxTimingDetailMetric = ref<OpsNginxTimingMetric>('requests')
-const nginxClientOverheadThreshold = computed(() => props.thresholds?.nginx_client_overhead_ms_max ?? null)
-
-const nginxDurationCards = computed(() => {
-  const metrics = nginxTiming.value
-  return [
-    {
-      metric: 'request_time' as const,
-      title: t('admin.ops.nginxTiming.requestTime'),
-      tooltip: t('admin.ops.nginxTiming.tooltips.requestTime'),
-      values: metrics?.request_time
-    },
-    {
-      metric: 'client_overhead' as const,
-      title: t('admin.ops.nginxTiming.clientOverhead'),
-      tooltip: t('admin.ops.nginxTiming.tooltips.clientOverhead'),
-      values: metrics?.client_overhead_time
-    }
-  ]
-})
-
-const nginxTimingDetailSummary = computed<OpsPercentiles | undefined>(() => {
-  return nginxDurationCards.value.find((card) => card.metric === nginxTimingDetailMetric.value)?.values
-})
-
-function nginxTimingValueClass(metric: OpsNginxTimingMetric, value?: number | null): string {
-  if (metric === 'client_overhead' && nginxClientOverheadThreshold.value != null && value != null && value > nginxClientOverheadThreshold.value) {
-    return 'text-rose-600 dark:text-rose-400'
-  }
-  return 'text-gray-900 dark:text-white'
-}
-
-function openNginxTimingDetails(metric: OpsNginxTimingMetric) {
-  nginxTimingDetailMetric.value = metric
-  showNginxTimingDetails.value = true
 }
 
 const cpuPercentValue = computed<number | null>(() => {
@@ -1497,69 +1449,6 @@ function handleToolbarRefresh() {
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Nginx request path -->
-    <div v-if="showNginxTiming" class="mt-2 border-t border-gray-100 pt-4 dark:border-dark-700">
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <div class="rounded-2xl bg-gray-50 p-4 dark:bg-dark-900">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1">
-              <span class="text-[10px] font-bold uppercase text-gray-400">{{ t('admin.ops.nginxTiming.requests') }}</span>
-              <HelpTooltip v-if="!props.fullscreen" :content="t('admin.ops.nginxTiming.tooltips.requests')" />
-            </div>
-            <button v-if="!props.fullscreen" class="text-[10px] font-bold text-blue-500 hover:underline" type="button" @click="openNginxTimingDetails('requests')">
-              {{ t('admin.ops.requestDetails.details') }}
-            </button>
-          </div>
-          <div class="mt-2 flex items-baseline gap-2">
-            <div class="text-3xl font-black text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.http_request_count) : '-' }}</div>
-            <span class="text-xs font-bold text-gray-400">{{ t('admin.ops.nginxTiming.requestsUnit') }}</span>
-          </div>
-          <div class="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">{{ t('admin.ops.nginxTiming.success') }}:</span><span class="font-bold text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.success_count) : '-' }}</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">WS:</span><span class="font-bold text-gray-900 dark:text-white">{{ nginxTiming?.available ? formatNginxCount(nginxTiming.websocket_session_count) : '-' }}</span></div>
-          </div>
-        </div>
-
-        <div v-for="card in nginxDurationCards" :key="card.metric" class="rounded-2xl bg-gray-50 p-4 dark:bg-dark-900">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1">
-              <span class="text-[10px] font-bold uppercase text-gray-400">{{ card.title }}</span>
-              <HelpTooltip v-if="!props.fullscreen" :content="card.tooltip" />
-            </div>
-            <button v-if="!props.fullscreen" class="text-[10px] font-bold text-blue-500 hover:underline" type="button" @click="openNginxTimingDetails(card.metric)">
-              {{ t('admin.ops.requestDetails.details') }}
-            </button>
-          </div>
-          <div class="mt-2 flex items-baseline gap-2">
-            <div class="text-3xl font-black" :class="nginxTimingValueClass(card.metric, card.values?.p99_ms)">{{ formatNginxMs(card.values?.p99_ms) }}</div>
-            <span class="text-xs font-bold text-gray-400">ms (P99)</span>
-          </div>
-          <div class="mt-3 grid grid-cols-1 gap-x-3 gap-y-1 text-xs 2xl:grid-cols-2">
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">P95:</span><span class="font-bold" :class="nginxTimingValueClass(card.metric, card.values?.p95_ms)">{{ formatNginxMs(card.values?.p95_ms) }}</span><span class="text-gray-400">ms</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">P90:</span><span class="font-bold" :class="nginxTimingValueClass(card.metric, card.values?.p90_ms)">{{ formatNginxMs(card.values?.p90_ms) }}</span><span class="text-gray-400">ms</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">P50:</span><span class="font-bold" :class="nginxTimingValueClass(card.metric, card.values?.p50_ms)">{{ formatNginxMs(card.values?.p50_ms) }}</span><span class="text-gray-400">ms</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">Avg:</span><span class="font-bold" :class="nginxTimingValueClass(card.metric, card.values?.avg_ms)">{{ formatNginxMs(card.values?.avg_ms) }}</span><span class="text-gray-400">ms</span></div>
-            <div class="flex items-baseline gap-1 whitespace-nowrap"><span class="text-gray-500">Max:</span><span class="font-bold" :class="nginxTimingValueClass(card.metric, card.values?.max_ms)">{{ formatNginxMs(card.values?.max_ms) }}</span><span class="text-gray-400">ms</span></div>
-          </div>
-          <div v-if="card.metric === 'client_overhead' && nginxClientOverheadThreshold != null" class="mt-2 text-xs text-gray-500">
-            {{ t('admin.ops.nginxTiming.details.redThreshold') }}: {{ formatNginxMs(nginxClientOverheadThreshold) }} ms
-          </div>
-        </div>
-
-      </div>
-
-      <OpsNginxTimingDetailsModal
-        v-model="showNginxTimingDetails"
-        :metric="nginxTimingDetailMetric"
-        :time-range="props.timeRange"
-        :custom-start-time="props.customStartTime"
-        :custom-end-time="props.customEndTime"
-        :api-key-ids="props.apiKeyIds"
-        :summary="nginxTimingDetailSummary"
-        :threshold-ms="nginxTimingDetailMetric === 'client_overhead' ? nginxClientOverheadThreshold : null"
-      />
     </div>
 
     <!-- Integrated: System health (cards) -->

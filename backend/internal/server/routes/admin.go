@@ -275,8 +275,6 @@ func registerOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		ops.GET("/dashboard/error-trend", h.Admin.Ops.GetDashboardErrorTrend)
 		ops.GET("/dashboard/error-distribution", h.Admin.Ops.GetDashboardErrorDistribution)
 		ops.GET("/dashboard/openai-token-stats", h.Admin.Ops.GetDashboardOpenAITokenStats)
-		ops.GET("/dashboard/nginx-timing", h.Admin.Ops.GetNginxTimingOverview)
-		ops.GET("/dashboard/nginx-timing/keys", h.Admin.Ops.GetNginxTimingKeyDetails)
 	}
 }
 
@@ -419,8 +417,6 @@ func registerAccountRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAu
 		accounts.POST("/batch-delete", h.Admin.Account.BatchDelete)
 		accounts.POST("/batch-clear-error", h.Admin.Account.BatchClearError)
 		accounts.POST("/batch-refresh", h.Admin.Account.BatchRefresh)
-		accounts.GET("/:id/codex/invite-reset/status", h.Admin.CodexInviteReset.GetStatus)
-		accounts.POST("/:id/codex/invite-reset/invite", h.Admin.CodexInviteReset.SendInvite)
 
 		// Antigravity 默认模型映射
 		accounts.GET("/antigravity/default-model-mapping", h.Admin.Account.GetAntigravityDefaultModelMapping)

@@ -38,47 +38,6 @@ export default {
         clear: '清空',
         apply: '应用筛选'
       },
-      nginxTiming: {
-        requests: 'HTTP 请求数',
-        requestsUnit: '次',
-        success: '成功',
-        requestTime: '每次请求完整耗时',
-        gatewayHeader: '应用首包 P90：{value} ms',
-        clientOverhead: '每次请求客户端附加耗时',
-        websocketSessions: 'WS 会话 {count}',
-        p50: 'P50：{value} ms',
-        allGatewayTraffic: '全部网关流量',
-        matchedKeys: 'Key 命中 {count}',
-        logUnavailable: '等待 Nginx 日志',
-        metricTitles: {
-          requests: 'HTTP 请求数',
-          request_time: '每次请求完整耗时',
-          client_overhead: '每次请求客户端附加耗时'
-        },
-        details: {
-          title: '{metric}：每个 Key 明细',
-          description: '每一行是一个 Key。HTTP 耗时只统计已关联的每一次 HTTP 请求；WS 只按会话数统计。',
-          meaning: '含义：{value}',
-          currentP99: '当前 P99',
-          redThreshold: '标红阈值',
-          matchedRequests: '已关联 {count} 条网关记录',
-          clientTotal: '总耗时',
-          clientUpload: '上传耗时',
-          clientResponseReceive: '接收响应耗时',
-          samples: '样本',
-          validSamples: '当前明细有效样本 {count}',
-          success: '成功',
-          empty: '当前时间范围内没有可关联到 Key 的 Nginx 请求。',
-          clientTimingEmpty: '当前范围没有已关联的 HTTP 时序样本。WS 会话不支持拆分。'
-        },
-        tooltips: {
-          requests: '仅统计 HTTP 网关请求。WebSocket 连接按会话单独计数，不与每次 HTTP 请求混算。',
-          requestTime: '每一条 HTTP 请求从 Nginx 接收请求到响应完成的时长，包含客户端上传、服务端处理和客户端下载。',
-          clientOverhead: '完整耗时 - 服务端耗时，包含客户端上传请求体和接收响应的附加时间，不等同于纯网络延迟。',
-          clientUpload: '从 Nginx 接收请求到 Sub2API 收到完整请求的时长，包含客户端上传与入口转发。',
-          clientResponseReceive: 'Nginx 向客户端完成传输的可观测响应尾部。流式响应会与上游处理并行，未观察到尾部的请求记为 0。'
-        }
-      },
       systemLogs: {
         title: '系统日志',
         description: '优先显示最新日志，可按条件筛选、搜索和清理。',
@@ -174,7 +133,6 @@ export default {
       failedToLoadLatencyHistogram: '加载请求时长分布失败',
       failedToLoadErrorTrend: '加载错误趋势失败',
       failedToLoadErrorDistribution: '加载错误分布失败',
-      failedToLoadNginxTiming: '加载 Nginx 请求链路数据失败',
       failedToLoadErrorDetail: '加载错误详情失败',
       retryFailed: '重试失败',
       tpsK: 'TPS（千）',
