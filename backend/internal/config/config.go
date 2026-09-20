@@ -104,6 +104,7 @@ type Config struct {
 	BatchImage              BatchImageConfig              `mapstructure:"batch_image"`
 	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
 	Plugins                 PluginConfig                  `mapstructure:"plugins"`
+	ModelCapabilities       ModelCapabilitiesConfig       `mapstructure:"model_capabilities"`
 }
 
 // PluginConfig 控制管理员手动上传的本地进程插件。
@@ -115,6 +116,41 @@ type PluginConfig struct {
 	MaxUploadBytes       int64             `mapstructure:"max_upload_bytes"`
 	MaxUncompressedBytes int64             `mapstructure:"max_uncompressed_bytes"`
 	StartTimeoutSeconds  int               `mapstructure:"start_timeout_seconds"`
+}
+
+// ModelCapabilitiesConfig 声明 `/v1/models` 对外暴露的模型能力。
+//
+// 上游供应商的模型列表往往只有模型 ID，客户端（如 CC Switch 的 Codex
+// 供应商切换）拿不到上下文窗口和可选思考等级。这里按模型 ID 手工声明，
+// 命中后并入 `/v1/models` 的条目；未声明的模型不受影响。
+type ModelCapabilitiesConfig struct {
+	Models []ModelCapabilityConfig `mapstructure:"models"`
+}
+
+// ModelCapabilityConfig 是单个模型的能力声明。reasoning_levels 取值与
+// Codex 的思考等级一致：none / minimal / low / medium / high / xhigh / max。
+type ModelCapabilityConfig struct {
+	ID                    string   `mapstructure:"id"`
+	ContextLength         int64    `mapstructure:"context_length"`
+	ReasoningLevels       []string `mapstructure:"reasoning_levels"`
+	DefaultReasoningLevel string   `mapstructure:"default_reasoning_level"`
+}
+
+// ModelCapability 按模型 ID 返回能力声明，未声明时 ok 为 false。
+func (c *Config) ModelCapability(modelID string) (ModelCapabilityConfig, bool) {
+	if c == nil {
+		return ModelCapabilityConfig{}, false
+	}
+	modelID = strings.TrimSpace(modelID)
+	if modelID == "" {
+		return ModelCapabilityConfig{}, false
+	}
+	for _, capability := range c.ModelCapabilities.Models {
+		if strings.TrimSpace(capability.ID) == modelID {
+			return capability, true
+		}
+	}
+	return ModelCapabilityConfig{}, false
 }
 
 type LogConfig struct {

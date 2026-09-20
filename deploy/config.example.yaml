@@ -1057,6 +1057,27 @@ plugins:
   start_timeout_seconds: 15
 
 # =============================================================================
+# Model Capabilities Exposed On /v1/models (Optional)
+# /v1/models 对外暴露的模型能力（可选）
+# =============================================================================
+# Upstream model lists usually carry only model IDs. Clients such as CC Switch
+# read context_length / reasoning_levels from /v1/models to fill their Codex
+# model catalog, so declare them here by model ID. Models that are not listed
+# keep their previous response shape.
+# 上游模型列表通常只有模型 ID。CC Switch 等客户端会从 /v1/models 读取
+# context_length / reasoning_levels 填充 Codex 模型目录，因此在这里按模型 ID
+# 声明。未声明的模型保持原响应不变。
+# reasoning_levels uses the Codex levels: none / minimal / low / medium / high / xhigh / max.
+model_capabilities:
+  models: []
+  # - id: gpt-5.6-sol
+  #   context_length: 400000
+  #   reasoning_levels: [none, low, medium, high, xhigh]
+  #   default_reasoning_level: high
+  # - id: claude-fable-5-1
+  #   context_length: 1000000
+
+# =============================================================================
 # Pricing Data Source (Optional)
 # 定价数据源（可选）
 # =============================================================================
