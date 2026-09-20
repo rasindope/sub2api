@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -145,4 +147,67 @@ func TestGatewayModels_ModelCapabilitiesApplyToDefaultFallback(t *testing.T) {
 	require.NotNil(t, item.ContextLength)
 	require.Equal(t, int64(1_000_000), *item.ContextLength)
 	require.Equal(t, []string{"none", "low", "medium", "high", "xhigh"}, item.ReasoningLevels)
+}
+
+type modelCapabilitiesSettingRepoStub struct {
+	values map[string]string
+}
+
+func (s *modelCapabilitiesSettingRepoStub) Get(context.Context, string) (*service.Setting, error) {
+	panic("unexpected Get call")
+}
+
+func (s *modelCapabilitiesSettingRepoStub) GetValue(_ context.Context, key string) (string, error) {
+	if value, ok := s.values[key]; ok {
+		return value, nil
+	}
+	return "", errors.New("setting not found")
+}
+
+func (s *modelCapabilitiesSettingRepoStub) Set(_ context.Context, key, value string) error {
+	if s.values == nil {
+		s.values = map[string]string{}
+	}
+	s.values[key] = value
+	return nil
+}
+
+func (s *modelCapabilitiesSettingRepoStub) GetMultiple(context.Context, []string) (map[string]string, error) {
+	panic("unexpected GetMultiple call")
+}
+
+func (s *modelCapabilitiesSettingRepoStub) SetMultiple(context.Context, map[string]string) error {
+	panic("unexpected SetMultiple call")
+}
+
+func (s *modelCapabilitiesSettingRepoStub) GetAll(context.Context) (map[string]string, error) {
+	panic("unexpected GetAll call")
+}
+
+func (s *modelCapabilitiesSettingRepoStub) Delete(context.Context, string) error {
+	panic("unexpected Delete call")
+}
+
+// Scenario: 后台保存的能力声明覆盖 config.yaml，/v1/models 立即生效。
+func TestGatewayModels_ModelCapabilitiesUseStoredOverride(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const groupID int64 = 79
+	h := newGatewayModelsHandlerForTest(&gatewayModelsAccountRepoStub{
+		byGroup: modelCapabilityAccountsForTest(groupID, service.PlatformOpenAI, "gpt-future-model"),
+	})
+	h.cfg = &config.Config{ModelCapabilities: config.ModelCapabilitiesConfig{Models: []config.ModelCapabilityConfig{{
+		ID: "gpt-future-model", ContextLength: 111,
+	}}}}
+	h.settingService = service.NewSettingService(&modelCapabilitiesSettingRepoStub{values: map[string]string{}}, h.cfg)
+	require.NoError(t, h.settingService.SetModelCapabilities(context.Background(), []service.ModelCapability{{
+		ID: "gpt-future-model", ContextLength: 222, ReasoningLevels: []string{"low", "high"}, DefaultReasoningLevel: "high",
+	}}))
+
+	item := modelCapabilitiesResponseForTest(t, h, service.PlatformOpenAI, groupID)["gpt-future-model"]
+	require.NotNil(t, item.ContextLength)
+	require.Equal(t, int64(222), *item.ContextLength)
+	require.Equal(t, []string{"low", "high"}, item.ReasoningLevels)
+	require.NotNil(t, item.DefaultReasoningLevel)
+	require.Equal(t, "high", *item.DefaultReasoningLevel)
 }

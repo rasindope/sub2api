@@ -29,16 +29,10 @@ model_capabilities:
 	require.NoError(t, err)
 	require.Len(t, cfg.ModelCapabilities.Models, 2)
 
-	capability, ok := cfg.ModelCapability("gpt-5.6-sol")
-	require.True(t, ok)
+	capability := cfg.ModelCapabilities.Models[0]
+	require.Equal(t, "gpt-5.6-sol", capability.ID)
 	require.Equal(t, int64(400_000), capability.ContextLength)
 	require.Equal(t, []string{"low", "medium", "high", "xhigh"}, capability.ReasoningLevels)
 	require.Equal(t, "high", capability.DefaultReasoningLevel)
-
-	_, ok = cfg.ModelCapability("unlisted-model")
-	require.False(t, ok)
-
-	var nilConfig *Config
-	_, ok = nilConfig.ModelCapability("gpt-5.6-sol")
-	require.False(t, ok)
+	require.Equal(t, "claude-fable-5-1", cfg.ModelCapabilities.Models[1].ID)
 }

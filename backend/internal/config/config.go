@@ -136,23 +136,6 @@ type ModelCapabilityConfig struct {
 	DefaultReasoningLevel string   `mapstructure:"default_reasoning_level"`
 }
 
-// ModelCapability 按模型 ID 返回能力声明，未声明时 ok 为 false。
-func (c *Config) ModelCapability(modelID string) (ModelCapabilityConfig, bool) {
-	if c == nil {
-		return ModelCapabilityConfig{}, false
-	}
-	modelID = strings.TrimSpace(modelID)
-	if modelID == "" {
-		return ModelCapabilityConfig{}, false
-	}
-	for _, capability := range c.ModelCapabilities.Models {
-		if strings.TrimSpace(capability.ID) == modelID {
-			return capability, true
-		}
-	}
-	return ModelCapabilityConfig{}, false
-}
-
 type LogConfig struct {
 	Level           string            `mapstructure:"level"`
 	Format          string            `mapstructure:"format"`

@@ -1301,17 +1301,22 @@ type modelCapabilityFields struct {
 	DefaultReasoningLevel string   `json:"default_reasoning_level,omitempty"`
 }
 
-// modelCapabilityFieldsFor 返回模型声明的能力字段，未声明时为零值。
-func (h *GatewayHandler) modelCapabilityFieldsFor(modelID string) modelCapabilityFields {
-	capability, ok := h.cfg.ModelCapability(modelID)
-	if !ok {
-		return modelCapabilityFields{}
+// modelCapabilityIndex 返回本次请求生效的能力表：后台保存的运行时设置优先，
+// 未配置时回落到 config.yaml 的 model_capabilities。
+func (h *GatewayHandler) modelCapabilityIndex(ctx context.Context) map[string]modelCapabilityFields {
+	declared := service.ModelCapabilitiesFromConfig(h.cfg)
+	if h.settingService != nil {
+		declared = h.settingService.EffectiveModelCapabilities(ctx)
 	}
-	return modelCapabilityFields{
-		ContextLength:         capability.ContextLength,
-		ReasoningLevels:       capability.ReasoningLevels,
-		DefaultReasoningLevel: capability.DefaultReasoningLevel,
+	index := make(map[string]modelCapabilityFields, len(declared))
+	for _, item := range declared {
+		index[item.ID] = modelCapabilityFields{
+			ContextLength:         item.ContextLength,
+			ReasoningLevels:       item.ReasoningLevels,
+			DefaultReasoningLevel: item.DefaultReasoningLevel,
+		}
 	}
+	return index
 }
 
 type claudeModelListItem struct {
@@ -1328,6 +1333,7 @@ func (h *GatewayHandler) writeModelsList(c *gin.Context, platform string, modelI
 		h.writeGrokModelsList(c, modelIDs)
 		return
 	}
+	capabilities := h.modelCapabilityIndex(c.Request.Context())
 	models := make([]claudeModelListItem, 0, len(modelIDs))
 	for _, modelID := range modelIDs {
 		models = append(models, claudeModelListItem{
@@ -1337,7 +1343,7 @@ func (h *GatewayHandler) writeModelsList(c *gin.Context, platform string, modelI
 				DisplayName: modelID,
 				CreatedAt:   "2024-01-01T00:00:00Z",
 			},
-			modelCapabilityFields: h.modelCapabilityFieldsFor(modelID),
+			modelCapabilityFields: capabilities[modelID],
 		})
 	}
 	writeModelsListResponse(c, models)
@@ -1372,6 +1378,7 @@ func (h *GatewayHandler) writeGrokModelsList(c *gin.Context, modelIDs []string) 
 		defaultsByID[model.ID] = model
 	}
 
+	capabilities := h.modelCapabilityIndex(c.Request.Context())
 	models := make([]grokModelListItem, 0, len(modelIDs))
 	for _, modelID := range modelIDs {
 		model, ok := defaultsByID[modelID]
@@ -1385,7 +1392,7 @@ func (h *GatewayHandler) writeGrokModelsList(c *gin.Context, modelIDs []string) 
 		}
 		item := grokModelListItem{
 			Model:                 model,
-			modelCapabilityFields: h.modelCapabilityFieldsFor(modelID),
+			modelCapabilityFields: capabilities[modelID],
 		}
 		if grokModelSupportsConfigurableReasoning(modelID) {
 			item.SupportsReasoningEffort = true
@@ -1426,6 +1433,7 @@ func (h *GatewayHandler) writeOpenAIModelsList(c *gin.Context, modelIDs []string
 		defaultsByID[model.ID] = model
 	}
 
+	capabilities := h.modelCapabilityIndex(c.Request.Context())
 	models := make([]openaiModelListItem, 0, len(modelIDs))
 	for _, modelID := range modelIDs {
 		model, ok := defaultsByID[modelID]
@@ -1441,7 +1449,7 @@ func (h *GatewayHandler) writeOpenAIModelsList(c *gin.Context, modelIDs []string
 		}
 		models = append(models, openaiModelListItem{
 			Model:                 model,
-			modelCapabilityFields: h.modelCapabilityFieldsFor(modelID),
+			modelCapabilityFields: capabilities[modelID],
 		})
 	}
 	writeModelsListResponse(c, models)

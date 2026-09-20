@@ -116,6 +116,10 @@ func registerRoutes(
 	// 通用路由（健康检查、状态等）
 	routes.RegisterCommonRoutes(r)
 
+	// 模型对外暴露配置页：静态页面（无鉴权），数据接口在 /api/v1/admin/settings 下。
+	r.GET("/api/v1/model-capabilities", h.Admin.Setting.ModelCapabilitiesPage)
+	r.GET("/api/v1/model-capabilities/app.js", h.Admin.Setting.ModelCapabilitiesPageScript)
+
 	// API v1
 	v1 := r.Group("/api/v1")
 
