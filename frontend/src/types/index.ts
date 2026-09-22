@@ -2053,6 +2053,10 @@ export interface ApiKeySpendingRankingItem {
   user_id: number
   email: string
   actual_cost: number
+  openai_usd?: number
+  deepseek_cny?: number
+  glm_points?: number
+  qwen_credits?: number
   requests: number
   tokens: number
   average_duration_ms?: number

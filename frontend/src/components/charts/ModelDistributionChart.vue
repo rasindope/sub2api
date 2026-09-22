@@ -288,7 +288,14 @@
                   {{ formatTokens(item.tokens) }}
                 </td>
                 <td class="py-1.5 text-right text-green-600 dark:text-green-400">
-                  ${{ formatCost(getRankingCost(item)) }}
+                  <div>${{ formatCost(getRankingCost(item)) }}</div>
+                  <div
+                    v-if="isApiKeyRankingItem(item) && formatNativeUsage(item)"
+                    class="text-[10px] font-normal text-gray-500 dark:text-gray-400"
+                    :title="t('admin.dashboard.nativeUsage')"
+                  >
+                    {{ formatNativeUsage(item) }}
+                  </div>
                 </td>
                 <td v-if="showApiKeyExtendedColumns" class="py-1.5 text-right text-gray-600 dark:text-gray-400">
                   {{ formatRankingShare(getRankingCost(item)) }}
@@ -368,7 +375,16 @@
                           <td class="w-[14%] py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatNumber(overflowItem.requests) }}</td>
                           <td class="w-[18%] py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatAverageDuration(overflowItem.average_duration_ms) }}</td>
                           <td class="w-[15%] py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatTokens(overflowItem.tokens) }}</td>
-                          <td class="w-[15%] py-1.5 text-right text-green-600 dark:text-green-400">${{ formatCost(overflowItem.actual_cost) }}</td>
+                          <td class="w-[15%] py-1.5 text-right text-green-600 dark:text-green-400">
+                            <div>${{ formatCost(overflowItem.actual_cost) }}</div>
+                            <div
+                              v-if="formatNativeUsage(overflowItem)"
+                              class="text-[10px] font-normal text-gray-500 dark:text-gray-400"
+                              :title="t('admin.dashboard.nativeUsage')"
+                            >
+                              {{ formatNativeUsage(overflowItem) }}
+                            </div>
+                          </td>
                         </tr>
                       </tbody>
                     </table>
@@ -833,6 +849,23 @@ const formatCost = (value: number | null | undefined): string => {
     return safeValue.toFixed(3)
   }
   return safeValue.toFixed(4)
+}
+
+// 上游口径用量：网关的 $ 对不上任何一家账单，这里按各家自己的计价单位展示。
+// 依次是 OpenAI 美元、DeepSeek 元、GLM 积分、Qwen Credits。
+// ponytail: Qwen 的 Credits 是标定值（53.5 Credits/百万 token，由 Token Plan
+// 控制台窗口百分比反推），系数变了要同步改后端 SQL 里的同一个常量。
+const formatNativeUsage = (item: ApiKeySpendingRankingItem): string => {
+  const parts: string[] = []
+  const openai = toFiniteNumber(item.openai_usd)
+  const deepseek = toFiniteNumber(item.deepseek_cny)
+  const glm = toFiniteNumber(item.glm_points)
+  const qwen = toFiniteNumber(item.qwen_credits)
+  if (openai > 0) parts.push(`$${formatCost(openai)}`)
+  if (deepseek > 0) parts.push(`¥${formatCost(deepseek)}`)
+  if (glm > 0) parts.push(`${formatNumber(Math.round(glm))}分`)
+  if (qwen > 0) parts.push(`${formatNumber(Math.round(qwen))}Cr`)
+  return parts.join(' · ')
 }
 
 const formatAverageDuration = (value: number | null | undefined): string => {

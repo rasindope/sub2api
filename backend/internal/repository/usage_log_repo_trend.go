@@ -330,10 +330,61 @@ func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, start
 				COALESCE(SUM(u.actual_cost), 0) as actual_cost,
 				COUNT(*) as requests,
 				COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens), 0) as tokens,
-				COALESCE(AVG(u.duration_ms), 0) as average_duration_ms
+				COALESCE(AVG(u.duration_ms), 0) as average_duration_ms,
+				-- 上游口径用量：网关那列 actual_cost 对不上任何一家账单，这里按各家自己的
+				-- 计价单位分别重算（OpenAI 美元 / DeepSeek 元 / GLM 积分 / Qwen Credits）。
+				-- 账号识别靠 accounts.credentials->>'base_url'，与账号页展示的四个上游一一对应。
+				COALESCE(SUM(
+					COALESCE(u.account_stats_cost, u.total_cost) * COALESCE(u.account_rate_multiplier, 1)
+				) FILTER (WHERE a.platform = 'openai'), 0) as openai_usd,
+				COALESCE(SUM(
+					CASE WHEN a.platform = 'deepseek'
+					      AND COALESCE(a.credentials->>'base_url', '') LIKE '%api.deepseek.com%'
+					THEN (
+						u.cache_read_tokens * CASE
+							WHEN EXTRACT(ISODOW FROM u.created_at AT TIME ZONE 'Asia/Shanghai') < 6
+							 AND (EXTRACT(HOUR FROM u.created_at AT TIME ZONE 'Asia/Shanghai') BETWEEN 9 AND 11
+							   OR EXTRACT(HOUR FROM u.created_at AT TIME ZONE 'Asia/Shanghai') BETWEEN 14 AND 17)
+							THEN CASE WHEN COALESCE(NULLIF(BTRIM(u.upstream_model), ''), u.model) = 'deepseek-v4-pro' THEN 0.30 ELSE 0.04 END
+							ELSE CASE WHEN COALESCE(NULLIF(BTRIM(u.upstream_model), ''), u.model) = 'deepseek-v4-pro' THEN 0.15 ELSE 0.02 END
+						END
+						+ u.input_tokens * CASE
+							WHEN EXTRACT(ISODOW FROM u.created_at AT TIME ZONE 'Asia/Shanghai') < 6
+							 AND (EXTRACT(HOUR FROM u.created_at AT TIME ZONE 'Asia/Shanghai') BETWEEN 9 AND 11
+							   OR EXTRACT(HOUR FROM u.created_at AT TIME ZONE 'Asia/Shanghai') BETWEEN 14 AND 17)
+							THEN CASE WHEN COALESCE(NULLIF(BTRIM(u.upstream_model), ''), u.model) = 'deepseek-v4-pro' THEN 9.0 ELSE 2.0 END
+							ELSE CASE WHEN COALESCE(NULLIF(BTRIM(u.upstream_model), ''), u.model) = 'deepseek-v4-pro' THEN 4.5 ELSE 1.0 END
+						END
+						+ u.output_tokens * CASE
+							WHEN EXTRACT(ISODOW FROM u.created_at AT TIME ZONE 'Asia/Shanghai') < 6
+							 AND (EXTRACT(HOUR FROM u.created_at AT TIME ZONE 'Asia/Shanghai') BETWEEN 9 AND 11
+							   OR EXTRACT(HOUR FROM u.created_at AT TIME ZONE 'Asia/Shanghai') BETWEEN 14 AND 17)
+							THEN CASE WHEN COALESCE(NULLIF(BTRIM(u.upstream_model), ''), u.model) = 'deepseek-v4-pro' THEN 27.0 ELSE 8.0 END
+							ELSE CASE WHEN COALESCE(NULLIF(BTRIM(u.upstream_model), ''), u.model) = 'deepseek-v4-pro' THEN 13.5 ELSE 4.0 END
+						END
+					) / 1000000 ELSE 0 END
+				), 0) as deepseek_cny,
+				COALESCE(SUM(
+					CASE WHEN a.platform = 'zhipu'
+					      AND COALESCE(a.credentials->>'base_url', '') LIKE '%bigmodel.cn%'
+					THEN (
+						(u.input_tokens * CASE WHEN COALESCE(NULLIF(BTRIM(u.upstream_model), ''), u.model) LIKE '%flash%' THEN 2.3 ELSE 6.9 END
+						 + u.cache_read_tokens * CASE WHEN COALESCE(NULLIF(BTRIM(u.upstream_model), ''), u.model) LIKE '%flash%' THEN 0.56 ELSE 1.7 END
+						 + u.output_tokens * CASE WHEN COALESCE(NULLIF(BTRIM(u.upstream_model), ''), u.model) LIKE '%flash%' THEN 8 ELSE 24 END) / 10000
+						* CASE
+							WHEN EXTRACT(ISODOW FROM u.created_at AT TIME ZONE 'Asia/Shanghai') < 6
+							 AND EXTRACT(HOUR FROM u.created_at AT TIME ZONE 'Asia/Shanghai') BETWEEN 14 AND 17
+							THEN 1 ELSE 0.5 END
+					) ELSE 0 END
+				), 0) as glm_points,
+				COALESCE(SUM(
+					CASE WHEN COALESCE(a.credentials->>'base_url', '') LIKE '%token-plan%'
+					THEN (u.input_tokens + u.cache_read_tokens + u.output_tokens) * 53.5 / 1000000 ELSE 0 END
+				), 0) as qwen_credits
 			FROM usage_logs u
 			LEFT JOIN api_keys k ON u.api_key_id = k.id
 			LEFT JOIN users us ON us.id = COALESCE(k.user_id, u.user_id)
+			LEFT JOIN accounts a ON a.id = u.account_id
 			WHERE u.created_at >= $1 AND u.created_at < $2
 			GROUP BY u.api_key_id, k.name, COALESCE(k.user_id, u.user_id), us.email
 		),
@@ -347,6 +398,10 @@ func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, start
 				requests,
 				tokens,
 				average_duration_ms,
+				openai_usd,
+				deepseek_cny,
+				glm_points,
+				qwen_credits,
 				COALESCE(SUM(actual_cost) OVER (), 0) as total_actual_cost,
 				COALESCE(SUM(requests) OVER (), 0) as total_requests,
 				COALESCE(SUM(tokens) OVER (), 0) as total_tokens
@@ -397,6 +452,10 @@ func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, start
 			r.requests,
 			r.tokens,
 			r.average_duration_ms,
+			r.openai_usd,
+			r.deepseek_cny,
+			r.glm_points,
+			r.qwen_credits,
 			COALESCE(i.distinct_ip_count, 0) AS distinct_ip_count,
 			COALESCE(i.ip_usages, '[]'::jsonb) AS ip_usages,
 			r.total_actual_cost,
@@ -425,7 +484,7 @@ func (r *usageLogRepository) GetAPIKeySpendingRanking(ctx context.Context, start
 	for rows.Next() {
 		var row APIKeySpendingRankingItem
 		var ipUsagesRaw []byte
-		if err = rows.Scan(&row.APIKeyID, &row.KeyName, &row.UserID, &row.Email, &row.ActualCost, &row.Requests, &row.Tokens, &row.AverageDurationMs, &row.DistinctIPCount, &ipUsagesRaw, &totalActualCost, &totalRequests, &totalTokens); err != nil {
+		if err = rows.Scan(&row.APIKeyID, &row.KeyName, &row.UserID, &row.Email, &row.ActualCost, &row.Requests, &row.Tokens, &row.AverageDurationMs, &row.OpenAIUSD, &row.DeepSeekCNY, &row.GLMPoints, &row.QwenCredits, &row.DistinctIPCount, &ipUsagesRaw, &totalActualCost, &totalRequests, &totalTokens); err != nil {
 			return nil, err
 		}
 		if err = json.Unmarshal(ipUsagesRaw, &row.IPUsages); err != nil {

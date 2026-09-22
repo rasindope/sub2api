@@ -76,6 +76,7 @@ export default {
       spendingRankingAverageDuration: 'Avg Response',
       spendingRankingTokens: 'Tokens',
       spendingRankingSpend: 'Spend',
+      nativeUsage: 'Upstream usage',
       spendingRankingShare: 'Spend Share',
       ipCountShort: '{count} IP',
       ipDetailsOpen: 'View access sources',

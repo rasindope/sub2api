@@ -76,6 +76,7 @@ export default {
       spendingRankingAverageDuration: '平均请求耗时',
       spendingRankingTokens: 'Token',
       spendingRankingSpend: '消费',
+      nativeUsage: '上游用量',
       spendingRankingShare: '消费占比',
       ipCountShort: '{count} IP',
       ipDetailsOpen: '查看访问来源',

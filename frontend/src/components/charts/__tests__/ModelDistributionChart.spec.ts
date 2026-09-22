@@ -267,6 +267,10 @@ describe('ModelDistributionChart', () => {
             user_id: 1,
             email: 'owner@example.com',
             actual_cost: 5,
+            openai_usd: 3.5,
+            deepseek_cny: 1.84,
+            glm_points: 6126.1,
+            qwen_credits: 1920,
             requests: 4,
             tokens: 500,
             average_duration_ms: 1500,
@@ -300,6 +304,8 @@ describe('ModelDistributionChart', () => {
     expect(wrapper.text()).not.toContain('owner@example.com')
     expect(wrapper.text()).toContain('1.50s')
     expect(wrapper.text()).toContain('2 IP')
+    // 上游口径用量：美元 / 元 / 积分 / Credits，四家不能折成一个数。
+    expect(wrapper.text()).toContain('$3.50 · ¥1.84 · 6,126分 · 1,920Cr')
     const rankingChartData = JSON.parse(wrapper.find('.chart-data').text())
     expect(rankingChartData.labels).toEqual(['#1 sales-key', '#2 support-key'])
     expect(rankingChartData.datasets[0].data).toEqual([5, 2])

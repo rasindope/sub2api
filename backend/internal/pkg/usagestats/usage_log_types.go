@@ -201,6 +201,10 @@ type APIKeySpendingRankingItem struct {
 	UserID            int64           `json:"user_id"`
 	Email             string          `json:"email"`
 	ActualCost        float64         `json:"actual_cost"` // 实际扣除
+	OpenAIUSD         float64         `json:"openai_usd"`
+	DeepSeekCNY       float64         `json:"deepseek_cny"`
+	GLMPoints         float64         `json:"glm_points"`
+	QwenCredits       float64         `json:"qwen_credits"`
 	Requests          int64           `json:"requests"`
 	Tokens            int64           `json:"tokens"`
 	AverageDurationMs float64         `json:"average_duration_ms"`
