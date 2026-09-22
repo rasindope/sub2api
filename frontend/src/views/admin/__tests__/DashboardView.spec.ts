@@ -186,7 +186,7 @@ describe('admin DashboardView', () => {
     wrapper.unmount()
   })
 
-  it('keeps the key ranking in the left two-thirds and trends below it', async () => {
+  it('gives the key ranking a full row and pairs the trend with key concurrency', async () => {
     const wrapper = mount(DashboardView, {
       global: {
         stubs: {
@@ -213,8 +213,14 @@ describe('admin DashboardView', () => {
     expect(wrapper.html().indexOf('admin.dashboard.apiKeyUsageTrend')).toBeLessThan(
       wrapper.html().indexOf('token-usage-trend-stub')
     )
-    expect(distributionCharts[0].classes()).toContain('lg:col-span-2')
-    expect(wrapper.find('[data-testid="active-key-concurrency-card"]').exists()).toBe(true)
+    // 消费榜独占整行：不再被挤在三分之二里。
+    expect(distributionCharts[0].classes()).not.toContain('lg:col-span-2')
+    // 活跃 Key 并发让位到趋势那一行，和趋势图同属一个三列栅格。
+    const concurrencyCard = wrapper.find('[data-testid="active-key-concurrency-card"]')
+    expect(concurrencyCard.exists()).toBe(true)
+    const trendRow = concurrencyCard.element.parentElement
+    expect(trendRow?.className).toContain('lg:grid-cols-3')
+    expect(trendRow?.textContent).toContain('admin.dashboard.apiKeyUsageTrend')
     wrapper.unmount()
   })
 })

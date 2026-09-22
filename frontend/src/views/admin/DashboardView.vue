@@ -231,30 +231,49 @@
             </div>
           </div>
 
+          <ModelDistributionChart
+            class="min-w-0"
+            :model-stats="modelStats"
+            :enable-ranking-view="true"
+            :ranking-items="rankingItems"
+            :ranking-total-cost="rankingTotalCost"
+            :ranking-total-requests="rankingTotalRequests"
+            :ranking-total-tokens="rankingTotalTokens"
+            :api-key-ranking-items="apiKeyRankingItems"
+            :api-key-ranking-total-actual-cost="apiKeyRankingTotalActualCost"
+            :api-key-ranking-total-requests="apiKeyRankingTotalRequests"
+            :api-key-ranking-total-tokens="apiKeyRankingTotalTokens"
+            :loading="chartsLoading"
+            :ranking-loading="rankingLoading"
+            :ranking-error="rankingError"
+            :api-key-ranking-loading="apiKeyRankingLoading"
+            :api-key-ranking-error="apiKeyRankingError"
+            default-ranking-view="api_key_spending_ranking"
+            :start-date="startDate"
+            :end-date="endDate"
+            @ranking-click="goToAccountUsage"
+            @ip-geo-batch-failed="appStore.showError(t('usage.ipGeo.batchFailed'))"
+          />
+
           <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <ModelDistributionChart
-              class="min-w-0 lg:col-span-2"
-              :model-stats="modelStats"
-              :enable-ranking-view="true"
-              :ranking-items="rankingItems"
-              :ranking-total-cost="rankingTotalCost"
-              :ranking-total-requests="rankingTotalRequests"
-              :ranking-total-tokens="rankingTotalTokens"
-              :api-key-ranking-items="apiKeyRankingItems"
-              :api-key-ranking-total-actual-cost="apiKeyRankingTotalActualCost"
-              :api-key-ranking-total-requests="apiKeyRankingTotalRequests"
-              :api-key-ranking-total-tokens="apiKeyRankingTotalTokens"
-              :loading="chartsLoading"
-              :ranking-loading="rankingLoading"
-              :ranking-error="rankingError"
-              :api-key-ranking-loading="apiKeyRankingLoading"
-              :api-key-ranking-error="apiKeyRankingError"
-              default-ranking-view="api_key_spending_ranking"
-              :start-date="startDate"
-              :end-date="endDate"
-              @ranking-click="goToAccountUsage"
-              @ip-geo-batch-failed="appStore.showError(t('usage.ipGeo.batchFailed'))"
-            />
+            <!-- API Key Usage Trend -->
+            <div class="card min-w-0 p-4 lg:col-span-2">
+              <h3 class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
+                {{ t('admin.dashboard.apiKeyUsageTrend') }} (Top 12)
+              </h3>
+              <div class="h-64">
+                <div v-if="apiKeyTrendLoading" class="flex h-full items-center justify-center">
+                  <LoadingSpinner size="md" />
+                </div>
+                <Line v-else-if="apiKeyTrendChartData" :data="apiKeyTrendChartData" :options="lineOptions" />
+                <div
+                  v-else
+                  class="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400"
+                >
+                  {{ t('admin.dashboard.noDataAvailable') }}
+                </div>
+              </div>
+            </div>
 
             <div class="card min-w-0 p-4" data-testid="active-key-concurrency-card">
               <div class="flex items-center justify-between gap-3">
@@ -279,25 +298,6 @@
                   <span class="min-w-0 flex-1 truncate text-xs font-medium text-gray-700 dark:text-gray-300" :title="key.name || `Key #${key.id}`">{{ key.name || `Key #${key.id}` }}</span>
                   <span class="shrink-0 rounded bg-emerald-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">{{ key.current_concurrency }}</span>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- API Key Usage Trend (Full Width) -->
-          <div class="card p-4">
-            <h3 class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
-              {{ t('admin.dashboard.apiKeyUsageTrend') }} (Top 12)
-            </h3>
-            <div class="h-64">
-              <div v-if="apiKeyTrendLoading" class="flex h-full items-center justify-center">
-                <LoadingSpinner size="md" />
-              </div>
-              <Line v-else-if="apiKeyTrendChartData" :data="apiKeyTrendChartData" :options="lineOptions" />
-              <div
-                v-else
-                class="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400"
-              >
-                {{ t('admin.dashboard.noDataAvailable') }}
               </div>
             </div>
           </div>
