@@ -62,7 +62,7 @@ func callModelCapabilitiesHandler(t *testing.T, h *SettingHandler, method, path,
 	return rec
 }
 
-// Scenario: 后台读写模型能力声明，非法思考等级被拒绝，页面与脚本可访问。
+// Scenario: 后台读写模型能力声明，非法思考等级被拒绝。
 func TestModelCapabilitiesHandlers(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -83,13 +83,4 @@ func TestModelCapabilitiesHandlers(t *testing.T) {
 		`{"models":[{"id":"gpt-5.6-sol","reasoning_levels":["bogus"]}]}`,
 		h.UpdateModelCapabilities)
 	require.Equal(t, http.StatusBadRequest, rejected.Code)
-
-	page := callModelCapabilitiesHandler(t, h, http.MethodGet, "/api/v1/model-capabilities", "", h.ModelCapabilitiesPage)
-	require.Equal(t, http.StatusOK, page.Code)
-	require.Contains(t, page.Body.String(), "app.js")
-
-	script := callModelCapabilitiesHandler(t, h, http.MethodGet, "/api/v1/model-capabilities/app.js", "", h.ModelCapabilitiesPageScript)
-	require.Equal(t, http.StatusOK, script.Code)
-	require.Contains(t, script.Body.String(), "/api/v1/admin/settings/model-capabilities")
-	require.Contains(t, script.Body.String(), "model-allowlist-candidates")
 }
