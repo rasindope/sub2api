@@ -208,12 +208,25 @@
           <table class="w-full table-fixed text-[11px] sm:text-xs">
           <thead>
             <tr class="text-gray-500 dark:text-gray-400">
-              <th :class="showApiKeyExtendedColumns ? 'w-[28%]' : isApiKeyRankingView ? 'w-[38%]' : 'w-[40%]'" class="pb-2 text-left">{{ activeRankingNameHeader }}</th>
-              <th :class="showApiKeyExtendedColumns ? 'w-[14%]' : isApiKeyRankingView ? 'w-[14%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingRequests') }}</th>
-              <th v-if="isApiKeyRankingView" :class="showApiKeyExtendedColumns ? 'w-[16%]' : 'w-[18%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingAverageDuration') }}</th>
-              <th :class="showApiKeyExtendedColumns ? 'w-[14%]' : isApiKeyRankingView ? 'w-[15%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingTokens') }}</th>
-              <th :class="showApiKeyExtendedColumns ? 'w-[14%]' : isApiKeyRankingView ? 'w-[15%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingSpend') }}</th>
-              <th v-if="showApiKeyExtendedColumns" class="w-[14%] pb-2 text-right">{{ t('admin.dashboard.spendingRankingShare') }}</th>
+              <th :class="isApiKeyRankingView ? 'w-[26%]' : showApiKeyExtendedColumns ? 'w-[28%]' : 'w-[40%]'" class="pb-2 text-left">{{ activeRankingNameHeader }}</th>
+              <th :class="isApiKeyRankingView ? 'w-[9%]' : showApiKeyExtendedColumns ? 'w-[14%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingRequests') }}</th>
+              <th v-if="isApiKeyRankingView" class="w-[11%] pb-2 text-right">{{ t('admin.dashboard.spendingRankingAverageDuration') }}</th>
+              <th :class="isApiKeyRankingView ? 'w-[11%]' : showApiKeyExtendedColumns ? 'w-[14%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingTokens') }}</th>
+              <template v-if="isApiKeyRankingView">
+                <th
+                  v-for="provider in upstreamProviders"
+                  :key="provider.key"
+                  class="pb-2 text-right align-bottom leading-tight"
+                  :title="t(`admin.dashboard.${provider.hint}`)"
+                >
+                  <div class="truncate">{{ provider.label }}</div>
+                  <div class="truncate text-[10px] font-normal text-gray-400 dark:text-gray-500">{{ t(`admin.dashboard.${provider.unit}`) }}</div>
+                </th>
+              </template>
+              <th v-else :class="showApiKeyExtendedColumns ? 'w-[14%]' : 'w-[20%]'" class="pb-2 text-right">{{ t('admin.dashboard.spendingRankingSpend') }}</th>
+              <th v-if="showApiKeyExtendedColumns" class="w-[11%] pb-2 text-right leading-tight">
+                {{ isApiKeyRankingView ? t('admin.dashboard.upstreamShare') : t('admin.dashboard.spendingRankingShare') }}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -287,19 +300,27 @@
                 <td class="py-1.5 text-right text-gray-600 dark:text-gray-400">
                   {{ formatTokens(item.tokens) }}
                 </td>
-                <td class="py-1.5 text-right text-green-600 dark:text-green-400">
-                  <div>${{ formatCost(getRankingCost(item)) }}</div>
-                  <div
-                    v-if="isApiKeyRankingItem(item) && formatNativeUsage(item)"
-                    class="text-[10px] font-normal text-gray-500 dark:text-gray-400"
-                    :title="t('admin.dashboard.nativeUsage')"
+                <template v-if="isApiKeyRankingView">
+                  <td
+                    v-for="provider in upstreamProviders"
+                    :key="provider.key"
+                    class="py-1.5 text-right tabular-nums"
+                    :class="upstreamCell(item, provider.key) === '-' ? 'text-gray-300 dark:text-dark-600' : 'text-gray-700 dark:text-gray-300'"
                   >
-                    {{ formatNativeUsage(item) }}
-                  </div>
-                </td>
-                <td v-if="showApiKeyExtendedColumns" class="py-1.5 text-right text-gray-600 dark:text-gray-400">
-                  {{ formatRankingShare(getRankingCost(item)) }}
-                </td>
+                    {{ upstreamCell(item, provider.key) }}
+                  </td>
+                  <td v-if="showApiKeyExtendedColumns" class="py-1.5 text-right text-gray-600 dark:text-gray-400">
+                    {{ formatTokenShare(item.tokens) }}
+                  </td>
+                </template>
+                <template v-else>
+                  <td class="py-1.5 text-right text-green-600 dark:text-green-400">
+                    ${{ formatCost(getRankingCost(item)) }}
+                  </td>
+                  <td v-if="showApiKeyExtendedColumns" class="py-1.5 text-right text-gray-600 dark:text-gray-400">
+                    {{ formatRankingShare(getRankingCost(item)) }}
+                  </td>
+                </template>
               </tr>
               <tr
                 v-if="isApiKeyRankingItem(item) && expandedApiKeyID === item.api_key_id"
@@ -354,7 +375,7 @@
                           :key="`overflow-api-key-${overflowItem.api_key_id}`"
                           class="border-t border-gray-200/70 first:border-t-0 dark:border-dark-600/70"
                         >
-                          <td class="w-[38%] py-1.5">
+                          <td class="w-[20%] py-1.5">
                             <div class="flex min-w-0 items-center gap-2">
                               <span class="shrink-0 font-semibold text-gray-400">#{{ rankingDisplayLimit + overflowIndex + 1 }}</span>
                               <span class="min-w-0 truncate font-medium text-gray-700 dark:text-gray-200" :title="getRankingApiKeyLabel(overflowItem)">
@@ -372,18 +393,19 @@
                               </button>
                             </div>
                           </td>
-                          <td class="w-[14%] py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatNumber(overflowItem.requests) }}</td>
-                          <td class="w-[18%] py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatAverageDuration(overflowItem.average_duration_ms) }}</td>
-                          <td class="w-[15%] py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatTokens(overflowItem.tokens) }}</td>
-                          <td class="w-[15%] py-1.5 text-right text-green-600 dark:text-green-400">
-                            <div>${{ formatCost(overflowItem.actual_cost) }}</div>
-                            <div
-                              v-if="formatNativeUsage(overflowItem)"
-                              class="text-[10px] font-normal text-gray-500 dark:text-gray-400"
-                              :title="t('admin.dashboard.nativeUsage')"
-                            >
-                              {{ formatNativeUsage(overflowItem) }}
-                            </div>
+                          <td class="w-[9%] py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatNumber(overflowItem.requests) }}</td>
+                          <td class="w-[10%] py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatAverageDuration(overflowItem.average_duration_ms) }}</td>
+                          <td class="w-[10%] py-1.5 text-right text-gray-500 dark:text-gray-400">{{ formatTokens(overflowItem.tokens) }}</td>
+                          <td
+                            v-for="provider in upstreamProviders"
+                            :key="provider.key"
+                            class="py-1.5 text-right tabular-nums"
+                            :class="upstreamCell(overflowItem, provider.key) === '-' ? 'text-gray-300 dark:text-dark-600' : 'text-gray-700 dark:text-gray-300'"
+                          >
+                            {{ upstreamCell(overflowItem, provider.key) }}
+                          </td>
+                          <td v-if="showApiKeyExtendedColumns" class="w-[11%] py-1.5 text-right text-gray-500 dark:text-gray-400">
+                            {{ formatTokenShare(overflowItem.tokens) }}
                           </td>
                         </tr>
                       </tbody>
@@ -545,7 +567,9 @@ const showAccountCost = computed(() => props.showAccountCost)
 const distributionColspan = computed(() => showAccountCost.value ? 6 : 5)
 const isApiKeyRankingView = computed(() => activeView.value === 'api_key_spending_ranking')
 const showApiKeyExtendedColumns = computed(() => isApiKeyRankingView.value && props.wideRankingLayout)
-const apiKeyRankingColspan = computed(() => showApiKeyExtendedColumns.value ? 6 : 5)
+const apiKeyRankingColspan = computed(() => isApiKeyRankingView.value
+  ? (showApiKeyExtendedColumns.value ? 9 : 8)
+  : 5)
 
 const chartColors = [
   '#3b82f6',
@@ -594,12 +618,12 @@ const rankingChartData = computed(() => {
   if (!items.length) return null
 
   const labels = items.map((item, index) => `#${index + 1} ${getRankingEntityLabel(item)}`)
-  const data = items.map(getRankingCost)
+  const data = items.map(rankingWeight)
   const backgroundColor = chartColors.slice(0, items.length)
 
   if (otherRankingItem.value) {
     labels.push(t('admin.dashboard.spendingRankingOther'))
-    data.push(getRankingCost(otherRankingItem.value))
+    data.push(rankingWeight(otherRankingItem.value))
     backgroundColor.push('#94a3b8')
   }
 
@@ -662,12 +686,19 @@ const otherRankingItem = computed<RankingDisplayItem | null>(() => {
   if (otherCost <= 0.000001 && otherRequests <= 0 && otherTokens <= 0) return null
 
   if (activeView.value === 'api_key_spending_ranking') {
+    // 「其他」行就是溢出到子表里的那些 Key，四家上游用量按它们直接求和。
+    const overflow = apiKeyOverflowItems.value
+    const sumUpstream = (key: UpstreamField) => overflow.reduce((sum, item) => sum + toFiniteNumber(item[key]), 0)
     return {
       api_key_id: 0,
       key_name: '',
       user_id: 0,
       email: '',
       actual_cost: otherCost,
+      openai_usd: sumUpstream('openai_usd'),
+      deepseek_cny: sumUpstream('deepseek_cny'),
+      glm_points: sumUpstream('glm_points'),
+      qwen_credits: sumUpstream('qwen_credits'),
       requests: otherRequests,
       tokens: otherTokens,
       isOther: true
@@ -729,7 +760,8 @@ const rankingDoughnutOptions = computed(() => ({
           const value = context.raw as number
           const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0)
           const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0'
-          return `${context.label}: $${formatCost(value)} (${percentage}%)`
+          const formatted = isApiKeyRankingView.value ? formatTokens(value) : `$${formatCost(value)}`
+          return `${context.label}: ${formatted} (${percentage}%)`
         }
       }
     }
@@ -757,6 +789,11 @@ const isApiKeyRankingItem = (item: RankingDisplayItem): item is ApiKeyRankingDis
 
 function getRankingCost(item: RankingDisplayItem): number {
   return toFiniteNumber(isApiKeyRankingItem(item) ? item.actual_cost : item.account_cost)
+}
+
+// Key 榜不再显示网关那列 $，环形图跟着改用 token 加权，才对得上表里那一列。
+function rankingWeight(item: RankingDisplayItem): number {
+  return isApiKeyRankingView.value ? toFiniteNumber(item.tokens) : getRankingCost(item)
 }
 
 const getRankingAccountLabel = (item: AccountSpendingRankingItem): string => {
@@ -851,21 +888,29 @@ const formatCost = (value: number | null | undefined): string => {
   return safeValue.toFixed(4)
 }
 
-// 上游口径用量：网关的 $ 对不上任何一家账单，这里按各家自己的计价单位展示。
-// 依次是 OpenAI 美元、DeepSeek 元、GLM 积分、Qwen Credits。
+// 上游口径用量：网关那列 $ 对不上任何一家账单，所以四家各占一列，单位写在表头上。
 // ponytail: Qwen 的 Credits 是标定值（53.5 Credits/百万 token，由 Token Plan
 // 控制台窗口百分比反推），系数变了要同步改后端 SQL 里的同一个常量。
-const formatNativeUsage = (item: ApiKeySpendingRankingItem): string => {
-  const parts: string[] = []
-  const openai = toFiniteNumber(item.openai_usd)
-  const deepseek = toFiniteNumber(item.deepseek_cny)
-  const glm = toFiniteNumber(item.glm_points)
-  const qwen = toFiniteNumber(item.qwen_credits)
-  if (openai > 0) parts.push(`$${formatCost(openai)}`)
-  if (deepseek > 0) parts.push(`¥${formatCost(deepseek)}`)
-  if (glm > 0) parts.push(`${formatNumber(Math.round(glm))}分`)
-  if (qwen > 0) parts.push(`${formatNumber(Math.round(qwen))}Cr`)
-  return parts.join(' · ')
+type UpstreamField = 'openai_usd' | 'deepseek_cny' | 'glm_points' | 'qwen_credits'
+
+const upstreamProviders: { key: UpstreamField; label: string; unit: string; hint: string; integer: boolean }[] = [
+  { key: 'openai_usd', label: 'OpenAI', unit: 'upstreamUnitUsd', hint: 'upstreamHintUsd', integer: false },
+  { key: 'deepseek_cny', label: 'DeepSeek', unit: 'upstreamUnitCny', hint: 'upstreamHintCny', integer: false },
+  { key: 'glm_points', label: 'GLM', unit: 'upstreamUnitGlm', hint: 'upstreamHintGlm', integer: true },
+  { key: 'qwen_credits', label: 'Qwen', unit: 'upstreamUnitQwen', hint: 'upstreamHintQwen', integer: true },
+]
+
+const upstreamCell = (item: RankingDisplayItem, key: UpstreamField): string => {
+  if (!isApiKeyRankingItem(item)) return '-'
+  const value = toFiniteNumber(item[key])
+  if (value <= 0) return '-'
+  const provider = upstreamProviders.find((entry) => entry.key === key)
+  return provider?.integer ? formatNumber(Math.round(value)) : formatCost(value)
+}
+
+// Key 榜按 token 排占比：四家单位不同不能相加，token 是这一屏唯一的公共量。
+const formatTokenShare = (tokens: number): string => {
+  return formatPercentage(toFiniteNumber(tokens), activeRankingTotals.value.totalTokens)
 }
 
 const formatAverageDuration = (value: number | null | undefined): string => {

@@ -26,6 +26,11 @@ const messages: Record<string, string> = {
   'admin.dashboard.spendingRankingTokens': 'Tokens',
   'admin.dashboard.spendingRankingSpend': 'Spend',
   'admin.dashboard.spendingRankingShare': 'Spend Share',
+  'admin.dashboard.upstreamShare': 'Token share',
+  'admin.dashboard.upstreamUnitUsd': 'USD',
+  'admin.dashboard.upstreamUnitCny': 'CNY',
+  'admin.dashboard.upstreamUnitGlm': 'points',
+  'admin.dashboard.upstreamUnitQwen': 'Credits',
   'admin.dashboard.ipLocation': 'IP sources',
   'admin.dashboard.ipCountShort': '{count} IP',
   'admin.dashboard.ipDetailsOpen': 'View access sources',
@@ -304,11 +309,18 @@ describe('ModelDistributionChart', () => {
     expect(wrapper.text()).not.toContain('owner@example.com')
     expect(wrapper.text()).toContain('1.50s')
     expect(wrapper.text()).toContain('2 IP')
-    // 上游口径用量：美元 / 元 / 积分 / Credits，四家不能折成一个数。
-    expect(wrapper.text()).toContain('$3.50 · ¥1.84 · 6,126分 · 1,920Cr')
+    // 上游用量按四家分列，单位写在表头上，各自独立不能相加。
+    const headers = wrapper.findAll('thead th').map((th) => th.text())
+    expect(headers).toEqual([
+      'Key', 'Requests', 'Avg Response', 'Tokens',
+      'OpenAIUSD', 'DeepSeekCNY', 'GLMpoints', 'QwenCredits', 'Token share'
+    ])
+    const cells = wrapper.findAll('tbody tr').at(0)!.findAll('td').map((td) => td.text())
+    expect(cells.slice(4, 8)).toEqual(['3.50', '1.84', '6,126', '1,920'])
     const rankingChartData = JSON.parse(wrapper.find('.chart-data').text())
     expect(rankingChartData.labels).toEqual(['#1 sales-key', '#2 support-key'])
-    expect(rankingChartData.datasets[0].data).toEqual([5, 2])
+    // Key 榜不再看网关那列假单价，环形图改按 token 加权。
+    expect(rankingChartData.datasets[0].data).toEqual([500, 100])
     expect(wrapper.find('.chart-data').element.parentElement?.className).not.toContain('hidden')
 
     expect(getModelStats).not.toHaveBeenCalled()
@@ -405,10 +417,11 @@ describe('ModelDistributionChart', () => {
       global: { stubs: { LoadingSpinner: true } }
     })
 
-    expect(wrapper.findAll('thead').at(0)!.findAll('th')).toHaveLength(5)
+    // 紧凑布局：Key 榜固定 4 列基础信息 + 4 家上游用量，占比列只在宽布局出现。
+    expect(wrapper.findAll('thead').at(0)!.findAll('th')).toHaveLength(8)
     expect(wrapper.findAll('thead').at(0)!.text()).not.toContain('Owner')
     expect(wrapper.findAll('thead').at(0)!.text()).toContain('Avg Response')
-    expect(wrapper.findAll('thead').at(0)!.text()).not.toContain('Spend Share')
+    expect(wrapper.findAll('thead').at(0)!.text()).not.toContain('Token share')
   })
 
 })
