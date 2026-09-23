@@ -290,3 +290,39 @@ func TestAccountTestService_AnthropicProtocol401MarksAccountError(t *testing.T) 
 	repo := svc.accountRepo.(*openAIAccountTestRepo)
 	require.Equal(t, account.ID, repo.setErrorID)
 }
+
+// 后台测试弹窗填的提示词要透传到 adaptive 账号的每一个探针
+// （Chat Completions / 原生 Anthropic / 原生 Responses），留空则回落到默认 hi。
+func TestAccountTestService_AdaptiveCNCustomPromptReachesEveryProbe(t *testing.T) {
+	newSvc := func() (*AccountTestService, *httpUpstreamRecorder, *Account) {
+		account := adaptiveCNAccountTestAccount(321, PlatformDeepseek)
+		svc, upstream := adaptiveCNAccountTestService(
+			account,
+			adaptiveCNChatTestResponse(),
+			adaptiveCNAnthropicTestResponse(),
+			adaptiveCNResponsesTestResponse(),
+		)
+		return svc, upstream, account
+	}
+
+	const customPrompt = "用一句话说明你是谁"
+
+	svc, upstream, account := newSvc()
+	c, _ := newTestContext()
+	require.NoError(t, svc.TestAccountConnection(c, account.ID, "deepseek-chat", customPrompt, AccountTestModeDefault))
+
+	require.Len(t, upstream.bodies, 3)
+	for i, body := range upstream.bodies {
+		require.Contains(t, string(body), customPrompt, "probe %d did not carry the custom prompt", i)
+	}
+
+	svcBlank, upstreamBlank, accountBlank := newSvc()
+	cBlank, _ := newTestContext()
+	require.NoError(t, svcBlank.TestAccountConnection(cBlank, accountBlank.ID, "deepseek-chat", "", AccountTestModeDefault))
+
+	require.Len(t, upstreamBlank.bodies, 3)
+	for i, body := range upstreamBlank.bodies {
+		require.Contains(t, string(body), `"`+defaultAccountTestPrompt+`"`, "probe %d did not fall back to the default prompt", i)
+		require.NotContains(t, string(body), customPrompt, "probe %d leaked a stale custom prompt", i)
+	}
+}

@@ -187,6 +187,46 @@ describe('AccountTestModal', () => {
     })
   })
 
+  it('文本测试也能自定义提示词并原样发出', async () => {
+    getAvailableModels.mockResolvedValue([
+      { id: 'deepseek-flash', display_name: 'DeepSeek Flash' }
+    ])
+    global.fetch = vi.fn().mockResolvedValue(
+      createStreamResponse([
+        'data: {"type":"test_start","model":"deepseek-flash"}\n',
+        'data: {"type":"content","text":"ok"}\n',
+        'data: {"type":"test_complete","success":true}\n'
+      ])
+    ) as any
+
+    const wrapper = mountModal({
+      id: 2,
+      name: 'DeepSeek',
+      platform: 'deepseek',
+      type: 'apikey',
+      status: 'active'
+    })
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    // 非生图模型也要给出输入框：留空时后端发默认的 hi。
+    const promptInput = wrapper.find('textarea.textarea-stub')
+    expect(promptInput.exists()).toBe(true)
+    await promptInput.setValue('  用一句话说明你是谁  ')
+
+    ;(wrapper.vm as any).selectedModelId = 'deepseek-flash'
+    await (wrapper.vm as any).startTest()
+    await flushPromises()
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toMatchObject({
+      model_id: 'deepseek-flash',
+      prompt: '用一句话说明你是谁'
+    })
+  })
+
   it('OpenAI Compact 探测会携带 compact 测试模式', async () => {
     getAvailableModels.mockResolvedValue([
       { id: 'gpt-5.4', display_name: 'GPT-5.4' }

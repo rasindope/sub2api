@@ -189,7 +189,7 @@
           {{
             supportsImageTest
               ? t('admin.accounts.imageTestMode')
-              : t('admin.accounts.testPrompt')
+              : t('admin.accounts.testPrompt', { prompt: t('admin.accounts.testPromptDefault') })
           }}
         </span>
       </div>

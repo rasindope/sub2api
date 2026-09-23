@@ -498,7 +498,8 @@ const modelOptionsForMode = computed(() => {
 
 const supportsPromptInput = computed(() => {
   if (!isGrokAccount.value) {
-    return supportsImageTest.value
+    // 文本测试也允许自定义提示词：留空时后端发送默认的 "hi"。
+    return true
   }
   return (
     grokTestMode.value === 'image' ||
@@ -609,7 +610,7 @@ const promptInputLabel = computed(() => {
   if (grokTestMode.value === 'tts') {
     return t('admin.accounts.grok.ttsTextLabel')
   }
-  return t('admin.accounts.imagePromptLabel')
+  return t('admin.accounts.textPromptLabel')
 })
 
 const promptInputPlaceholder = computed(() => {
@@ -625,7 +626,7 @@ const promptInputPlaceholder = computed(() => {
   if (grokTestMode.value === 'tts') {
     return t('admin.accounts.grok.ttsTextPlaceholder')
   }
-  return ''
+  return t('admin.accounts.textPromptPlaceholder')
 })
 
 const promptInputHint = computed(() => {
@@ -647,7 +648,7 @@ const promptInputHint = computed(() => {
   if (grokTestMode.value === 'realtime') {
     return t('admin.accounts.grok.realtimeTestHint')
   }
-  return ''
+  return t('admin.accounts.textTestHint')
 })
 
 const testModeSummary = computed(() => {
@@ -670,7 +671,7 @@ const testModeSummary = computed(() => {
     }
   }
   if (supportsImageTest.value) return t('admin.accounts.imageTestMode')
-  return t('admin.accounts.testPrompt')
+  return t('admin.accounts.testPrompt', { prompt: testPrompt.value.trim() || t('admin.accounts.testPromptDefault') })
 })
 
 const canStartTest = computed(() => {
